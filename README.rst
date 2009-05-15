@@ -53,9 +53,13 @@ Required arguments
 3. The name of a csv file containing the input data. If it is a different directory, specify
    the path to it, eg ``/home/anand/data/query-01-04-2009.csv``. This csv file must have the
    following columns:
+     
      * ``lon``, ``lat`` : The coordinates of the observation in decimal degrees
+     
      * ``pos``, ``neg`` : The number of 'positive' and 'negative' observations.
+     
      * ``t`` : Time in years since 2009. This is only required for spatiotemporal models.
+
    All other columns are interpreted as covariates.
    
 
