@@ -442,7 +442,7 @@ def predictive_mean_and_std(chain, meta, i, f_label, x_label, x, f_has_nugget=Fa
         
         if pred_cv_dict is not None:
             C_cross = crossmul_and_sum(C_cross, input_covariate_values, np.diag(prior_covariate_variance), pcv)
-            V_pred_adj = V_pred + np.sum(np.dot(np.sqrt(prior_covariate_variance), pcv)**2, axis=0)
+            V_pred_adj = V_pred[i_chunk] + np.sum(np.dot(np.sqrt(prior_covariate_variance), pcv)**2, axis=0)
                         
         SC_cross = pm.gp.trisolve(S_input,C_cross,uplo='L',inplace=True)
 
