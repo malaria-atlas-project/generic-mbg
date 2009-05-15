@@ -221,12 +221,3 @@ Module requirements
 *******************
 
 This section tells you how to write new modules that will work with the shell commands.
-
-
-*******************************************
-Questions asked with high prior probability
-*******************************************
-
-* **Q**: Can you make this work on Windows?
-
-  **A**: No.
