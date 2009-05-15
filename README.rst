@@ -39,6 +39,7 @@ Detailed usage instructions
 ``mbg-infer``
 =============
 ::
+
     mbg-infer module database-file input [options]
 
 Required arguments
