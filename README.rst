@@ -37,6 +37,7 @@ screen. However, if you're reading this document, you don't really need to do th
 Detailed usage instructions
 ===========================
 
+If you want to use the shell commands, this section is for you.
 
 ``mbg-infer``
 =============
@@ -218,10 +219,12 @@ Options
 Module requirements
 ===================
 
+This section tells you how to write new modules that will work with the shell commands.
 
 ===========================================
 Questions asked with high prior probability
 ===========================================
 
-* Q: Can you make this work on Windows?
-  A: No.
+* **Q**: Can you make this work on Windows?
+
+  **A**: No.
