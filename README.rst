@@ -6,9 +6,10 @@
 :License: Creative Commons BY-NC-SA, see LICENSE
 
 
-The generic MBG package allows us to write a PyMC probability model for a project's 
-spatial or spatiotemporal count data (to a certain specification), then easily use 
-it to fit a dataset & predict using the following three shell commands:
+The generic MBG package allows us to write PyMC probability models for each 
+project that works with spatial or spatiotemporal count data, then turn the
+model over to the project team for fitting, mapping and experimentation using 
+three easy shell commands:
 
 * ``mbg-infer`` runs the MCMC algorithm using the given model & an input dataset,
   stored in a csv file, and stores the traces in an HDF5 archive.

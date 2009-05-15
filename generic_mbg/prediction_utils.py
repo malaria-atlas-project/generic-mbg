@@ -461,6 +461,7 @@ def predictive_mean_and_std(chain, meta, i, f_label, x_label, x, f_has_nugget=Fa
 
     return M_out, np.sqrt(V_out)
     
+    
 if __name__ == '__main__':
     from pylab import *
     import matplotlib
