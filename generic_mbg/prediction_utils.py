@@ -215,7 +215,7 @@ def histogram_finalize(bins, q, hr):
 
 
 # TODO: Use predictive_mean_and_variance
-def hdf5_to_samps(chain, metadata, x, burn, thin, total, fns, f_label, f_has_nugget, x_label, pred_cv_dict=None, nugget_label=None, postproc=None, finalize=None):
+def hdf5_to_samps(chain, metadata, x, burn, thin, total, fns, f_label, f_has_nugget, x_label, pred_cv_dict=None, nugget_label=None, postproc=None, finalize=None, diag_safe=False):
     """
     Parameters:
         chain : PyTables node
@@ -363,7 +363,7 @@ def vec_to_asc(vec, fname, out_fname, unmasked, path=''):
     return out
     
 
-def predictive_mean_and_std(chain, meta, i, f_label, x_label, x, f_has_nugget=False, pred_cv_dict=None, nugget_label=None):
+def predictive_mean_and_std(chain, meta, i, f_label, x_label, x, f_has_nugget=False, pred_cv_dict=None, nugget_label=None, diag_safe=False):
     """
     Computes marginal (pointwise) predictive mean and variance for f(x).
     Expects input from an hdf5 datafile.
@@ -401,11 +401,6 @@ def predictive_mean_and_std(chain, meta, i, f_label, x_label, x, f_has_nugget=Fa
     V_out = np.empty(M_pred.shape)
     M_out = np.empty(M_pred.shape)
     
-    import warnings
-    warnings.warn('Computing diagonal C(x) as amp**2! Remind Anand to change this if your covariance is nonstationary.')
-    # V_pred = C(x)
-    V_pred = C.params['amp']**2
-    
     try:
         f = chain.PyMCsamples.col(f_label)[i]
     except:
@@ -414,10 +409,18 @@ def predictive_mean_and_std(chain, meta, i, f_label, x_label, x, f_has_nugget=Fa
     C_input = C(logp_mesh, logp_mesh)
     if pred_cv_dict is not None:
         C_input += np.dot(np.dot(input_covariate_values.T, prior_covariate_variance), input_covariate_values)
-    if nugget_label is not None and f_has_nugget:
+    if nugget_label is not None:
         nug = chain.PyMCsamples.cols.V[i]
-        C_input += nug*np.eye(np.sum(logp_mesh.shape[:-1]))
+        if f_has_nugget:
+            C_input += nug*np.eye(np.sum(logp_mesh.shape[:-1]))
+    else:
+        nug = 0.
     S_input = np.linalg.cholesky(C_input)
+    
+    if diag_safe:
+        V_pred = C.params['amp']**2 + nug
+    else:
+        V_pred = C(x) + nug
     
     max_chunksize = memmax / 8 / logp_mesh.shape[0]
     n_chunks = int(x.shape[0]/max_chunksize+1)
@@ -438,8 +441,6 @@ def predictive_mean_and_std(chain, meta, i, f_label, x_label, x, f_has_nugget=Fa
                 raise ValueError, 'Matrix is not Fortran-contiguous'
         
         if pred_cv_dict is not None:
-            # C_cross += np.dot(np.dot(input_covariate_values.T, prior_covariate_variance), pcv)
-            # icsum(C_cross, input_covariate_values.T,np.diag(prior_covariate_variance), pcv)
             C_cross = crossmul_and_sum(C_cross, input_covariate_values, np.diag(prior_covariate_variance), pcv)
             V_pred_adj = V_pred + np.sum(np.dot(np.sqrt(prior_covariate_variance), pcv)**2, axis=0)
                         
@@ -455,8 +456,6 @@ def predictive_mean_and_std(chain, meta, i, f_label, x_label, x, f_has_nugget=Fa
         V_out[i_chunk] = V_pred_adj - scc
         M_out[i_chunk] = M_pred[i_chunk] + np.asarray(np.dot(SC_cross.T,pm.gp.trisolve(S_input, (f-M_input), uplo='L'))).squeeze()
 
-    # from IPython.Debugger import Pdb
-    # Pdb(color_scheme='Linux').set_trace()   
     if np.any(np.isnan(np.sqrt(V_out))) or np.any(np.isnan(M_out)):
         raise ValueError, 'Some predictive samples were NaN. Keep all your input files and tell Anand.'
 

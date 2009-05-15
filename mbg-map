@@ -65,7 +65,11 @@ for n in ['f_name', 'nugget_name', 'f_has_nugget', 'postproc','x_name']:
         cls,inst,tb = sys.exc_info()
         new_inst = cls('Could not import %s from %s. Tell Anand. Original error message:\n\n\t%s'%(n,mod_name,inst.message))
         raise cls,new_inst,tb
-        
+
+if hasattr(mod,'diag_safe'):
+    diag_safe=mod.diag_safe
+else:
+    diag_safe = False
 
 
 # Parse covariates
@@ -128,7 +132,7 @@ if len(q)>0:
 # Create rasters
 
 t_start = time.time()
-products = hdf5_to_samps(ch,meta,x,o.burn,o.thin,o.total,reduce_fns, f_name, f_has_nugget, x_name, covariate_dict, nugget_name, postproc, finalize)
+products = hdf5_to_samps(ch,meta,x,o.burn,o.thin,o.total,reduce_fns, f_name, f_has_nugget, x_name, covariate_dict, nugget_name, postproc, finalize, diag_safe)
 print '\nMaps produced in %f seconds\n'%(time.time() - t_start)
 
 
