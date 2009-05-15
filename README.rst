@@ -2,7 +2,7 @@
 :Author: Anand Patil
 :Contact: anand.prabhakar.patil@gmail.com
 :Web site: github.com/malaria-atlas-project/map_utils
-:Copyright: This document has been placed in the public domain.
+:Copyright: Anand Patil, 2009.
 :License: Creative Commons BY-NC-SA, see LICENSE
 
 
@@ -38,12 +38,31 @@ Detailed usage instructions
 
 ``mbg-infer``
 =============
+::
+    mbg-infer module database-file input [options]
 
 Required arguments
 ------------------
 
+1. The name of the module containing the model specification, eg ``ibdw``, ``cov_test``
+   or ``mbgw``.
+
+2. The name of the database file to be produced. If you do not want it to go in the current
+   directory, specify a path, eg ``/home/anand/traces/run-01-04-2009``.
+
+3. The name of a csv file containing the input data. If it is a different directory, specify
+   the path to it, eg ``/home/anand/data/query-01-04-2009.csv``. This csv file must have the
+   following columns:
+     * ``lon``, ``lat`` : The coordinates of the observation in decimal degrees
+     * ``pos``, ``neg`` : The number of 'positive' and 'negative' observations.
+     * ``t`` : Time in years since 2009. This is only required for spatiotemporal models.
+   All other columns are interpreted as covariates.
+   
+
 Options
 -------
+
+
 
 
 ``mbg-map``
