@@ -22,7 +22,7 @@ it to fit a dataset & predict using the following three shell commands:
   holdout locations.
   
 If the project's members are interested in changing the model or specifying a
-subjective prior, there are two additional shell commands available:
+subjective prior, there are two additional shell commands available to help:
 
 * ``mbg-scalar-priors`` draws samples from the prior for all scalar parameters
   (including deterministics) and plots histograms for inspection.
