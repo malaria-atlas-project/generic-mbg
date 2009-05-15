@@ -274,11 +274,6 @@ def hdf5_to_samps(chain, metadata, x, burn, thin, total, fns, f_label, f_has_nug
     # x_chunks = np.split(x,splits)
     # i_chunks = np.split(np.arange(x.shape[0]), splits)
     
-    M_pred = np.empty(x.shape[0])
-    V_pred = np.empty(x.shape[0])
-    
-    cmin, cmax = thread_partition_array(M_pred)
-    
     time_count = -np.inf
     
     for k in xrange(len(iter)):
@@ -289,7 +284,8 @@ def hdf5_to_samps(chain, metadata, x, burn, thin, total, fns, f_label, f_has_nug
             time_count = time.time()
             print ((k*100)/len(iter)), '% complete'
 
-        M_pred, S_pred = predictive_mean_and_std(chain, metadata, i, f_label, x_label, x, f_has_nugget, pred_cv_dict, nugget_label)
+        M_pred, S_pred = predictive_mean_and_std(chain, metadata, i, f_label, x_label, x, f_has_nugget, pred_cv_dict, nugget_label, diag_safe)
+        cmin, cmax = thread_partition_array(M_pred)
         
         # Postprocess if necessary: logit, etc.
         norms = np.random.normal(size=n_per)
@@ -416,12 +412,7 @@ def predictive_mean_and_std(chain, meta, i, f_label, x_label, x, f_has_nugget=Fa
     else:
         nug = 0.
     S_input = np.linalg.cholesky(C_input)
-    
-    if diag_safe:
-        V_pred = C.params['amp']**2 + nug
-    else:
-        V_pred = C(x) + nug
-    
+        
     max_chunksize = memmax / 8 / logp_mesh.shape[0]
     n_chunks = int(x.shape[0]/max_chunksize+1)
     splits = np.array(np.linspace(0,x.shape[0],n_chunks+1),dtype='int')
@@ -440,9 +431,15 @@ def predictive_mean_and_std(chain, meta, i, f_label, x_label, x, f_has_nugget=Fa
             if not mat.flags['F_CONTIGUOUS']:
                 raise ValueError, 'Matrix is not Fortran-contiguous'
         
+        if diag_safe:
+            V_pred = C.params['amp']**2 + nug
+        else:
+            V_pred = C(x_chunk) + nug
+        
+        
         if pred_cv_dict is not None:
             C_cross = crossmul_and_sum(C_cross, input_covariate_values, np.diag(prior_covariate_variance), pcv)
-            V_pred_adj = V_pred[i_chunk] + np.sum(np.dot(np.sqrt(prior_covariate_variance), pcv)**2, axis=0)
+            V_pred_adj = V_pred + np.sum(np.dot(np.sqrt(prior_covariate_variance), pcv)**2, axis=0)
                         
         SC_cross = pm.gp.trisolve(S_input,C_cross,uplo='L',inplace=True)
 
