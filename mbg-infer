@@ -41,6 +41,7 @@ matplotlib.use('PDF')
 matplotlib.interactive(False)
 
 from map_utils import *
+from generic_mbg import *
 import tables as tb
 import numpy as np
 import imp, sys

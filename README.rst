@@ -31,31 +31,61 @@ subjective prior, there are two additional shell commands available:
   and plots the random field on grids matching a number of input ASCIIs.
 
 
-***************************
+===========================
 Detailed usage instructions
-***************************
+===========================
 
-=============
+
 ``mbg-infer``
 =============
 
-===========
+Required arguments
+------------------
+
+Options
+-------
+
+
 ``mbg-map``
 ===========
 
-================
+Required arguments
+------------------
+
+Options
+-------
+
+
 ``mbg-validate``
 ================
 
-=====================
+Required arguments
+------------------
+
+Options
+-------
+
+
 ``mbg-realize-prior``
 =====================
 
-=====================
+Required arguments
+------------------
+
+Options
+-------
+
+
 ``mbg-scalar-priors``
 =====================
 
+Required arguments
+------------------
 
-*******************
+Options
+-------
+
+
+===================
 Module requirements
-*******************
+===================
