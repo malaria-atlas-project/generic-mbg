@@ -68,7 +68,8 @@ Required arguments
      
      * ``pos``, ``neg`` : The number of 'positive' and 'negative' observations.
      
-     * ``t`` : Time in years since 2009. This is only required for spatiotemporal models.
+     * ``t`` : Time in decimal years since 2009. This is only required for 
+       spatiotemporal models.
 
    All other columns are interpreted as covariates, eg ``ndvi`` etc.
    
@@ -76,13 +77,16 @@ Required arguments
 Options
 -------
 
-* ``-t`` or ``--thin`` :
+* ``-t`` or ``--thin`` : If thin is 10, every 10th MCMC iteration will be stored in the 
+  database. Small values are good but slow. 1 is best.
 
-* ``-i`` or ``--iter`` :
+* ``-i`` or ``--iter`` : The number of MCMC iterations to perform. Large values are good
+  but slow.
 
-* ``-n`` or ``-ncpus`` :
-
-* ``-d`` or ``--delay`` :
+* ``-n`` or ``-ncpus`` : The maximum number of CPU cores to make available to the MCMC 
+  algorithm. Should be less than or equal to the number of cores in your computer. The 
+  All the cores you make available may not be utilized. Use top or the Activity Monitor
+  to monitor your actual CPU usage. Large values are good but tie up more of your computer.
 
 
 
@@ -114,21 +118,42 @@ Required arguments
 Options
 -------
 
-* ``-n`` or ``--n-bins`` :
+* ``-n`` or ``--n-bins`` : The number of bins to use in the histogram from which quantiles
+  are computed. Large values are good, but use up more system memory. Decrease this if you
+  see memory errors.
 
-* ``-b`` or ``--bufsize`` : 
+* ``-b`` or ``--bufsize`` : The number of buffer pixels to render around the edges of the
+  continents. Set to zero unless the ``raster-thin`` option is greater than 1. The buffer
+  will not be very good. In general, if you want a buffer you're better off making your 
+  own in ArcView rather than using this option.
 
-* ``-q`` or ``--quantiles`` : 
+* ``-q`` or ``--quantiles`` : A string containing the quantiles you want. For example,
+  ``'0.25 0.5 0.75'`` would map the lower and upper quartiles and the medial. Default is 
+  ``'0.05 0.25 0.5 0.75 0.95'``.
 
-* ``-r`` or ``--raster-thin`` :
+* ``-r`` or ``--raster-thin`` : If you think your map is going to be smooth (eg because you
+  aren't using any covariates), you can use this option to render the maps on a degraded grid,
+  then interpolate back to the original grid using splines. For instance, if your input ASCII
+  is on a 5km grid, and you use ``-r 5``, the maps will be rendered on a 25km grid, then
+  interpolated back to a 5km grid when it is time to produce the output ASCIIs. Small values
+  are good but slow. 1 is best.
 
-* ``-t`` or ``--thin`` :
+* ``-t`` or ``--thin`` : The factor by which to thin the MCMC trace stored in the database.
+  If you use ``-t 10``, only every 10th stored MCMC iteration will be used to produce the maps.
+  Small values are good but slow. 1 is best.
 
-* ``-i`` or ``--iter`` :
+* ``-i`` or ``--iter`` : The total number of predictive samples to use in generating the maps.
+  Large values are good but slow. Defaults to 20000.
 
-* ``-c`` or ``--covariates`` :
+* ``-c`` or ``--covariates`` : A list of names of ASCII files containing the covariate rasters.
+  These files' headers must match those of the input raster, and their missing pixels must match
+  those of the input raster also. There must be a file corresponding to every covariate column
+  in input 3 of mbg-infer. For example, if you used ``rain`` and ``ndvi`` as your column headers,
+  you should use ``-c 'rain.asc ndvi.asc'``. If the rasters are in another folder, specify the path,
+  ie ``-c '/home/noor/rain.asc /home/noor/ndvi.asc'``
 
-* ``-y`` or ``--year`` :
+* ``-y`` or ``--year`` : If your model is spatiotemporal, you must provide the decimal year since
+  2009 at which you want your map produced. For example, Jan 1 2008 would be ``-y -1.0``.
 
 
 ``mbg-validate``
@@ -136,6 +161,10 @@ Options
 ::
 
     mbg-validate module database-file burn pred-pts [options]
+    
+The output format is likely to change in the future. For the time being, the output is 
+simply a csv file containing a number of posterior predictive samples at the locations
+specified in the ``pred-pts`` file.
 
 Required arguments
 ------------------
@@ -154,9 +183,11 @@ Required arguments
 Options
 -------
 
-* ``-t`` or ``--thin`` :
+* ``-t`` or ``--thin`` : The factor by which to thin the MCMC trace stored in the database.
+  Small values are good but slow. 1 is best.
 
-* ``-i`` or ``--iter`` :
+* ``-i`` or ``--iter`` : The total number of predictive samples you want to generate. Large
+  values are good but slow. Defaults to 20000.
 
 
 ``mbg-realize-prior``
@@ -179,7 +210,8 @@ Required arguments
 Options
 -------
 
-* ``-i`` or ``--iter`` :
+* ``-i`` or ``--iter`` : The total number of predictive samples you want to generate. Large
+  values are good but slow. Defaults to 20000.
 
 
 ===================
