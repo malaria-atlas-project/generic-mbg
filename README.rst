@@ -66,11 +66,11 @@ Required arguments
    the path to it, eg ``/home/anand/data/query-01-04-2009.csv``. This csv file must have the
    following columns:
      
-     * ``lon``, ``lat`` : The coordinates of the observation in decimal degrees
+   * ``lon``, ``lat`` : The coordinates of the observation in decimal degrees
      
-     * ``pos``, ``neg`` : The number of 'positive' and 'negative' observations.
+   * ``pos``, ``neg`` : The number of 'positive' and 'negative' observations.
      
-     * ``t`` : Time in decimal years since 2009. This is only required for 
+   * ``t`` : Time in decimal years since 2009. This is only required for 
        spatiotemporal models.
 
    All other columns are interpreted as covariates, eg ``ndvi`` etc., UNLESS the module 
@@ -292,9 +292,17 @@ The module must implement the following additional attributes:
   realizations to realizations of the target quantity. The most common ``postproc`` is simply
   ``invlogit``.
   
-  If the module has any non-covariate columns, ``postproc`` must be a function that takes these
-  values as input, and returns a function mapping Gaussian realizations to realizations of the
-  target quantity. For example, for MBGWorld, ``postproc`` would accept ``lo_age`` and ``up_age``
-  values as input and return a closure. The latter would take Gaussian realizations, pass them
-  through the inverse-logit function, and multiply age-correction factors as needed. Default
-  values must be provided for the non-covariate columns, as these will be used in map generation.
+  If the module has any non-covariate columns, ``postproc`` must be a function that has one of two
+  behaviors: 
+  
+  1. If called with a standard Gaussian realization as its lone argument, it should automatically
+     apply default values for the non-covariate columns.
+     
+  2. If it is called with the non-covariate columns as keyword arguments, it should return a
+     version of itself that is closed on these values as defaults. For example, for MBGWorld, 
+     ``postproc`` would accept ``lo_age`` and ``up_age`` values as input and return a closure. 
+     The latter would take Gaussian realizations, pass them through the inverse-logit function, 
+     and multiply age-correction factors as needed. 
+
+  Behavior 1 is used for map generation, and behavior 2 is used to generate samples for predictive
+  validation.

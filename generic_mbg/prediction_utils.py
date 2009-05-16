@@ -274,6 +274,11 @@ def hdf5_to_samps(chain, metadata, x, burn, thin, total, fns, f_label, f_has_nug
     # x_chunks = np.split(x,splits)
     # i_chunks = np.split(np.arange(x.shape[0]), splits)
     
+    # If postproc is not None, close on non-covariate columns.
+    if postproc is not None:
+        if len(non_cov_columns) > 0:
+            postproc = postproc(**non_cov_columns)
+    
     time_count = -np.inf
     
     for k in xrange(len(iter)):
@@ -297,7 +302,6 @@ def hdf5_to_samps(chain, metadata, x, burn, thin, total, fns, f_label, f_has_nug
             surf = M_pred.copy('F')
             pm.map_noreturn(iaaxpy, [(norms[j], S_pred, surf, cmin[l], cmax[l]) for l in xrange(len(cmax))])
             
-            # FIXME: postproc should be a closure if there are nondata columns.
             if postproc is not None:
                 surf = postproc(surf)
                         
