@@ -218,9 +218,9 @@ This one is not implemented yet.
 
 
 
-*******************
+===================
 Module requirements
-*******************
+===================
 
 This section tells you how to write new modules that will work with the shell commands.
 
@@ -255,3 +255,43 @@ and that the data depend on these via evaluation at a ``data mesh``, possibly wi
 addition of unstructured random noise involved at some point.
 
 
+Other attributes
+----------------
+
+The module must implement the following additional attributes:
+
+* ``f_name`` : The name of the evaluation of the random field in the model. This node's
+  trace will be used to generate predictions.
+  
+* ``x_name`` : The name of the mesh on which the field is evaluated to produce the
+  previous node. The value of the mesh is expected to be present in the hdf5 archive's
+  metadata. If it is not ``logp_mesh`` or ``data_mesh``, it should be mentioned in the
+  ``metadata_keys`` attribute.
+  
+* ``f_has_nugget`` : A boolean indicating whether the ``f_name`` node is just the evaluation
+  of the field, or the evaluation plus the nugget.
+  
+* ``nugget_name`` : The name of the nugget variance of the field. Not required if ``f_has_nugget``
+  is false.
+  
+* ``metadata_keys`` : A list of strings indicating the attributes of the model that should be
+  interred in the metadata. These are recorded as PyTables variable-length arrays with object
+  atoms, so they can be any picklable objects.
+
+* ``non_cov_columns`` : A dictionary of ``{name : type}`` mappings for all the point metadata
+  required by ``make_model`` that are not covariates.
+  
+* ``postproc`` : When mapping and predicting, ``make_model`` is not called. Rather, the mean and
+  covariance are pulled out of the trace and used to generate field realizations, with nugget
+  added as appropriate.
+  
+  At the prediction stage, ``postproc`` is the function that translates these Gaussian 
+  realizations to realizations of the target quantity. The most common ``postproc`` is simply
+  ``invlogit``.
+  
+  If the module has any non-covariate columns, ``postproc`` must be a function that takes these
+  values as input, and returns a function mapping Gaussian realizations to realizations of the
+  target quantity. For example, for MBGWorld, ``postproc`` would accept ``lo_age`` and ``up_age``
+  values as input and return a closure. The latter would take Gaussian realizations, pass them
+  through the inverse-logit function, and multiply age-correction factors as needed. Default
+  values must be provided for the non-covariate columns, as these will be used in map generation.
