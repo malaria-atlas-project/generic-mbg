@@ -4,6 +4,9 @@ import os
 
 # Create option parser
 
+# TODO: If db file exists, ask whether to continue sampling.
+# TODO: Dump input recarray into hdf5 archive as table.
+
 req_doc = """
 
 
@@ -27,7 +30,7 @@ p.add_option('-d','--delay',help='Delay iterations for AdaptiveMetropolis instan
 p.set_defaults(thin=10)
 p.set_defaults(total=20000)
 p.set_defaults(AM_delay=5000)
-p.set_defaults(ncpus=os.environ['OMP_NUM_THREADS'])
+p.set_defaults(ncpus=int(os.environ['OMP_NUM_THREADS']))
 
 (o, args) = p.parse_args()
 if len(args) != 3:
@@ -35,6 +38,7 @@ if len(args) != 3:
 
 o.module, o.hf_name, o.input_name = args
 
+os.environ['OMP_NUM_THREADS']=str(ncpus)
 
 import matplotlib
 matplotlib.use('PDF')

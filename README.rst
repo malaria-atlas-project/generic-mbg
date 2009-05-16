@@ -289,13 +289,14 @@ The module must implement the following additional attributes:
   
   At the prediction stage, ``postproc`` is the function that translates these Gaussian 
   realizations to realizations of the target quantity. The most common ``postproc`` is simply
-  ``invlogit``.
+  ``invlogit``. The generic mbg package provides a multithreaded, shape-preserving invlogit
+  function that should be used in place of PyMC's.
   
   If the module has any non-covariate columns, ``postproc`` must be a function that has one of two
   behaviors: 
   
-  1. If called with a standard Gaussian realization as its lone argument, it should automatically
-     apply default values for the non-covariate columns.
+  1. If called with a standard Gaussian realization as its lone positional argument, it should 
+  automatically apply default values for the non-covariate columns.
      
   2. If it is called with the non-covariate columns as keyword arguments, it should return a
      version of itself that is closed on these values as defaults. For example, for MBGWorld, 
@@ -303,5 +304,5 @@ The module must implement the following additional attributes:
      The latter would take Gaussian realizations, pass them through the inverse-logit function, 
      and multiply age-correction factors as needed. 
 
-  Behavior 1 is used for map generation, and behavior 2 is used to generate samples for predictive
-  validation.
+  Behavior 1 is used for prior realization and map generation, and behavior 2 is used to generate 
+  samples for predictive validation.

@@ -1,3 +1,5 @@
 #!/usr/bin/python
 
+# Remember to map postproc over realizations. That way you make sure to get a new random value at every point.
+
 raise NotImplementedError, 'This program does not do anything yet.'
