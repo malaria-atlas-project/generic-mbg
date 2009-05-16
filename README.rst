@@ -218,4 +218,40 @@ This one is not implemented yet.
 
 
 
+*******************
+Module requirements
+*******************
+
+This section tells you how to write new modules that will work with the shell commands.
+
+``make_model``
+--------------
+
+The primary thing a module must do to use the generic stuff is implement the function::
+
+    make_model(pos, neg, lon, lat, [t], covariate_values, cpus=1, **non_covariate_columns)
+    
+The ``pos``, ``neg``, ``lon`` and ``lat`` columns are the obvious; longitude and
+latitude should be in decimal degrees. The ``t`` column is only required for
+spatiotemporal models, but if given it should be in units of decimal years since 2009.
+The ``cpus`` argument specifies how many processor cores should be made available to
+the current process.
+
+The covariate values should be a dict of ``{name: column}`` pairs. If there are no covariates,
+it should be expected to be empty. Modules should NOT use the covariates directly; rather
+they should pass them to the function ``cd_and_C_eval`` to be incorporated into the
+covariance function. While on the topic, the trivial mean function and its evaluation
+should be generated using ``M_and_M_eval``.
+
+The non-covariate columns are any point metadata that are required by the model, but are
+not covariates. Examples are ``lo_age`` and ``up_age`` in MBGWorld. These columns must
+take defaults, as no values will be provided by ``mbg-map``, ``mbg-realize-prior`` and 
+``mbg-scalar-priors``.
+
+
+The model must be based on a Gaussian random field. The only hard requirements are that 
+it contain variables named ``M`` and ``C`` returning the mean and covairance function, 
+and that the data depend on these via evaluation at a ``data mesh``, possibly with 
+addition of unstructured random noise involved at some point.
+
 
