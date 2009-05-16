@@ -273,7 +273,10 @@ The module must implement the following additional attributes:
   
 * ``nugget_name`` : The name of the nugget variance of the field. Not required if ``f_has_nugget``
   is false.
-  
+
+* ``diag_safe`` : A boolean indicating whether it is safe to assume ``C(x) = C.params['amp']**2``.
+  Defaults to false.
+
 * ``metadata_keys`` : A list of strings indicating the attributes of the model that should be
   interred in the metadata. These are recorded as PyTables variable-length arrays with object
   atoms, so they can be any picklable objects.

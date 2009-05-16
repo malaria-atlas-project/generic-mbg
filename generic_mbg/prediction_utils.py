@@ -215,7 +215,7 @@ def histogram_finalize(bins, q, hr):
 
 
 # TODO: Use predictive_mean_and_variance
-def hdf5_to_samps(chain, metadata, x, burn, thin, total, fns, f_label, f_has_nugget, x_label, pred_cv_dict=None, nugget_label=None, postproc=None, finalize=None, diag_safe=False):
+def hdf5_to_samps(chain, metadata, x, burn, thin, total, fns, f_label, f_has_nugget, x_label, pred_cv_dict=None, nugget_label=None, postproc=None, finalize=None, diag_safe=False, **non_cov_columns):
     """
     Parameters:
         chain : PyTables node
@@ -297,6 +297,7 @@ def hdf5_to_samps(chain, metadata, x, burn, thin, total, fns, f_label, f_has_nug
             surf = M_pred.copy('F')
             pm.map_noreturn(iaaxpy, [(norms[j], S_pred, surf, cmin[l], cmax[l]) for l in xrange(len(cmax))])
             
+            # FIXME: postproc should be a closure if there are nondata columns.
             if postproc is not None:
                 surf = postproc(surf)
                         
