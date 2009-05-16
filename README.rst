@@ -70,8 +70,7 @@ Required arguments
      
    * ``pos``, ``neg`` : The number of 'positive' and 'negative' observations.
      
-   * ``t`` : Time in decimal years since 2009. This is only required for 
-       spatiotemporal models.
+   * ``t`` : Time in decimal years since 2009. This is only required for spatiotemporal models.
 
    All other columns are interpreted as covariates, eg ``ndvi`` etc., UNLESS the module 
    implements the ``non_covariate_columns`` attribute. For example, MBGWorld expects
