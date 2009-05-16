@@ -222,6 +222,7 @@ Module requirements
 ===================
 
 This section tells you how to write new modules that will work with the shell commands.
+You don't need to read this section to use the shell commands.
 
 ``make_model``
 --------------
