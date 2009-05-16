@@ -296,7 +296,7 @@ The module must implement the following additional attributes:
   behaviors: 
   
   1. If called with a standard Gaussian realization as its lone positional argument, it should 
-  automatically apply default values for the non-covariate columns.
+     automatically apply default values for the non-covariate columns.
      
   2. If it is called with the non-covariate columns as keyword arguments, it should return a
      version of itself that is closed on these values as defaults. For example, for MBGWorld, 
