@@ -27,6 +27,8 @@ def thread_partition_array(x):
 
 def invlogit(x):
     """A shape-preserving, in-place, threaded inverse logit function."""
+    if np.prod(np.shape(x))<10000:
+        return pm.flib.invlogit(x)
     if not x.flags['F_CONTIGUOUS']:
         raise ValueError, 'x is not Fortran-contiguous'
     cmin, cmax = thread_partition_array(x)        
