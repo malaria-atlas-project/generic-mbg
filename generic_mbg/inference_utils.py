@@ -41,8 +41,6 @@ def add_standard_metadata(M, logp_mesh, data_mesh, covariate_dict, **others):
     hf = M.db._h5file
     hf.createGroup('/','metadata')
     
-    weird_attrs = ['ti','vars_to_writeout','scale_params','amp_params']
-    
     hf.createArray(hf.root.metadata, 'logp_mesh', logp_mesh[:])
     hf.createArray(hf.root.metadata, 'data_mesh', data_mesh[:])
         
@@ -53,11 +51,8 @@ def add_standard_metadata(M, logp_mesh, data_mesh, covariate_dict, **others):
     hf.root.metadata.covariates.append(covariate_dict)
         
     for name, val in others.iteritems():
-        if name in weird_attrs:
-            vla=hf.createVLArray(hf.root.metadata, name, tb.ObjectAtom())
-            vla.append(val)
-        else:
-            hf.createArray(hf.root.metadata, name, val)    
+        vla=hf.createVLArray(hf.root.metadata, name, tb.ObjectAtom())
+        vla.append(val)
     
 def cd_and_C_eval(covariate_values, C, data_mesh, ui=slice(None,None,None), fac=1e6):
     """
