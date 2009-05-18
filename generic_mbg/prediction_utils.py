@@ -339,7 +339,7 @@ def vec_to_asc(vec, fname, out_fname, unmasked, path=''):
     normalize_for_mapcoords(mapgrid[1], data_thin.shape[1]-1)
     
     if data_thin.shape == data.shape:
-        out = data_thin
+        out = np.ma.masked_array(data_thin, mask=data.mask)
     else:
         out = np.ma.masked_array(ndimage.map_coordinates(data_thin, mapgrid), mask=data.mask)
         
