@@ -88,7 +88,7 @@ for n in ['make_model', 'metadata_keys']:
 
 # Parse input file
 
-input = csv2rec(o.input_name)[::10]
+input = csv2rec(o.input_name)
 lon = maybe_convert(input, 'lon', 'float')
 lat = maybe_convert(input, 'lat', 'float')
 pos = maybe_convert(input, 'pos', 'float')
