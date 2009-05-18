@@ -19,8 +19,8 @@ three easy shell commands:
   expressed by the ASCII header. The missing pixels are missing in the output also.
   
 * ``mbg-validate`` takes the HDF5 archive produced by mbg-infer and a 'holdout'
-  dataset, stored in a csv file, and returns a set of predictive samples at the
-  holdout locations.
+  dataset, stored in a csv file, and creates a set of predictive samples at the
+  holdout locations and some validation plots.
   
 If the project's members are interested in changing the model or specifying a
 subjective prior, there are two additional shell commands available to help:
@@ -34,11 +34,13 @@ subjective prior, there are two additional shell commands available to help:
 All shell commands can be run with only the ``-h`` option to print some help to the
 screen. However, if you're reading this document, you don't really need to do that.
 
+
 ***************************
 Detailed usage instructions
 ***************************
 
 If you want to use the shell commands, this section is for you.
+
 
 ``mbg-infer``
 =============
@@ -90,7 +92,6 @@ Options
   algorithm. Should be less than or equal to the number of cores in your computer. The 
   All the cores you make available may not be utilized. Use top or the Activity Monitor
   to monitor your actual CPU usage. Large values are good but tie up more of your computer.
-
 
 
 ``mbg-map``
@@ -165,9 +166,12 @@ Options
 
     mbg-validate module database-file burn pred-pts [options]
     
-The output format is likely to change in the future. For the time being, the output is 
-simply a csv file containing a number of posterior predictive samples at the locations
-specified in the ``pred-pts`` file.
+mbg-validate produces a folder called ``name-validation``, ``name`` being the name of the database file.
+It populates this folder with two csv files called ``p-samps`` and ``n-samps`` containing posterior
+predictive samples of the probability of positivity and the number of individuals positive at each 
+prediction location.
+
+It also writes three of the four MBG world validation panels into the folder as PDF's.
 
 Required arguments
 ------------------
@@ -209,6 +213,7 @@ Options
 
 * ``-i`` or ``--iter`` : The total number of predictive samples you want to generate. Large
   values are good but slow. Defaults to 20000.
+
 
 ``mbg-realize-prior``
 =====================
