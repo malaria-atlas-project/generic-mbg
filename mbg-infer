@@ -28,7 +28,7 @@ p.add_option('-n','--ncpus',help='Number of CPU cores to make available to the M
 p.add_option('-d','--delay',help='Delay iterations for AdaptiveMetropolis instance',dest='AM_delay',type='int')
 
 p.set_defaults(thin=10)
-p.set_defaults(total=20000)
+p.set_defaults(total=100000)
 p.set_defaults(AM_delay=5000)
 p.set_defaults(ncpus=int(os.environ['OMP_NUM_THREADS']))
 
