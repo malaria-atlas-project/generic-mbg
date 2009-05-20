@@ -34,7 +34,7 @@ p.set_defaults(ncpus=int(os.environ['OMP_NUM_THREADS']))
 
 (o, args) = p.parse_args()
 if len(args) != 3:
-    raise IOError, 'You must supply exactly four positional arguments. You supplied %i.'%len(args)
+    raise IOError, 'You must supply exactly three positional arguments. You supplied %i.'%len(args)
 
 o.module, o.hf_name, o.input_name = args
 

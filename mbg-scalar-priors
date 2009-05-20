@@ -19,7 +19,7 @@ p.set_defaults(iter=10000)
 
 (o, args) = p.parse_args()
 if len(args) != 1:
-    raise ValueError, 'You must supply exactly one positional arguments. You supplied %i.'%len(args)
+    raise ValueError, 'You must supply exactly one positional argument. You supplied %i.'%len(args)
 
 o.module = args[0]
 
