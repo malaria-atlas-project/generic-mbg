@@ -92,7 +92,7 @@ covariate_dict = {}
 for n in input.dtype.names:
     if n not in ['lon','lat','pos','neg']:
         if n in non_cov_colnames:
-            non_cov_columns[name] = maybe_convert(input, n, non_cov_coltypes[name])
+            non_cov_columns[n] = maybe_convert(input, n, non_cov_coltypes[n])
         else:
             covariate_dict[n]=maybe_convert(input, n, 'float')
 

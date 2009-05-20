@@ -428,7 +428,7 @@ def predictive_mean_and_std(chain, meta, i, f_label, x_label, x, f_has_nugget=Fa
         if rank<0:
             raise ValueError, "Matrix does not appear to be positive semidefinite. Tell Anand."
         else:
-            S_input = np.asarray(U[:rank,argsort(piv)], order='F')
+            S_input = np.asarray(U[:rank,np.argsort(piv)], order='F')
         
         
     max_chunksize = memmax / 8 / logp_mesh.shape[0]
