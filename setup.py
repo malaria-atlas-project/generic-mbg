@@ -18,7 +18,7 @@ if __name__ == '__main__':
             author_email="map@map.ox.ac.uk",
             url="www.map.ox.ac.uk",
             packages=['generic_mbg'],
-            license="Public domain",
+            license="Creative commons BY-NC-SA",
             **(config.todict()))
     for ex_fname in ['mbg-infer','mbg-map','mbg-validate','mbg-scalar-priors','mbg-realize-prior']:
         os.system('chmod ugo+x %s'%ex_fname)
