@@ -3,12 +3,12 @@
 # License: Creative Commons BY-NC-SA
 ####################################
 
-from setuptools import setup
+# from setuptools import setup
 from numpy.distutils.misc_util import Configuration
 import os
 config = Configuration('generic_mbg',parent_package=None,top_path=None)
 
-config.add_extension(name='generic_mbg.histogram_utils',sources=['generic_mbg/histogram_utils.f'])
+config.add_extension(name='histogram_utils',sources=['generic_mbg/histogram_utils.f'])
 
 if __name__ == '__main__':
     from numpy.distutils.core import setup

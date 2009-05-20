@@ -84,15 +84,17 @@ cf2py threadsafe
 
       DOUBLE PRECISION y(n)
       DOUBLE PRECISION x(n),a
-      INTEGER n, cmin, cmax
+      INTEGER n, cmin, cmax, i
       EXTERNAL DAXPY
 
       if (cmax.EQ.-1) then
           cmax = n
       end if
 
-
-      CALL DAXPY(cmax-cmin,a,x(cmin+1),1,y(cmin+1),1)
+      do i=cmin+1,cmax
+          y(i)=a*x(i)+y(i)
+      end do
+      !CALL DAXPY(cmax-cmin,a,x(cmin+1),1,y(cmin+1),1)
 
 
       RETURN
