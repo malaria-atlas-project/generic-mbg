@@ -418,7 +418,18 @@ def predictive_mean_and_std(chain, meta, i, f_label, x_label, x, f_has_nugget=Fa
             C_input += nug*np.eye(np.sum(logp_mesh.shape[:-1]))
     else:
         nug = 0.
-    S_input = np.linalg.cholesky(C_input)
+    
+    
+    try:
+        S_input = np.linalg.cholesky(C_input)
+    except np.linalg.LinAlgError:
+        print 'Warning, full conditional covariance was not positive definite.'
+        U, rank, piv = pm.gp.ichol_full(c=C_input, reltol=1.e-13)
+        if rank<0:
+            raise ValueError, "Matrix does not appear to be positive semidefinite. Tell Anand."
+        else:
+            S_input = np.asarray(U[:rank,argsort(piv)], order='F')
+        
         
     max_chunksize = memmax / 8 / logp_mesh.shape[0]
     n_chunks = int(x.shape[0]/max_chunksize+1)
@@ -436,7 +447,7 @@ def predictive_mean_and_std(chain, meta, i, f_label, x_label, x, f_has_nugget=Fa
         
         for mat in [input_covariate_values, pcv, C_cross]:
             if not mat.flags['F_CONTIGUOUS']:
-                raise ValueError, 'Matrix is not Fortran-contiguous'
+                raise ValueError, 'Matrix is not Fortran-contiguous. Tell Anand.'
         
         if diag_safe:
             V_pred = C.params['amp']**2 + nug
@@ -452,7 +463,7 @@ def predictive_mean_and_std(chain, meta, i, f_label, x_label, x, f_has_nugget=Fa
 
         for mat in S_input, C_cross, SC_cross:
             if not mat.flags['F_CONTIGUOUS']:
-                raise ValueError, 'Matrix is not Fortran-contiguous, fix the covariance function.'
+                raise ValueError, 'Matrix is not Fortran-contiguous. Tell Anand.'
 
         scc = np.empty(x_chunk.shape[0])
         square_and_sum(SC_cross, scc)

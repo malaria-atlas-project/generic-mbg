@@ -8,7 +8,7 @@ from numpy.distutils.misc_util import Configuration
 import os
 config = Configuration('generic_mbg',parent_package=None,top_path=None)
 
-config.add_extension(name='generic_mbg.histogram_utils',sources=['generic_mbg/histogram_utils.f'])
+config.add_extension(name='histogram_utils',sources=['generic_mbg/histogram_utils.f'])
 
 if __name__ == '__main__':
     from numpy.distutils.core import setup
@@ -17,7 +17,7 @@ if __name__ == '__main__':
             author="Peter Gething and Anand Patil", 
             author_email="map@map.ox.ac.uk",
             url="www.map.ox.ac.uk",
-            packages=['generic_mbg'],
+            packages=['generic_mbg','generic_mbg.histogram_utils'],
             license="Creative commons BY-NC-SA",
             **(config.todict()))
     for ex_fname in ['mbg-infer','mbg-map','mbg-validate','mbg-scalar-priors','mbg-realize-prior']:
