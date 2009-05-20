@@ -17,7 +17,7 @@ if __name__ == '__main__':
             author="Peter Gething and Anand Patil", 
             author_email="map@map.ox.ac.uk",
             url="www.map.ox.ac.uk",
-            packages=['generic_mbg','generic_mbg.histogram_utils'],
+            packages=['generic_mbg'],
             license="Creative commons BY-NC-SA",
             **(config.todict()))
     for ex_fname in ['mbg-infer','mbg-map','mbg-validate','mbg-scalar-priors','mbg-realize-prior']:
