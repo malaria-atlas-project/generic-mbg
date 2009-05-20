@@ -424,7 +424,7 @@ def predictive_mean_and_std(chain, meta, i, f_label, x_label, x, f_has_nugget=Fa
         S_input = np.linalg.cholesky(C_input)
     except np.linalg.LinAlgError:
         print 'Warning, full conditional covariance was not positive definite.'
-        U, rank, piv = pm.gp.ichol_full(c=C_input, reltol=1.e-13)
+        U, rank, piv = pm.gp.incomplete_chol.ichol_full(c=C_input, reltol=1.e-13)
         if rank<0:
             raise ValueError, "Matrix does not appear to be positive semidefinite. Tell Anand."
         else:
