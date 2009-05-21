@@ -422,15 +422,18 @@ def predictive_mean_and_std(chain, meta, i, f_label, x_label, x, f_has_nugget=Fa
     
     try:
         S_input = np.linalg.cholesky(C_input)
+        piv = slice(None,None,None)
     except np.linalg.LinAlgError:
         print 'Warning, full conditional covariance was not positive definite.'
         U, rank, piv = pm.gp.incomplete_chol.ichol_full(c=C_input, reltol=1.e-13)
         if rank<0:
             raise ValueError, "Matrix does not appear to be positive semidefinite. Tell Anand."
         else:
-            S_input = np.asarray(U[:rank,np.argsort(piv)], order='F')
-        
-        
+            S_input = np.asarray(U[:rank,:rank], order='F')
+            piv = piv[:rank]
+    
+    logp_mesh = logp_mesh[piv]
+                    
     max_chunksize = memmax / 8 / logp_mesh.shape[0]
     n_chunks = int(x.shape[0]/max_chunksize+1)
     splits = np.array(np.linspace(0,x.shape[0],n_chunks+1),dtype='int')
