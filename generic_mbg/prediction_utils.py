@@ -194,10 +194,8 @@ def histogram_reduce(bins, binfn):
             sofar = np.zeros(next.shape+(len(bins),), dtype=int, order='F')
         # Call to Fortran function multiinc
         ind = binfn(next)
-        # print 'multiinc called, number is %i'%np.sum(sofar)
         multiinc(sofar,ind)
-        # print 'Done, number is %i'%np.sum(sofar)
-        # print
+        
         return sofar
     return hr
         

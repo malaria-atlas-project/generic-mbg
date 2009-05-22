@@ -53,6 +53,7 @@ import pymc as pm
 from pylab import csv2rec, rec2csv
 import time
 
+pm.set_threadpool_size(o.ncpus)
 
 # Figure out what the database file is supposed to be
 
