@@ -85,7 +85,7 @@ cf2py threadsafe
       DOUBLE PRECISION y(n)
       DOUBLE PRECISION x(n),a
       INTEGER n, cmin, cmax, i
-      EXTERNAL DAXPY
+!      EXTERNAL DAXPY
 
       if (cmax.EQ.-1) then
           cmax = n
