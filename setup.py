@@ -3,7 +3,7 @@
 # License: Creative Commons BY-NC-SA
 ####################################
 
-# from setuptools import setup
+from setuptools import setup
 from numpy.distutils.misc_util import Configuration
 import os
 config = Configuration('generic_mbg',parent_package=None,top_path=None)
