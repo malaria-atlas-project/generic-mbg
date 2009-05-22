@@ -389,9 +389,9 @@ def predictive_mean_and_std(chain, meta, i, f_label, x_label, x, f_has_nugget=Fa
 
     pred_covariate_values = np.empty((len(pred_cv_dict), x.shape[0]), order='F')
     input_covariate_values = np.empty((len(pred_cv_dict), len(covariate_dict[key][0])), order='F')
-    for i in xrange(len(n)):
-        pred_covariate_values[i,:] = pred_cv_dict[n[i]]
-        input_covariate_values[i,:] = covariate_dict[n[i]][0]
+    for j in xrange(len(n)):
+        pred_covariate_values[j,:] = pred_cv_dict[n[j]]
+        input_covariate_values[j,:] = covariate_dict[n[j]][0]
 
     # How many times must a man condition a multivariate normal
     M = chain.group0.M[i]
@@ -410,6 +410,7 @@ def predictive_mean_and_std(chain, meta, i, f_label, x_label, x, f_has_nugget=Fa
         f = getattr(meta,f_label)[:]
                 
     C_input = C(logp_mesh, logp_mesh)
+        
     if pred_cv_dict is not None:
         C_input += np.dot(np.dot(input_covariate_values.T, prior_covariate_variance), input_covariate_values)
     if nugget_label is not None:
@@ -419,20 +420,20 @@ def predictive_mean_and_std(chain, meta, i, f_label, x_label, x, f_has_nugget=Fa
     else:
         nug = 0.
     
-    
     try:
         S_input = np.linalg.cholesky(C_input)
-        piv = slice(None,None,None)
+        piv = None
     except np.linalg.LinAlgError:
-        print 'Warning, full conditional covariance was not positive definite.'
-        U, rank, piv = pm.gp.incomplete_chol.ichol_full(c=C_input, reltol=1.e-13)
-        if rank<0:
+        U, rank, piv = pm.gp.incomplete_chol.ichol_full(c=C_input, reltol=1.e-10)
+        print 'Warning, full conditional covariance was not positive definite at iteration %i. Rank is %i of %i.'%(i, rank, C_input.shape[0])        
+        if rank<=0:
             raise ValueError, "Matrix does not appear to be positive semidefinite. Tell Anand."
         else:
-            S_input = np.asarray(U[:rank,:rank], order='F')
-            piv = piv[:rank]
-    
-    logp_mesh = logp_mesh[piv]
+            S_input = np.asarray(U[:rank,:rank].T, order='F')
+            logp_mesh = logp_mesh[piv[:rank]]
+            f = f[piv[:rank]]
+            M_input = M_input[piv[:rank]]
+            input_covariate_values = np.asarray(input_covariate_values[:,piv[:rank]], order='F')
                     
     max_chunksize = memmax / 8 / logp_mesh.shape[0]
     n_chunks = int(x.shape[0]/max_chunksize+1)
@@ -440,15 +441,15 @@ def predictive_mean_and_std(chain, meta, i, f_label, x_label, x, f_has_nugget=Fa
     x_chunks = np.split(x,splits[1:-1])
     i_chunks = [slice(splits[i],splits[i+1],None) for i in xrange(n_chunks)]
 
-    for i in xrange(n_chunks):
+    for k in xrange(n_chunks):
 
-        i_chunk = i_chunks[i]
-        x_chunk = x_chunks[i]
+        i_chunk = i_chunks[k]
+        x_chunk = x_chunks[k]
         
         pcv = pred_covariate_values[:,i_chunk]
         C_cross = C(logp_mesh, x_chunk) 
         
-        for mat in [input_covariate_values, pcv, C_cross]:
+        for mat in [input_covariate_values, pcv, C_cross, S_input]:
             if not mat.flags['F_CONTIGUOUS']:
                 raise ValueError, 'Matrix is not Fortran-contiguous. Tell Anand.'
         

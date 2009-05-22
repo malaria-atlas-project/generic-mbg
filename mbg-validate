@@ -80,6 +80,9 @@ else:
 pos = maybe_convert(input, 'pos', 'float')
 neg = maybe_convert(input, 'neg', 'float')
 n_sampled = pos+neg
+if np.any(n_sampled==0):
+    where_zero = np.where(n_sampled==0)[0]
+    raise ValueError, 'Pos+neg = 0 in the rows (starting from zero):\n %s'%where_zero
 
 non_cov_columns = {}
 if hasattr(mod, 'non_cov_columns'):

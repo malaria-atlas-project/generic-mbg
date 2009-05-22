@@ -101,6 +101,10 @@ if hasattr(input, 't'):
 else:
     x = combine_spatial_inputs(lon,lat)
     
+if np.any(pos+neg==0):
+    where_zero = np.where(pos+neg==0)[0]
+    raise ValueError, 'Pos+neg = 0 in the rows (starting from zero):\n %s'%where_zero
+    
 non_cov_columns = {'cpus': o.ncpus}
 if hasattr(mod, 'non_cov_columns'):
     non_cov_coltypes = mod.non_cov_columns
