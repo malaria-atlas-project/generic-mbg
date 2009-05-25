@@ -45,7 +45,7 @@ def roc(p_samps, n_samps, pos, neg):
     if np.isnan(AUC):
         raise ValueError, 'AUC is NaN.'
     pl.title('AUC: %.3f'%AUC)
-    pl.axis('image')
+    pl.axis([0,1,0,1])
     
 def scatter(p_samps, n_samps, pos, neg):
     """
@@ -61,7 +61,7 @@ def scatter(p_samps, n_samps, pos, neg):
     pl.plot([0,urc],[0,urc],'k-.')
     pl.xlabel('Observed fraction positive')
     pl.ylabel('Expected fraction positive')
-    pl.axis('image')
+    pl.axis([0,urc,0,urc])
     
 def coverage(p_samps, n_samps, pos, neg):
     """
@@ -74,6 +74,6 @@ def coverage(p_samps, n_samps, pos, neg):
     pl.plot(pt,cover,'k-')
     pl.xlabel('Predictive quantile')
     pl.ylabel('Fraction of observations below quantile')
-    pl.axis('image')
+    pl.axis([0,1,0,1])
             
 validation_fns = [roc,scatter,coverage]
