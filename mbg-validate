@@ -137,10 +137,10 @@ for i in xrange(len(input)):
     pdf, bins, patches = pl.hist(p_samples[i], 50, normed=True,facecolor='.3')
     yext = pdf.max()
     pl.plot([p_obs,p_obs],[0,yext],'k-.',label='Observed frequency')
-    
-    pl.savefig('%i.pdf'%i)
+    pl.legend(loc=0)
     pl.xlabel('Frequency')
     pl.ylabel('Predictive density')
+    pl.savefig('%i.pdf'%i)    
     
     errors['mean error'][i] = np.mean(dev)
     errors['mean abs error'][i] = np.mean(np.abs(dev))
