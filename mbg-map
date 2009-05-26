@@ -71,6 +71,20 @@ if hasattr(mod,'diag_safe'):
 else:
     diag_safe = False
 
+# Parse quantiles
+
+if len(o.quantile_list) == 0:
+    q = []
+else:
+    q = map(float, o.quantile_list.split(' '))
+
+
+# Create predictive locations
+
+x, unmasked = asc_to_locs(o.mask_name,thin=o.raster_thin, bufsize=o.bufsize)
+if not o.year is None:
+    x = np.vstack((x.T,o.year*np.ones(x.shape[0]))).T
+
 
 # Parse covariates
 
@@ -80,24 +94,11 @@ else:
     covariate_list = o.covariate_list.split(' ')
     if len(o.covariate_list) > 0 and o.bufsize > 0:
         raise ValueError, 'You cannot have both covariates and a buffer. Make your own buffered asciis in ArcGIS, and use those.'
-    # FIXME: asc_to_locs won't actually work here, you need another fn
-    covariate_dict = dict(zip(covariate_list[::2], [asc_to_locs(fname, thin=o.raster_thin, bufsize=0) for fname in covariate_list[1::2]]))
+    covariate_dict = dict(zip(covariate_list[::2], [asc_to_vals(fname, thin=o.raster_thin, unmasked=unmasked) for fname in covariate_list[1::2]]))
 
 
-# Parse quantiles
+# Open hdf5 archive
 
-if len(o.quantile_list) == 0:
-    q = []
-else:
-    q = map(float, o.quantile_list.split(' '))
-
-
-# Create predictive locations and open hdf5 archive
-
-x, unmasked = asc_to_locs(o.mask_name,thin=o.raster_thin, bufsize=o.bufsize)
-if not o.year is None:
-    x = np.vstack((x.T,o.year*np.ones(x.shape[0]))).T
-    
 hf = tb.openFile(o.hf_name)
 ch = hf.root.chain0
 meta = hf.root.metadata

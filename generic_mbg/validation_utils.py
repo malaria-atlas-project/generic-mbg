@@ -49,8 +49,8 @@ def roc(p_samps, n_samps, pos, neg):
     
 def scatter(p_samps, n_samps, pos, neg):
     """
-    Plots the expected fraction positive against the observed fraction 
-    positive.
+    Plots the expected fraction positive against the observed 
+    fraction positive.
     """
     p_pred = np.mean(p_samps, axis=0)
     p_obs = pos/(pos+neg).astype('float')

@@ -110,10 +110,9 @@ meta = hf.root.metadata
 # Create predictive samples
 
 t1 = time.time()
-p_samples = hdf5_to_samps(ch,meta,x,o.burn,o.thin,o.total,[sample_reduce],f_name,f_has_nugget,x_name,covariate_dict,nugget_name,postproc,sample_finalize,**non_cov_columns)
-n_samples = np.array([pm.rbinomial(n_sampled[i], p_samples[:,i]) for i in xrange(len(n_sampled))]).T
+p_samples = hdf5_to_samps(ch,meta,x,o.burn,o.thin,o.total,[sample_reduce],f_name,f_has_nugget,x_name,covariate_dict,nugget_name,postproc,sample_finalize,**non_cov_columns).T
+n_samples = np.array([pm.rbinomial(n_sampled[i], p_samples[:,i]) for i in xrange(len(n_sampled))])
 print '\nPredictive samples drawn in %f seconds\n'%(time.time() - t1)
-
 
 
 # Write out
@@ -127,14 +126,33 @@ except OSError:
     pass
 os.chdir(val_dir)
 
-out_name = os.path.join(hf_path, 'p-samples.csv')
-p_samples.tofile(out_name,sep=',')
+# Mean errors
+errors = np.rec.fromarrays([np.empty(len(input)) for i in (0,1,2)], names='mean error,mean abs error,RMS error')
+for i in xrange(len(input)):
 
-out_name = os.path.join(hf_path, 'n-samples.csv')
-n_samples.tofile(out_name,sep=',')
+    p_obs = pos[i]/float(neg[i])
+    dev = n_samples[i]/float(n_sampled[i]) - p_obs
+
+    pl.clf()
+    pdf, bins, patches = pl.hist(p_samples[i], 50, normed=True,facecolor='.3')
+    yext = pdf.max()
+    pl.plot([p_obs,p_obs],[0,yext],'k-.',label='Observed frequency')
+    
+    pl.savefig('%i.pdf'%i)
+    pl.xlabel('Frequency')
+    pl.ylabel('Predictive density')
+    
+    errors['mean error'][i] = np.mean(dev)
+    errors['mean abs error'][i] = np.mean(np.abs(dev))
+    errors['RMS error'][i] = np.sqrt(np.mean(dev**2))
+
+np.savetxt('p-samples.csv', p_samples, delimiter=',')
+np.savetxt('n-samples.csv', n_samples, delimiter=',')
+
+pl.rec2csv(errors,'mean-errors.csv')
 
 for f in validation_fns:
     print 'Generating plot of %s'%f.__name__
     pl.clf()
-    f(p_samples, n_samples, pos, neg)
+    f(p_samples.T, n_samples.T, pos, neg)
     pl.savefig(f.__name__ + '.pdf', transparent=True)

@@ -9,7 +9,7 @@ import os
 
 __all__ = ['grid_convert','mean_reduce','var_reduce','invlogit','hdf5_to_samps','vec_to_asc','asc_to_locs',
             'display_asc','display_datapoints','histogram_reduce','histogram_finalize','maybe_convert','sample_reduce',
-            'sample_finalize']
+            'sample_finalize','asc_to_vals']
             
 memmax = 2.5e8
 
@@ -133,6 +133,30 @@ def asc_to_locs(fname, path='', thin=1, bufsize=1):
     lat,lon = [dir[unmasked] for dir in np.meshgrid(lat[::thin],lon[::thin])]
     # lon,lat = [dir.ravel() for dir in np.meshgrid(lon[::thin],lat[::thin])]
     return np.vstack((lon,lat)).T*np.pi/180., unmasked
+
+def asc_to_vals(fname, path='', thin=1, unmasked=None):
+    """
+    Converts an ascii grid to a list of values where prediction is desired.
+    If the unmasked argument is provided, the mask of the ascii grid is
+    checked against that mask.
+    """
+    lon,lat,data = asc_to_ndarray(fname, path)
+    data = grid_convert(data,'y-x+','x+y+')    
+    if unmasked is not None:
+        input_unmasked = True-data[::thin,::thin].mask
+        if not (unmasked == input_unmasked).all():
+            where_mismatch = np.where(input_unmasked != unmasked)
+            import pylab as pl
+            pl.clf()
+            pl.plot(lon[where_mismatch[0]],lat[where_mismatch[1]],'k.',markersize=2)
+            pl.savefig('mismatch.pdf')
+            msg = '%s: mask does not match input mask at the following pixels (in decimal degrees):\n'%fname
+            for i,j in zip(*where_mismatch):
+                msg += "\t%f, %f\n"%(lon[i],lat[j])
+            msg += 'Image of mismatched points saved as mismatch.pdf'
+            raise ValueError, msg
+    
+    return data.data[unmasked]
     
 def display_asc(fname, path='', radians=True, *args, **kwargs):
     """Displays an ascii file as a pylab image."""
@@ -214,7 +238,7 @@ def histogram_finalize(bins, q, hr):
     return fin
 
 
-# TODO: Use predictive_mean_and_variance
+
 def hdf5_to_samps(chain, metadata, x, burn, thin, total, fns, f_label, f_has_nugget, x_label, pred_cv_dict=None, nugget_label=None, postproc=None, finalize=None, diag_safe=False, **non_cov_columns):
     """
     Parameters:
@@ -288,7 +312,7 @@ def hdf5_to_samps(chain, metadata, x, burn, thin, total, fns, f_label, f_has_nug
         if time.time() - time_count > 10:
             time_count = time.time()
             print ((k*100)/len(iter)), '% complete'
-
+        
         M_pred, S_pred = predictive_mean_and_std(chain, metadata, i, f_label, x_label, x, f_has_nugget, pred_cv_dict, nugget_label, diag_safe)
         cmin, cmax = thread_partition_array(M_pred)
         
@@ -390,12 +414,12 @@ def predictive_mean_and_std(chain, meta, i, f_label, x_label, x, f_has_nugget=Fa
     for j in xrange(len(n)):
         pred_covariate_values[j,:] = pred_cv_dict[n[j]]
         input_covariate_values[j,:] = covariate_dict[n[j]][0]
-
+    
     # How many times must a man condition a multivariate normal
     M = chain.group0.M[i]
     C = chain.group0.C[i]
 
-    logp_mesh = getattr(meta,x_label)[:]    
+    logp_mesh = np.asarray(getattr(meta,x_label)[:], order='F')    
     M_input = M(logp_mesh)
     M_pred = M(x)
     
@@ -406,9 +430,10 @@ def predictive_mean_and_std(chain, meta, i, f_label, x_label, x, f_has_nugget=Fa
         f = chain.PyMCsamples.col(f_label)[i]
     except:
         f = getattr(meta,f_label)[:]
-                
-    C_input = C(logp_mesh, logp_mesh)
         
+
+    C_input = C(logp_mesh, logp_mesh)
+
     if pred_cv_dict is not None:
         C_input += np.dot(np.dot(input_covariate_values.T, prior_covariate_variance), input_covariate_values)
     if nugget_label is not None:
@@ -432,12 +457,13 @@ def predictive_mean_and_std(chain, meta, i, f_label, x_label, x, f_has_nugget=Fa
             f = f[piv[:rank]]
             M_input = M_input[piv[:rank]]
             input_covariate_values = np.asarray(input_covariate_values[:,piv[:rank]], order='F')
-                    
+                
     max_chunksize = memmax / 8 / logp_mesh.shape[0]
     n_chunks = int(x.shape[0]/max_chunksize+1)
     splits = np.array(np.linspace(0,x.shape[0],n_chunks+1),dtype='int')
     x_chunks = np.split(x,splits[1:-1])
     i_chunks = [slice(splits[i],splits[i+1],None) for i in xrange(n_chunks)]
+
 
     for k in xrange(n_chunks):
 
@@ -446,6 +472,9 @@ def predictive_mean_and_std(chain, meta, i, f_label, x_label, x, f_has_nugget=Fa
         
         pcv = pred_covariate_values[:,i_chunk]
         C_cross = C(logp_mesh, x_chunk) 
+        if diag_safe:
+            if np.any(C_cross>C.params['amp']**2):
+                raise ValueError, 'Off-diagonal elements of C are too large. Tell Anand.'
         
         for mat in [input_covariate_values, pcv, C_cross, S_input]:
             if not mat.flags['F_CONTIGUOUS']:
@@ -466,38 +495,15 @@ def predictive_mean_and_std(chain, meta, i, f_label, x_label, x, f_has_nugget=Fa
         for mat in S_input, C_cross, SC_cross:
             if not mat.flags['F_CONTIGUOUS']:
                 raise ValueError, 'Matrix is not Fortran-contiguous. Tell Anand.'
-
+        
         scc = np.empty(x_chunk.shape[0])
         square_and_sum(SC_cross, scc)
         
         V_out[i_chunk] = V_pred_adj - scc
         M_out[i_chunk] = M_pred[i_chunk] + np.asarray(np.dot(SC_cross.T,pm.gp.trisolve(S_input, (f-M_input), uplo='L'))).squeeze()
 
+
     if np.any(np.isnan(np.sqrt(V_out))) or np.any(np.isnan(M_out)):
         raise ValueError, 'Some predictive samples were NaN. Keep all your input files and tell Anand.'
 
     return M_out, np.sqrt(V_out)
-    
-    
-if __name__ == '__main__':
-    from pylab import *
-    import matplotlib
-    x, unmasked = asc_to_locs('frame3_10k.asc.txt',thin=20, bufsize=3)    
-    # matplotlib.interactive('False')
-    # plot(x[:,0],x[:,1],'k.',markersize=1)
-    # show()
-    hf = tb.openFile('ibd_loc_all_030509.csv.hdf5')
-    ch = hf.root.chain0
-    meta=hf.root.metadata
-    
-    def finalize(prod, n):
-        mean = prod[mean_reduce] / n
-        var = prod[var_reduce] / n - mean**2
-        std = np.sqrt(var)
-        std_to_mean = std/mean
-        return {'mean': mean, 'var': var, 'std': std, 'std-to-mean':std_to_mean}
-    
-    products = hdf5_to_samps(ch,meta,x,1000,400,5000,[mean_reduce, var_reduce], 'V', invlogit, finalize)
-
-    mean_surf = vec_to_asc(products['mean'],'frame3_10k.asc.txt','ihd-mean.asc',unmasked)
-    std_surf = vec_to_asc(products['std-to-mean'],'frame3_10k.asc.txt','ihd-std-to-mean.asc',unmasked)
