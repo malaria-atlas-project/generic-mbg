@@ -53,8 +53,8 @@ scalar parameters as PDF's, and saves them in the folder ``name-plots``, where `
 is the name of the database file. You will need to inspect these plots to determine how
 many 'burnin' iterations should be discarded when making maps.
 
-In the future, if the database file already exists, ``mbg-infer`` will give you the option
-to append samples to it. For now, it will only give you the option to overwrite it.
+If you determine that more MCMC samples are needed, simply run mbg-infer with the same 
+database file argument to pick up where you left off and keep sampling.
 
 Required arguments
 ------------------
