@@ -349,8 +349,7 @@ def vec_to_asc(vec, fname, out_fname, unmasked, path=''):
     Converts a vector of outputs on a thin, unmasked, ravelled subset of an
     ascii grid to an ascii file matching the original grid.
     """
-    header, f = get_header(fname,path)
-    f.close()
+    header, headlines = get_header(fname,path)
     lon,lat,data = asc_to_ndarray(fname,path)
     data = grid_convert(data,'y-x+','x+y+')
     data_thin = np.empty(unmasked.shape)

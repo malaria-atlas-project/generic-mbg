@@ -93,7 +93,7 @@ if o.covariate_list is None:
 else:
     covariate_list = o.covariate_list.split(' ')
     if len(o.covariate_list) > 0 and o.bufsize > 0:
-        raise ValueError, 'You cannot have both covariates and a buffer. Make your own buffered asciis in ArcGIS, and use those.'
+        raise ValueError, 'You cannot have both covariates and a buffer. Make your own buffered asciis in ArcGIS, and use those. Do not quibble with me, human.'
     covariate_dict = dict(zip(covariate_list[::2], [asc_to_vals(fname, thin=o.raster_thin, unmasked=unmasked) for fname in covariate_list[1::2]]))
 
 

@@ -17,7 +17,7 @@ req_doc = """
                         NOTE: time must be in units of DECIMAL YEARS SINCE
                         2009. That means it will usually be negative. That
                         is OK.
-                        
+
 """
 
 p = OptionParser('usage: %prog module database-file burn pred-pts [options]' + req_doc)
