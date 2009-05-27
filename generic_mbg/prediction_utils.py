@@ -4,6 +4,7 @@ import numpy as np
 from map_utils import asc_to_ndarray, get_header, exportAscii
 from scipy import ndimage, mgrid
 from histogram_utils import *
+from inference_utils import all_chain_len, all_chain_getitem
 import time
 import os
 
@@ -232,18 +233,17 @@ def histogram_finalize(bins, q, hr):
         quantile_surfs = qextract(hist,n,q,bins)
         for i in xrange(len(q)):
             out['quantile-%s'%q[i]] = quantile_surfs[i]
-        # from IPython.Debugger import Pdb
-        # Pdb(color_scheme='Linux').set_trace()   
+
         return out
     return fin
 
 
 
-def hdf5_to_samps(chain, metadata, x, burn, thin, total, fns, f_label, f_has_nugget, x_label, pred_cv_dict=None, nugget_label=None, postproc=None, finalize=None, diag_safe=False, **non_cov_columns):
+def hdf5_to_samps(hf, x, burn, thin, total, fns, f_label, f_has_nugget, x_label, pred_cv_dict=None, nugget_label=None, postproc=None, finalize=None, diag_safe=False, **non_cov_columns):
     """
     Parameters:
-        chain : PyTables node
-            The chain from which predictions should be made.
+        hf : PyTables file
+            The trace file from which predictions should be made.
         x : array
             The lon, lat locations at which predictions are desired.
         burn : int
@@ -282,14 +282,13 @@ def hdf5_to_samps(chain, metadata, x, burn, thin, total, fns, f_label, f_has_nug
     pred_cv_dict['m'] = np.ones(x.shape[0])
     
     products = dict(zip(fns, [None]*len(fns)))
-    iter = np.arange(burn,len(chain.PyMCsamples),thin)
+    iter = np.arange(burn,all_chain_len(hf),thin)
     if len(iter)==0:
-        raise ValueError, 'You asked for %i burnin iterations with thinnnig %i but the chain is only %i iterations long.'%(burn, thin, len(chain.PyMCsamples))
+        raise ValueError, 'You asked for %i burnin iterations with thinnnig %i but the chains are only %i iterations long.'%(burn, thin, all_chain_len(hf))
     n_per = total/len(iter)+1
     actual_total = n_per * len(iter)
     
-    cols = chain.PyMCsamples.cols
-    x_obs = getattr(metadata,x_label)[:]
+    x_obs = getattr(hf.root.metadata,x_label)[:]
     
     # Avoid memory errors
     # max_chunksize = 1.e8 / x_obs.shape[0]
@@ -313,7 +312,7 @@ def hdf5_to_samps(chain, metadata, x, burn, thin, total, fns, f_label, f_has_nug
             time_count = time.time()
             print ((k*100)/len(iter)), '% complete'
         
-        M_pred, S_pred = predictive_mean_and_std(chain, metadata, i, f_label, x_label, x, f_has_nugget, pred_cv_dict, nugget_label, diag_safe)
+        M_pred, S_pred = predictive_mean_and_std(hf, i, f_label, x_label, x, f_has_nugget, pred_cv_dict, nugget_label, diag_safe)
         cmin, cmax = thread_partition_array(M_pred)
         
         # Postprocess if necessary: logit, etc.
@@ -387,18 +386,19 @@ def vec_to_asc(vec, fname, out_fname, unmasked, path=''):
     return out
     
 
-def predictive_mean_and_std(chain, meta, i, f_label, x_label, x, f_has_nugget=False, pred_cv_dict=None, nugget_label=None, diag_safe=False):
+def predictive_mean_and_std(hf, i, f_label, x_label, x, f_has_nugget=False, pred_cv_dict=None, nugget_label=None, diag_safe=False):
     """
     Computes marginal (pointwise) predictive mean and variance for f(x).
     Expects input from an hdf5 datafile.
-        - chain : hdf5 group.
-        - meta : hdf5 group.
+        - hf : hdf5 file.
         - i : integer.
         - f_label : string or array.
         - x : numpy array
         - pred_cv_dict : {name : value-on-predmesh}
         - nugget_label : string
     """
+
+    meta = hf.root.metadata
 
     if pred_cv_dict is None:
         raise ValueError, 'No pred_cv_dict provided. You always have the constant term. Tell Anand.'
@@ -415,8 +415,8 @@ def predictive_mean_and_std(chain, meta, i, f_label, x_label, x, f_has_nugget=Fa
         input_covariate_values[j,:] = covariate_dict[n[j]][0]
     
     # How many times must a man condition a multivariate normal
-    M = chain.group0.M[i]
-    C = chain.group0.C[i]
+    M = all_chain_getitem(hf, 'M', i, True)
+    C = all_chain_getitem(hf, 'C', i, True)
 
     logp_mesh = np.asarray(getattr(meta,x_label)[:], order='F')    
     M_input = M(logp_mesh)
@@ -426,7 +426,7 @@ def predictive_mean_and_std(chain, meta, i, f_label, x_label, x, f_has_nugget=Fa
     M_out = np.empty(M_pred.shape)
     
     try:
-        f = chain.PyMCsamples.col(f_label)[i]
+        f = all_chain_getitem(hf, f_label, i)
     except:
         f = getattr(meta,f_label)[:]
         
@@ -436,7 +436,7 @@ def predictive_mean_and_std(chain, meta, i, f_label, x_label, x, f_has_nugget=Fa
     if pred_cv_dict is not None:
         C_input += np.dot(np.dot(input_covariate_values.T, prior_covariate_variance), input_covariate_values)
     if nugget_label is not None:
-        nug = chain.PyMCsamples.cols.V[i]
+        nug = all_chain_getitem(hf, 'V', i)
         if f_has_nugget:
             C_input += nug*np.eye(np.sum(logp_mesh.shape[:-1]))
     else:

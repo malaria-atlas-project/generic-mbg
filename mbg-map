@@ -100,7 +100,6 @@ else:
 # Open hdf5 archive
 
 hf = tb.openFile(o.hf_name)
-ch = hf.root.chain0
 meta = hf.root.metadata
 if not meta.logp_mesh.shape[1] == x.shape[1]:
     raise ValueError, 'It looks like you have inappropriately provided or omitted the year argument.'
@@ -133,7 +132,7 @@ if len(q)>0:
 # Create rasters
 
 t_start = time.time()
-products = hdf5_to_samps(ch,meta,x,o.burn,o.thin,o.total,reduce_fns, f_name, f_has_nugget, x_name, covariate_dict, nugget_name, postproc, finalize, diag_safe)
+products = hdf5_to_samps(hf,x,o.burn,o.thin,o.total,reduce_fns, f_name, f_has_nugget, x_name, covariate_dict, nugget_name, postproc, finalize, diag_safe)
 print '\nMaps produced in %f seconds\n'%(time.time() - t_start)
 
 

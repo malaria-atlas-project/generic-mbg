@@ -33,6 +33,32 @@ def combine_st_inputs(lon,lat,t):
     # Make lon, lat, t triples.
     data_mesh = np.vstack((lon, lat, t)).T 
     return data_mesh
+
+def chains(hf):
+    return [gr for gr in hf.listNodes("/") if gr._v_name[:5]=='chain']
+
+def all_chain_len(hf):
+    return np.sum([len(chain.PyMCsamples) for chain in chains(hf)])
+    
+def all_chain_trace(hf, name):
+    return np.concatenate([np.ravel(chain.PyMCsamples.col(name)) for chain in chains(hf)])
+    
+def all_chain_getitem(hf, name, i, vl=False):
+    c = chains(hf)
+    lens = [len(chain.PyMCsamples) for chain in c]
+    if i >= np.sum(lens):
+        raise IndexError, 'Index out of bounds'
+    s = 0
+    j = i
+    for k in xrange(len(lens)):
+        s += lens[k]
+        if i<s:
+            if vl:
+                return getattr(c[k].group0, name)[j]
+            else:
+                return c[k].PyMCsamples.col(name)[j]
+        else:
+            j -= lens[k]
     
 def add_standard_metadata(M, logp_mesh, data_mesh, covariate_dict, **others):
     """

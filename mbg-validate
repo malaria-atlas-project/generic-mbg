@@ -103,14 +103,12 @@ for n in input.dtype.names:
 # Create predictive locations and open hdf5 archive
 
 hf = tb.openFile(o.hf_name)
-ch = hf.root.chain0
-meta = hf.root.metadata
 
 
 # Create predictive samples
 
 t1 = time.time()
-p_samples = hdf5_to_samps(ch,meta,x,o.burn,o.thin,o.total,[sample_reduce],f_name,f_has_nugget,x_name,covariate_dict,nugget_name,postproc,sample_finalize,**non_cov_columns).T
+p_samples = hdf5_to_samps(hf,x,o.burn,o.thin,o.total,[sample_reduce],f_name,f_has_nugget,x_name,covariate_dict,nugget_name,postproc,sample_finalize,**non_cov_columns).T
 n_samples = np.array([pm.rbinomial(n_sampled[i], p_samples[:,i]) for i in xrange(len(n_sampled))])
 print '\nPredictive samples drawn in %f seconds\n'%(time.time() - t1)
 
