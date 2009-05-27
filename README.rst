@@ -62,7 +62,9 @@ Required arguments
 1. The name of the module containing the model specification.
 
 2. The name of the database file to be produced. If you do not want it to go in the current
-   directory, specify a path, eg ``/home/anand/traces/run-01-04-2009``.
+   directory, specify a path, eg ``/home/anand/traces/run-01-04-2009``. If the database file
+   already exists, you will be prompted about whether you want to continue sampling into it
+   or remove it.
 
 3. The name of a csv file containing the input data. If it is a different directory, specify
    the path to it, eg ``/home/anand/data/query-01-04-2009.csv``. This csv file must have the
