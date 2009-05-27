@@ -155,7 +155,8 @@ for k,v in products.iteritems():
 
     lon, lat, data= asc_to_ndarray(out_name) 
     pl.clf()
-    pl.imshow(grid_convert(data,'y+x+','y-x+'), extent=[lon.min(), lon.max(), lat.min(), lat.max()])
+    pl.imshow(grid_convert(data,'y+x+','y-x+'), extent=[lon.min(), lon.max(), lat.min(), lat.max()], interpolation='nearest')
+    # pl.imshow(data, extent=[lon.min(), lon.max(), lat.min(), lat.max()], interpolation='nearest')
     pl.colorbar()
     pl.plot(meta.data_mesh[:,0]*180./np.pi,meta.data_mesh[:,1]*180./np.pi,'r.',markersize=2)
     pl.savefig('%s.pdf'%k)
