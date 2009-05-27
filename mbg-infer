@@ -54,20 +54,26 @@ import time
 
 pm.set_threadpool_size(o.ncpus)
 
+
 # Figure out what the database file is supposed to be
 
 hf_path, hf_basename  = os.path.split(o.hf_name)    
+prev_db = None
 if hf_path=='':
     hf_path='./'
 if hf_basename in os.listdir(hf_path):
-    rm_q = raw_input('\nDatabase file %s already exists in path %s. Shall I kill him, lord? [yes or no] '%(hf_basename, hf_path))
+    rm_q = raw_input('\nDatabase file %s already exists in path %s. Do you want to continue sampling? [yes or no] '%(hf_basename, hf_path))    
     if rm_q.strip() in ['y','YES','Yes','yes','Y']:
-        print 'Excellent.'
-        os.remove(o.hf_name)
+        prev_db = pm.database.hdf5.load(os.path.join(hf_path,hf_basename))
     elif rm_q.strip() in ['n','NO','No','no','N']:
-        raise OSError, 'You must treat your filesystem more firmly.'
-    else:
-        raise OSError, 'I do not know what you are trying to say. Move, rename or delete the database to continue.'
+        rm_q = raw_input('\nShall I kill him, lord? [yes or no] ')
+        if rm_q.strip() in ['y','YES','Yes','yes','Y']:
+            print '\nExcellent.'
+            os.remove(o.hf_name)
+        elif rm_q.strip() in ['n','NO','No','no','N']:
+            raise OSError, '\nYou must treat your filesystem more firmly.'
+        else:
+            raise OSError, '\nI do not know what you are trying to say. Move, rename or delete the database to continue.'
 
 
 # Load up given module and load its relevant contents
@@ -127,9 +133,13 @@ mod_inputs = mod_inputs + (covariate_dict,)
 
 if hf_path != '':
     os.chdir(hf_path)
-M = pm.MCMC(make_model(*mod_inputs,**non_cov_columns),db='hdf5',dbname=hf_basename)
-add_standard_metadata(M, M.logp_mesh, M.data_mesh, M.covariate_dict, **(dict(zip(metadata_keys, [getattr(M,k) for k in metadata_keys]))))
-M.db._h5file.createTable('/','input_csv',csv2rec(o.input_name))
+if prev_db is None:
+    M = pm.MCMC(make_model(*mod_inputs,**non_cov_columns),db='hdf5',dbname=hf_basename,complevel=1,complib='zlib')
+    add_standard_metadata(M, M.logp_mesh, M.data_mesh, M.covariate_dict, **(dict(zip(metadata_keys, [getattr(M,k) for k in metadata_keys]))))
+    M.db._h5file.createTable('/','input_csv',csv2rec(o.input_name))
+else:
+    M = pm.MCMC(make_model(*mod_inputs,**non_cov_columns),db=prev_db)
+    M.restore_sampler_state()
 scalar_stochastics = filter(lambda s: len(np.atleast_1d(s.value)) == 1, M.stochastics)
 scale_dict = dict(zip(scalar_stochastics, .001*np.ones(len(scalar_stochastics))))
 
@@ -145,11 +155,17 @@ for s in M.stochastics:
     if s not in scalar_stochastics and s.__name__ != 'f':
         M.use_step_method(pm.AdaptiveMetropolis, s, scales={s: .0001*np.ones(np.shape(s.value))}, delay=o.AM_delay)
 
+M.assign_step_methods()        
+if prev_db is not None:
+    M.restore_sm_state()
+
 
 # Run MCMC
+
 t_start = time.time()
 M.isample(o.total,0,o.thin)
 print '\nMCMC completed in %f seconds\n'%(time.time() - t_start)
+M.save_state()
 
 
 # Write out
