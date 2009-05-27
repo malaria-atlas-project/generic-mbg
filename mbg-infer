@@ -5,7 +5,6 @@ import os
 # Create option parser
 
 # TODO: If db file exists, ask whether to continue sampling.
-# TODO: Dump input recarray into hdf5 archive as table.
 
 req_doc = """
 
@@ -130,6 +129,7 @@ if hf_path != '':
     os.chdir(hf_path)
 M = pm.MCMC(make_model(*mod_inputs,**non_cov_columns),db='hdf5',dbname=hf_basename)
 add_standard_metadata(M, M.logp_mesh, M.data_mesh, M.covariate_dict, **(dict(zip(metadata_keys, [getattr(M,k) for k in metadata_keys]))))
+M.db._h5file.createTable('/','input_csv',csv2rec(o.input_name))
 scalar_stochastics = filter(lambda s: len(np.atleast_1d(s.value)) == 1, M.stochastics)
 scale_dict = dict(zip(scalar_stochastics, .001*np.ones(len(scalar_stochastics))))
 
