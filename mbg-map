@@ -10,7 +10,7 @@ req_doc = """
   database-file         The name of the database file produced by the mcmc.
   burn                  The number of initial MCMC iterations to discard. 
                         You must provide this argument.
-  mask                  An ascii file of with some pixels MISSING. Maps will 
+  mask                  An ascii file with some pixels MISSING. Maps will 
                         be generated in ascii files with identical masks.
 """
 p = OptionParser('usage: %prog module database-file burn mask [options]' + req_doc)
@@ -70,6 +70,13 @@ if hasattr(mod,'diag_safe'):
     diag_safe=mod.diag_safe
 else:
     diag_safe = False
+    
+if hasattr(mod, 'extra_reduce_fns'):
+    extra_reduce_fns = mod.extra_reduce_fns
+    extra_finalize = mod.extra_finalize
+else:
+    extra_reduce_fns = []
+    extra_finalize = None
 
 # Parse quantiles
 
@@ -115,7 +122,7 @@ if len(q)>0:
     hsr = histogram_reduce(bins, binfn)
     hsf = histogram_finalize(bins, q, hsr)
 
-def finalize(prod, n, q=q):
+def finalize(prod, n, q=q, ef=extra_finalize):
     mean = prod[mean_reduce] / n
     var = prod[var_reduce] / n - mean**2
     std = np.sqrt(var)
@@ -123,6 +130,8 @@ def finalize(prod, n, q=q):
     out = {'mean': mean, 'var': var, 'std': std, 'std-to-mean':std_to_mean}
     if len(q)>0:
         out.update(hsf(prod, n))
+    if ef is not None:
+        out.update(ef(prod, n))
     return out
 
 reduce_fns = [mean_reduce, var_reduce]
@@ -132,7 +141,7 @@ if len(q)>0:
 # Create rasters
 
 t_start = time.time()
-products = hdf5_to_samps(hf,x,o.burn,o.thin,o.total,reduce_fns, f_name, f_has_nugget, x_name, covariate_dict, nugget_name, postproc, finalize, diag_safe)
+products = hdf5_to_samps(hf,x,o.burn,o.thin,o.total,reduce_fns + extra_reduce_fns, f_name, f_has_nugget, x_name, covariate_dict, nugget_name, postproc, finalize, diag_safe)
 print '\nMaps produced in %f seconds\n'%(time.time() - t_start)
 
 

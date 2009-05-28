@@ -69,7 +69,7 @@ for n in ['f_name', 'nugget_name', 'f_has_nugget', 'postproc','x_name']:
 
 # Parse input file
 
-input = csv2rec(o.pred_input)
+input = csv2rec(file(o.pred_input,'U'))
 lon = maybe_convert(input, 'lon', 'float')
 lat = maybe_convert(input, 'lat', 'float')
 if hasattr(input, 't'):

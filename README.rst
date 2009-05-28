@@ -313,3 +313,17 @@ The module must implement the following additional attributes:
 
   Behavior 1 is used for prior realization and map generation, and behavior 2 is used to generate 
   samples for predictive validation.
+  
+The following attributes are optional:
+  
+* ``extra_reduce_fns`` : A list of reduction functions to be used in mapping. These should take two
+  arguments, the first being the product so far and the second being a realization surface. The
+  first argument will be None at the first call. The return value should be a new value for the
+  first argument: an updated product so far.
+  
+* ``extra_finalize`` : A function converting the products of the extra reduce functions to output
+  asciis. It should take two arguments, the first being a ``{fn : prod}`` dictionary where ``fn``
+  is one of the extra reduce functions and ``prod`` is its final output; and the second being the
+  total number of realization surfaces produced. The output should be a ``{name : surface}`` 
+  dictionary, where all of the 'surfaces' are vectors ready to be injected into the mask and
+  written out as ascii files.
