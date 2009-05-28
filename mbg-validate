@@ -24,7 +24,7 @@ p = OptionParser('usage: %prog module database-file burn pred-pts [options]' + r
 p.add_option('-t','--thin',help='How much to thin the MCMC trace. Defaults to 1, meaning no thinning. This is recommended unless it takes too long.',dest='thin',type='int')
 p.add_option('-i','--iter',help='The total number of samples to use in generating the map. Defaults to 20000',dest='total',type='int')
 
-p.set_defaults(thin=1)
+p.set_defaults(thin=50)
 p.set_defaults(total=20000)
 
 
@@ -144,9 +144,12 @@ for i in xrange(len(input)):
     errors['mean abs error'][i] = np.mean(np.abs(dev))
     errors['RMS error'][i] = np.sqrt(np.mean(dev**2))
 
-np.savetxt('p-samples.csv', p_samples, delimiter=',')
-np.savetxt('n-samples.csv', n_samples, delimiter=',')
-
+for k,v in [('p_samples',p_samples),('n_samples',n_samples)]:
+    tb.openFile(k,'w').createCArray('/','samples',
+                        tb.Float32Atom(), 
+                        shape = v.shape, 
+                        filters=tb.Filters(complevel=1))[:] = v[:]
+    
 pl.rec2csv(errors,'mean-errors.csv')
 
 for f in validation_fns:
