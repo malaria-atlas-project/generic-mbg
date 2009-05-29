@@ -219,8 +219,46 @@ Options
 
 ``mbg-realize-prior``
 =====================
+::
 
-This one is not implemented yet.
+    mbg-realize-prior module ascii0.asc ascii1.asc ... [options]
+    
+mbg-realize-prior produces a number of prior realizations of the target surface (eg parasite
+rate, gene frequency, etc). on several different asciis. Joint or 'conditional' simulations
+of surfaces are very expensive, so you can only afford to evaluate them on a few thousand
+pixels. 
+
+The multiple asciis are meant to be at multiple resolutions: you can make a coarse one over 
+your entire area of interest, a medium-resolution one on a zoomed-in subset, and a few fine 
+ones over small areas scattered around. That way you can see the large- and small-scale
+properties of the surface allowed by your prior without having to render the entire surface
+at full resolution.
+
+Outputs a number of surfaces, evaluated onto the masks indicated by the input asciis. Each set
+of realizations is coherent across the input asciis; that is, the 'same' surface is evaluated
+on each ascii. That means you can meaningfully overlay the output asciis at different
+resolutions.
+
+NOTE: All the parameters of the model will be drawn from the prior before generating each
+realization. If you want to fix a variable, you must set its ``observed`` flag.
+
+Required arguments
+------------------
+
+1. The name of the module containing the model specification.
+
+2. Several ascii files. Realizations will be evaluated on the union of the unmasked regions
+   of these files.
+   
+Options
+-------
+
+* ``-n`` or ``--n-realizations`` : The number of realizations to generate. Defaults to 5.
+
+* ``-m`` or ``--mean`` : The value of the global mean to use. Defaults to 0.
+
+* ``-y`` or ``-year`` : If your model is spatiotemporal, you must provide the decimal year since
+  2009 at which you want your realizations produced. For example, Jan 1 2008 would be ``-y -1.0``.
 
 
 

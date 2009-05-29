@@ -19,7 +19,7 @@ req_doc = """
   - All scalar parameters will be drawn from their priors. If you want to choose specific 
     values, you must set their 'observed' flags.
 """
-p = OptionParser('usage: %prog module asciis [options]' + req_doc)
+p = OptionParser('usage: %prog module ascii0.asc ascii1.asc ... [options]' + req_doc)
 p.add_option('-n','--n-realizations',help='The number of realizations to produce. Defaults to 5.',dest='n',type='int')
 p.add_option('-m','--mean',help='The value of the global mean parameter. Defaults to 0.',dest='m',type='float')
 p.add_option('-y','--year',help='The DECIMAL YEAR SINCE 2009 at which the realizations should be produced. Required for space-time models.',dest='year',type='float')
@@ -79,8 +79,50 @@ except:
 
 # Create predictive locations
 
-x, unmasked = asc_to_locs(o.mask_name,thin=o.raster_thin, bufsize=o.bufsize)
-if not o.year is None:
-    x = np.vstack((x.T,o.year*np.ones(x.shape[0]))).T
+asciis = o.asciis
 
+x = {}
+u = {}
+for ascii in asciis:
+    this_x, unmasked = asc_to_locs(ascii)
+    if not o.year is None:
+        this_x = np.vstack((this_x.T,o.year*np.ones(this_x.shape[0]))).T
+    x[ascii.replace('.asc','')] = this_x
+    u[ascii.replace('.asc','')] = unmasked
 
+Mfun = pm.gp.Mean(lambda x: np.ones(x.shape[:-1]) * o.m)
+
+asc_dir = mod_basename+'-realizations'
+try:
+    os.mkdir(asc_dir)
+except OSError:
+    pass
+os.chdir(asc_dir)
+
+xllc = np.min([xi[:,0].min() for xi in x.itervalues()])*180./np.pi
+xurc = np.max([xi[:,0].max() for xi in x.itervalues()])*180./np.pi
+yllc = np.min([xi[:,1].min() for xi in x.itervalues()])*180./np.pi
+yurc = np.max([xi[:,1].max() for xi in x.itervalues()])*180./np.pi
+    
+for i in xrange(o.n):
+    print 'Realization %i of %i'%(i,o.n)
+    M.draw_from_prior()
+    C=M.C.value
+    safe_C = pm.gp.NearlyFullRankCovariance(C.eval_fun, **C.params)
+    f = pm.gp.Realization(Mfun, safe_C)
+
+    pl.clf()    
+    for ascii in asciis:
+        n = ascii.replace('.asc','')
+        surf = postproc(f(x[n]) + np.random.normal(size=x[n].shape[0])*np.sqrt(getattr(M, nugget_name).value))
+        out_name = '%s-%i.asc'%(n,i)
+        vec_to_asc(surf, '../%s.asc'%n, out_name, u[n], path='')
+        
+        lon, lat, data = asc_to_ndarray(out_name) 
+        pl.imshow(grid_convert(data,'y+x+','y-x+'), extent=[lon.min(), lon.max(), lat.min(), lat.max()], interpolation='nearest')
+
+    pl.axis([xllc,xurc,yllc,yurc])
+    pl.colorbar()
+    pl.savefig('%i.pdf'%i)
+        
+        
