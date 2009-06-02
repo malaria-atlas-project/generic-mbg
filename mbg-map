@@ -58,13 +58,20 @@ mod_basename, mod_ext = os.path.splitext(mod_name)
 mod_search_path = [mod_path, os.getcwd()] + sys.path
 mod = imp.load_module(mod_basename, *imp.find_module(mod_basename, mod_search_path))
 
-for n in ['f_name', 'nugget_name', 'f_has_nugget', 'postproc','x_name']:
+for n in ['f_name', 'nugget_name', 'f_has_nugget','x_name']:
     try:
         exec("%s=getattr(mod,'%s')"%(n,n))
     except:
         cls,inst,tb = sys.exc_info()
         new_inst = cls('Could not import %s from %s. Tell Anand. Original error message:\n\n\t%s'%(n,mod_name,inst.message))
         raise cls,new_inst,tb
+
+if hasattr(mod, 'map_postproc'):
+    postproc = mod.map_postproc
+elif hasattr(mod, 'postproc'):
+    postproc = mod.postproc
+else:
+    raise ValueError, 'Module %s lacks the postproc attribute. Tell Anand.'%mod
 
 if hasattr(mod,'diag_safe'):
     diag_safe=mod.diag_safe
