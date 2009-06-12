@@ -1,6 +1,6 @@
 ! Author: Anand Patil
 ! Copyright (c) 2009 Anand Patil
-! License: Gnu GPL. See GPL in this directory.
+! License: Gnu GPL. See GPL in the parent directory.
 
       SUBROUTINE multiinc(x,ind,nxi,nxk)
 cf2py intent(hide) nxi,nxk

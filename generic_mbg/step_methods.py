@@ -1,6 +1,6 @@
 # Author: Anand Patil
 # Copyright (c) 2009 Anand Patil
-# License: Gnu GPL. See GPL in this directory.
+# License: Gnu GPL. See GPL in the parent directory.
 
 import pymc as pm
 import numpy as np
