@@ -20,6 +20,10 @@ from optparse import OptionParser
 
 # Create option parser
 req_doc = """
+mbg-scalar-priors  Copyright (C) 2009 Anand Patil
+This program comes with ABSOLUTELY NO WARRANTY.
+This is free software, and you are welcome to redistribute it under certain conditions.
+See <http://www.gnu.org/licenses/> for the terms of the license.
 
 
   module                The module from which maps are to be generated.

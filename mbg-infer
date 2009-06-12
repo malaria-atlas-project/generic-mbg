@@ -22,6 +22,10 @@ import os
 # TODO: If db file exists, ask whether to continue sampling.
 
 req_doc = """
+mbg-infer  Copyright (C) 2009 Anand Patil
+This program comes with ABSOLUTELY NO WARRANTY.
+This is free software, and you are welcome to redistribute it under certain conditions.
+See <http://www.gnu.org/licenses/> for the terms of the license.
 
 
   module                The module from which maps are to be generated.
