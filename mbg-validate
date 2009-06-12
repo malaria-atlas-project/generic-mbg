@@ -1,3 +1,5 @@
+#!/usr/bin/python
+
 # Copyright (C) 2009 Anand Patil
 # 
 # This program is free software: you can redistribute it and/or modify
@@ -14,14 +16,13 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-#!/usr/bin/python
-
 from optparse import OptionParser
 
 
 # Create option parser
 
 req_doc = """
+
 mbg-validate  Copyright (C) 2009 Anand Patil
 This program comes with ABSOLUTELY NO WARRANTY.
 This is free software, and you are welcome to redistribute it under certain conditions.
