@@ -156,6 +156,7 @@ else:
 scalar_stochastics = filter(lambda s: len(np.atleast_1d(s.value)) == 1, M.stochastics)
 scale_dict = dict(zip(scalar_stochastics, .001*np.ones(len(scalar_stochastics))))
 
+
 if hasattr(M, 'f'):
     if hasattr(M,'ti'):
         ti = M.ti
