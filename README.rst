@@ -3,8 +3,7 @@
 :Contact: anand.prabhakar.patil@gmail.com
 :Web site: github.com/malaria-atlas-project/generic-mbg
 :Copyright: Anand Patil, 2009.
-:License: Creative Commons BY-NC-SA, see LICENSE
-
+:License: GPL, see GPL in this directory.
 
 The generic MBG package allows us to write PyMC probability models for each 
 project that works with spatial or spatiotemporal count data, then turn the

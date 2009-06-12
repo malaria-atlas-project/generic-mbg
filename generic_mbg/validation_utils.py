@@ -1,3 +1,7 @@
+# Author: Anand Patil
+# Copyright (c) 2009 Anand Patil
+# License: Gnu GPL. See GPL in this directory.
+
 from __future__ import division
 import pymc as pm
 import pylab as pl
