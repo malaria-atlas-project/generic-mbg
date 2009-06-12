@@ -105,13 +105,7 @@ if hasattr(input, 't'):
     x = combine_st_inputs(lon,lat,t)
 else:
     x = combine_spatial_inputs(lon,lat)
-pos = maybe_convert(input, 'pos', 'float')
-neg = maybe_convert(input, 'neg', 'float')
-n_sampled = pos+neg
-if np.any(n_sampled==0):
-    where_zero = np.where(n_sampled==0)[0]
-    raise ValueError, 'Pos+neg = 0 in the rows (starting from zero):\n %s'%where_zero
-
+    
 non_cov_columns = {}
 if hasattr(mod, 'non_cov_columns'):
     non_cov_coltypes = mod.non_cov_columns
@@ -134,6 +128,14 @@ hf = tb.openFile(o.hf_name)
 
 
 # Create predictive samples
+
+# FIXME: Make this more generic, so that it works with non-binomial likelihoods.
+pos = maybe_convert(input, 'pos', 'float')
+neg = maybe_convert(input, 'neg', 'float')
+n_sampled = pos+neg
+if np.any(n_sampled==0):
+    where_zero = np.where(n_sampled==0)[0]
+    raise ValueError, 'Pos+neg = 0 in the rows (starting from zero):\n %s'%where_zero
 
 t1 = time.time()
 p_samples = hdf5_to_samps(hf,x,o.burn,o.thin,o.total,[sample_reduce],f_name,f_has_nugget,x_name,covariate_dict,nugget_name,postproc,sample_finalize,**non_cov_columns).T

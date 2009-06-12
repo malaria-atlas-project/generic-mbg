@@ -71,13 +71,11 @@ Required arguments
      
    * ``lon``, ``lat`` : The coordinates of the observation in decimal degrees
      
-   * ``pos``, ``neg`` : The number of 'positive' and 'negative' observations.
-     
    * ``t`` : Time in decimal years since 2009. This is only required for spatiotemporal models.
 
    All other columns are interpreted as covariates, eg ``ndvi`` etc., UNLESS the module 
-   implements the ``non_covariate_columns`` attribute. For example, MBGWorld expects
-   lo_age and up_age columns, but does not interpret them as covariates.
+   implements the ``non_cov_columns`` attribute. For example, MBGWorld expects
+   lo_age, up_age columns, pos and neg columns, but does not interpret them as covariates.
    
 
 Options

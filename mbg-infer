@@ -1,5 +1,5 @@
 #!/usr/bin/python
-
+#
 # Copyright (C) 2009 Anand Patil
 # 
 # This program is free software: you can redistribute it and/or modify
@@ -31,8 +31,7 @@ See <http://www.gnu.org/licenses/> for the terms of the license.
   module                The module from which maps are to be generated.
   database-file         The name of the database file to be produced.
   input                 A csv file containing the lon, lat, (time,) and 
-                        associated covariate values, as well as 'pos' and
-                        'neg', corresponding to each datapoint.
+                        associated covariate values.
                         
                         NOTE: time must be in units of DECIMAL YEARS SINCE
                         2009. That means it will usually be negative. That
@@ -117,20 +116,14 @@ for n in ['make_model', 'metadata_keys']:
 input = csv2rec(file(o.input_name,'U'))
 lon = maybe_convert(input, 'lon', 'float')
 lat = maybe_convert(input, 'lat', 'float')
-pos = maybe_convert(input, 'pos', 'float')
-neg = maybe_convert(input, 'neg', 'float')
-mod_inputs = (pos,neg,lon,lat)
+mod_inputs = (lon,lat)
 if hasattr(input, 't'):
     t = maybe_convert(input, 't', 'float')
     x = combine_st_inputs(lon,lat,t)
     mod_inputs = mod_inputs + (t,)
 else:
     x = combine_spatial_inputs(lon,lat)
-    
-if np.any(pos+neg==0):
-    where_zero = np.where(pos+neg==0)[0]
-    raise ValueError, 'Pos+neg = 0 in the rows (starting from zero):\n %s'%where_zero
-    
+        
 non_cov_columns = {'cpus': o.ncpus}
 if hasattr(mod, 'non_cov_columns'):
     non_cov_coltypes = mod.non_cov_columns
@@ -140,7 +133,7 @@ non_cov_colnames = non_cov_coltypes.keys()
 
 covariate_dict = {}
 for n in input.dtype.names:
-    if n not in ['lon','lat','pos','neg']:
+    if n not in ['lon','lat']:
         if n in non_cov_colnames:
             non_cov_columns[n] = maybe_convert(input, n, non_cov_coltypes[n])
         else:
