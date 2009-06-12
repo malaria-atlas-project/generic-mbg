@@ -20,8 +20,6 @@ import os
 
 # Create option parser
 
-# TODO: If db file exists, ask whether to continue sampling.
-
 req_doc = """
 
 mbg-infer  Copyright (C) 2009 Anand Patil
