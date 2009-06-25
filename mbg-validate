@@ -115,7 +115,7 @@ non_cov_colnames = non_cov_coltypes.keys()
 
 covariate_dict = {}
 for n in input.dtype.names:
-    if n not in ['lon','lat','pos','neg']:
+    if n not in ['lon','lat','t']:
         if n in non_cov_colnames:
             non_cov_columns[n] = maybe_convert(input, n, non_cov_coltypes[n])
         else:

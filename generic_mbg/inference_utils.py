@@ -123,6 +123,9 @@ def cd_and_C_eval(covariate_values, C, data_mesh, ui=slice(None,None,None), fac=
             out += np.outer(valu,valu)*var
         return out
     
+    from IPython.Debugger import Pdb
+    Pdb(color_scheme='Linux').set_trace()   
+    
     return covariate_dict, C_eval
     
 def trivial_means(lpm):
