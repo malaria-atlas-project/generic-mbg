@@ -141,6 +141,12 @@ if not meta.logp_mesh.shape[1] == x.shape[1]:
 bins = np.linspace(0,1,o.n_bins)
 
 
+# Check covariates
+for k in meta.covariates[0].iterkeys():
+    if k != 'm':
+        if not covariate_dict.has_key(k):
+            raise ValueError, 'You have not supplied a raster for covariate %s.'%k
+
 # Create utility fns
 
 if len(q)>0:
