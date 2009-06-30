@@ -98,6 +98,14 @@ else:
 # Parse input file
 
 input = csv2rec(file(o.pred_input,'U'))
+from np.ma import mrecords
+if isinstance(input, np.ma.mrecords.MaskedRecords):
+    msg = 'Error, could not parse input at following rows:\n'
+    for name in input.dtype.names:
+        if np.sum(input[name].mask)>0:
+            msg += '\t%s: %s\n'%(name, str(np.where(input[name].mask)[0]+1))
+    raise ValueError, msg
+
 lon = maybe_convert(input, 'lon', 'float')
 lat = maybe_convert(input, 'lat', 'float')
 if hasattr(input, 't'):

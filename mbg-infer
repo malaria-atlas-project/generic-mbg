@@ -114,6 +114,14 @@ for n in ['make_model', 'metadata_keys']:
 # Parse input file
 
 input = csv2rec(file(o.input_name,'U'))
+from numpy.ma import mrecords
+if isinstance(input, np.ma.mrecords.MaskedRecords):
+    msg = 'Error, could not parse input at following rows:\n'
+    for name in input.dtype.names:
+        if np.sum(input[name].mask)>0:
+            msg += '\t%s: %s\n'%(name, str(np.where(input[name].mask)[0]+1))
+    raise ValueError, msg
+
 lon = maybe_convert(input, 'lon', 'float')
 lat = maybe_convert(input, 'lat', 'float')
 mod_inputs = (lon,lat)
@@ -146,7 +154,6 @@ mod_inputs = mod_inputs + (covariate_dict,)
 if hf_path != '':
     os.chdir(hf_path)
 if prev_db is None:
-    from IPython.Debugger import Pdb
     M = pm.MCMC(make_model(*mod_inputs,**non_cov_columns),db='hdf5',dbname=hf_basename,complevel=1,complib='zlib')
     add_standard_metadata(M, M.logp_mesh, M.data_mesh, M.covariate_dict, **(dict(zip(metadata_keys, [getattr(M,k) for k in metadata_keys]))))
     M.db._h5file.createTable('/','input_csv',csv2rec(file(o.input_name,'U')))
