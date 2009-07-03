@@ -71,7 +71,7 @@ Required arguments
      
    * ``lon``, ``lat`` : The coordinates of the observation in decimal degrees
      
-   * ``t`` : Time in decimal years since 2009. This is only required for spatiotemporal models.
+   * ``t`` : Time in decimal years. This is only required for spatiotemporal models.
 
    All other columns are interpreted as covariates, eg ``ndvi`` etc., UNLESS the module 
    implements the ``non_cov_columns`` attribute. For example, MBGWorld expects
@@ -155,8 +155,8 @@ Options
   you should use ``-c 'rain.asc ndvi.asc'``. If the rasters are in another folder, specify the path,
   ie ``-c '/home/noor/rain.asc /home/noor/ndvi.asc'``
 
-* ``-y`` or ``--year`` : If your model is spatiotemporal, you must provide the decimal year since
-  2009 at which you want your map produced. For example, Jan 1 2008 would be ``-y -1.0``.
+* ``-y`` or ``--year`` : If your model is spatiotemporal, you must provide the decimal year at 
+  which you want your map produced. For example, Jan 1 2008 would be ``-y -1.0``.
 
 
 ``mbg-validate``
@@ -254,8 +254,8 @@ Options
 
 * ``-m`` or ``--mean`` : The value of the global mean to use. Defaults to 0.
 
-* ``-y`` or ``-year`` : If your model is spatiotemporal, you must provide the decimal year since
-  2009 at which you want your realizations produced. For example, Jan 1 2008 would be ``-y -1.0``.
+* ``-y`` or ``-year`` : If your model is spatiotemporal, you must provide the decimal year at 
+  which you want your realizations produced. For example, Jan 1 2008 would be ``-y -1.0``.
 
 
 
@@ -274,7 +274,7 @@ The primary thing a module must do to use the generic stuff is implement the fun
     
 The ``pos``, ``neg``, ``lon`` and ``lat`` columns are the obvious; longitude and
 latitude should be in decimal degrees. The ``t`` column is only required for
-spatiotemporal models, but if given it should be in units of decimal years since 2009.
+spatiotemporal models, but if given it should be in units of decimal years.
 The ``cpus`` argument specifies how many processor cores should be made available to
 the current process.
 

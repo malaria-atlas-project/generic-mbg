@@ -35,8 +35,7 @@ See <http://www.gnu.org/licenses/> for the terms of the license.
   pred-pts              A csv file containing the lon, lat, (time,) and 
                         associated covariate values where you want to predict.
                         
-                        NOTE: time must be in units of DECIMAL YEARS SINCE
-                        2009. That means it will usually be negative. That
+                        NOTE: time must be in units of decimal years. That
                         is OK.
 
 """

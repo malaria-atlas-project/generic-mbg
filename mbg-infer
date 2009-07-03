@@ -177,7 +177,7 @@ if prev_db is not None:
 # Run MCMC
 
 t_start = time.time()
-M.isample(o.total,0,o.thin)
+M.sample(o.total,0,o.thin)
 print '\nMCMC completed in %f seconds\n'%(time.time() - t_start)
 
 

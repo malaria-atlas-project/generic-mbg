@@ -42,7 +42,7 @@ p.add_option('-r','--raster-thin',help='The raster will be kriged at this level 
 p.add_option('-t','--thin',help='How much to thin the MCMC trace. Defaults to 10.',dest='thin',type='int')
 p.add_option('-i','--iter',help='The total number of samples to use in generating the map. Defaults to 20000',dest='total',type='int')
 p.add_option('-c','--covariates',help="The names and filenames of the covariates to use. Should be in the form 'rain rain.asc snow snow.asc', and the inverted commas are important! Defaults to None.",dest='covariate_list')
-p.add_option('-y','--year',help='The DECIMAL YEAR SINCE 2009 at which the map should be produced. Required for space-time models.',dest='year',type='float')
+p.add_option('-y','--year',help='The decimal year at which the map should be produced. Required for space-time models.',dest='year',type='float')
 
 p.set_defaults(n_bins=100)
 p.set_defaults(covariate_list=None)

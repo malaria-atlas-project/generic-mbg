@@ -9,6 +9,8 @@ config = Configuration('generic_mbg',parent_package=None,top_path=None)
 
 config.add_extension(name='histogram_utils',sources=['generic_mbg/histogram_utils.f'])
 
+prefix='/usr/local/bin'
+
 if __name__ == '__main__':
     from numpy.distutils.core import setup
     setup(  version="0.1",
@@ -21,5 +23,5 @@ if __name__ == '__main__':
             **(config.todict()))
     for ex_fname in ['mbg-infer','mbg-map','mbg-validate','mbg-scalar-priors','mbg-realize-prior']:
         os.system('chmod ugo+x %s'%ex_fname)
-        os.system('cp %s /usr/local/bin'%ex_fname)
+        os.system('cp %s %s'%(ex_fname,prefix))
 
