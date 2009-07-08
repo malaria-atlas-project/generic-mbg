@@ -1,0 +1,103 @@
+#!/usr/bin/python
+
+# Copyright (C) 2009 Anand Patil
+# 
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
+from optparse import OptionParser
+import os
+
+
+# Create option parser
+
+req_doc = """
+
+mbg-covariate-traces  Copyright (C) 2009 Anand Patil
+This program comes with ABSOLUTELY NO WARRANTY.
+This is free software, and you are welcome to redistribute it under certain conditions.
+See <http://www.gnu.org/licenses/> for the terms of the license.
+
+
+  module                The module from which maps are to be generated.
+  database-file         The name of the database file produced by the mcmc.
+
+"""
+
+p = OptionParser('usage: %prog module database-file [options]' + req_doc)
+
+p.add_option('-t','--thin',help='How much to thin the MCMC trace. Defaults to 1, meaning no  thinsing.',dest='thin',type='int')
+p.add_option('-b','--burn',help='How many burnin iterations to discard. Defaults to 0.',dest='burn',type='int')
+
+p.set_defaults(thin=1)
+p.set_defaults(burn=0)
+
+(o, args) = p.parse_args()
+if len(args) != 2:
+    raise ValueError, 'You must supply exactly two positional arguments. You supplied %i.'%len(args)
+
+o.module, o.hf_name = args
+
+import matplotlib
+matplotlib.use('PDF')
+matplotlib.interactive(False)
+
+from map_utils import *
+from generic_mbg import *
+import tables as tb
+import numpy as np
+import os, imp, sys, time
+
+import pylab as pl
+
+
+# Load up given module and load its relevant contents
+
+mod_path, mod_name = os.path.split(o.module)
+mod_basename, mod_ext = os.path.splitext(mod_name)
+mod_search_path = [mod_path, os.getcwd()] + sys.path
+mod = imp.load_module(mod_basename, *imp.find_module(mod_basename, mod_search_path))
+
+
+# Open hdf5 archive
+
+hf = tb.openFile(o.hf_name)
+
+
+# Generate covariate trace
+if hasattr(mod, 'nugget_name'):
+    nugget_name = mod.nugget_name
+else:
+    nugget_name = None
+cov_trace = covariate_trace(hf, mod.f_name, nugget_name, o.burn, o.thin)
+
+
+# Write out
+
+hf_path, hf_basename  = os.path.split(o.hf_name)
+base_outname = os.path.splitext(hf_basename)[0]
+cov_trace_dir = os.path.join(hf_path, base_outname+'-covariate-traces')
+try:
+    os.mkdir(cov_trace_dir)
+except OSError:
+    pass
+os.chdir(cov_trace_dir)
+pl.rec2csv(np.rec.fromarrays([cov_trace[k] for k in cov_trace.keys()], names=','.join(cov_trace.keys())), 'covariate-traces.csv')
+
+for k in cov_trace.keys():
+    print 'Plotting %s'%k
+    pl.clf()
+    pl.plot(cov_trace[k],'k-')
+    pl.title(k)
+    pl.savefig(k+'.pdf')

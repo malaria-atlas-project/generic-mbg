@@ -93,6 +93,35 @@ Options
   to monitor your actual CPU usage. Large values are good but tie up more of your computer.
 
 
+``mbg-covariate-traces``
+========================
+::
+
+    mbg-covariate-traces module database-file [options]
+
+Postprocesses the given database file to produce MCMC traces for the covariate 
+coefficients. Produces a directory called database-file-covariate-traces, and populates 
+it with pdf images of the covariate coefficient traces and  
+
+
+Required arguments
+------------------
+
+1. The name of the module containing the model specification.
+
+2. The name of the database file containing the MCMC trace.
+
+
+Options
+-------
+
+* ``-t`` or ``--thin`` : If thin is 10, samples of the covariate coefficients will be
+  produced for every 10th MCMC sample. Defaults to 1, meaning no thinning.
+
+* ``-b`` or ``--burn`` : Samples of the covariate coefficients will begin after this
+  many 'burnin' iterations are discarded. Defaults to 0, meaning no burnin.
+
+
 ``mbg-map``
 ===========
 ::

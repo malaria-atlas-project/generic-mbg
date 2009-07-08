@@ -240,38 +240,21 @@ def sample_covariates(covariate_dict, S_eval, d):
 
     return dict(zip(n, new_val))
 
-def get_d_S_eval(chain, f_label, nugget_label, i, M_eval, logp_mesh):
+def get_d_S_eval(hf, f_label, nugget_label, i, mesh):
     """Utility fn"""
     if type(f_label) == type('str'):
-        f = chain.PyMCsamples.col(f_label)[i]
+        d = all_chain_getitem(hf, f_label, i, vl=False)
     else:
-        f = f_label
-    d = f - M_eval
+        d = f_label
 
-    C = chain.group0.C[i]
+    C = all_chain_getitem(hf, 'C', i, vl=True)
     if nugget_label is not None:
-        nug = chain.PyMCsamples.cols.V[i]
-    C_eval = C(logp_mesh, logp_mesh) + nug*np.eye(np.sum(logp_mesh.shape[:-1]))
+        nug = all_chain_getitem(hf, nugget_label, i, vl=False)
+    C_eval = C(mesh, mesh) + nug*np.eye(np.sum(mesh.shape[:-1]))
     S_eval = np.linalg.cholesky(C_eval)
     return d, S_eval
 
-def sample_covariates_from_chain(chain, meta, i, f_label, nugget_label=None):
-    """
-    Wrapper for sample_covariates.
-        - chain : hdf5 group.
-        - meta : hdf5 group.
-        - i : integer.
-        - f_label : string or array.
-        - nugget_label : string
-    """
-    covariate_dict = meta.covariates[0]
-    logp_mesh = meta.logp_mesh[:]    
-    M_eval = np.zeros(logp_mesh.shape[:-1])
-
-    d, S_eval = get_d_S_eval(chain, f_label, nugget_label, i, M_eval, logp_mesh)
-    return sample_covariates(covariate_dict, S_eval, d)
-
-def covariate_trace(chain, meta, f_label, nugget_label=None):
+def covariate_trace(hf, f_label, nugget_label=None, burn=0, thin=1):
     """
     Produces a covariate trace from an existing hdf5 chain.
         - chain : hdf5 group
@@ -279,17 +262,22 @@ def covariate_trace(chain, meta, f_label, nugget_label=None):
         - f_label : string or array
         - nugget_label : string
     """
+    meta = hf.root.metadata
+    
     covariate_dict = meta.covariates[0]
-    logp_mesh = meta.logp_mesh[:]
-    M_eval = np.zeros(logp_mesh.shape[:-1])
 
     out = dict.fromkeys(covariate_dict)
     for k in out.keys():
         out[k] = []
+        
+    if nugget_label is None:
+        mesh = meta.logp_mesh[:]
+    else:
+        mesh = meta.data_mesh[:]
 
-    n = len(chain.PyMCsamples)
-    for i in xrange(n):
-        d, S_eval = get_d_S_eval(chain, f_label, nugget_label, i, M_eval, logp_mesh)
+    n = all_chain_len(hf)
+    for i in xrange(burn,n,thin):
+        d, S_eval = get_d_S_eval(hf, f_label, nugget_label, i, mesh)
         cur_vals = sample_covariates(covariate_dict, S_eval, d)
 
         for k, v in cur_vals.iteritems():

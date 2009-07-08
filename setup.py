@@ -21,7 +21,7 @@ if __name__ == '__main__':
             packages=['generic_mbg'],
             license="Creative commons BY-NC-SA",
             **(config.todict()))
-    for ex_fname in ['mbg-infer','mbg-map','mbg-validate','mbg-scalar-priors','mbg-realize-prior']:
+    for ex_fname in ['mbg-infer','mbg-map','mbg-validate','mbg-scalar-priors','mbg-realize-prior','mbg-covariate-traces']:
         os.system('chmod ugo+x %s'%ex_fname)
         os.system('cp %s %s'%(ex_fname,prefix))
 
