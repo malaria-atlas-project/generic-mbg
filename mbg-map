@@ -41,11 +41,11 @@ p.add_option('-q','--quantiles',help="The quantile maps to generate. Should be i
 p.add_option('-r','--raster-thin',help='The raster will be kriged at this level of degradation, then regridded. Set to 1 for final maps, ~10 for mild curiosity. Defaults to 1.',dest='raster_thin',type='int')
 p.add_option('-t','--thin',help='How much to thin the MCMC trace. Defaults to 10.',dest='thin',type='int')
 p.add_option('-i','--iter',help='The total number of samples to use in generating the map. Defaults to 20000',dest='total',type='int')
-p.add_option('-c','--covariates',help="The names and filenames of the covariates to use. Should be in the form 'rain rain.asc snow snow.asc', and the inverted commas are important! Defaults to None.",dest='covariate_list')
+p.add_option('-a','--ascii-path',help="The path to the covariate asciis. Defaults to the current working directory.",dest='ascii_path')
 p.add_option('-y','--year',help='The decimal year at which the map should be produced. Required for space-time models.',dest='year',type='float')
 
 p.set_defaults(n_bins=100)
-p.set_defaults(covariate_list=None)
+p.set_defaults(ascii_path='')
 p.set_defaults(raster_thin=1)
 p.set_defaults(thin=50)
 p.set_defaults(total=50000)
@@ -121,17 +121,6 @@ if not o.year is None:
     x = np.vstack((x.T,o.year*np.ones(x.shape[0]))).T
 
 
-# Parse covariates
-
-if o.covariate_list is None:
-    covariate_dict = None
-else:
-    covariate_list = o.covariate_list.split(' ')
-    if len(o.covariate_list) > 0 and o.bufsize > 0:
-        raise ValueError, 'You cannot have both covariates and a buffer. Make your own buffered asciis in ArcGIS, and use those. Do not quibble with me, human.'
-    covariate_dict = dict(zip(covariate_list[::2], [asc_to_vals(fname, thin=o.raster_thin, unmasked=unmasked) for fname in covariate_list[1::2]]))
-
-
 # Open hdf5 archive
 
 hf = tb.openFile(o.hf_name)
@@ -141,11 +130,16 @@ if not meta.logp_mesh.shape[1] == x.shape[1]:
 bins = np.linspace(0,1,o.n_bins)
 
 
-# Check covariates
+# Load covariates
+
+covariate_dict = {}
 for k in meta.covariates[0].iterkeys():
     if k != 'm':
-        if not covariate_dict.has_key(k):
-            raise ValueError, 'You have not supplied a raster for covariate %s.'%k
+        try:
+            covariate_dict[k] = asc_to_vals(k+'.asc', path=o.ascii_path, thin=1, unmasked=None)
+        except IOError:
+            raise IOError, 'Covariate raster %s not found in path %s.'%(k+'.asc',o.ascii_path)
+            
 
 # Create utility fns
 

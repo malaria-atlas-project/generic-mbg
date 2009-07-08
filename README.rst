@@ -148,12 +148,12 @@ Options
 * ``-i`` or ``--iter`` : The total number of predictive samples to use in generating the maps.
   Large values are good but slow. Defaults to 20000.
 
-* ``-c`` or ``--covariates`` : A list of names of ASCII files containing the covariate rasters.
+* ``-a`` or ``--ascii-path`` : The path to the ASCII files containing the covariate rasters.
   These files' headers must match those of the input raster, and their missing pixels must match
   those of the input raster also. There must be a file corresponding to every covariate column
   in input 3 of mbg-infer. For example, if you used ``rain`` and ``ndvi`` as your column headers,
-  you should use ``-c 'rain.asc ndvi.asc'``. If the rasters are in another folder, specify the path,
-  ie ``-c '/home/noor/rain.asc /home/noor/ndvi.asc'``
+  files ``rain.asc`` and ``ndvi.asc`` in the ascii path should be present in the ascii path.
+  Defaults to the current working directory.
 
 * ``-y`` or ``--year`` : If your model is spatiotemporal, you must provide the decimal year at 
   which you want your map produced. For example, Jan 1 2008 would be ``-y -1.0``.
