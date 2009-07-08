@@ -227,7 +227,11 @@ def sample_covariates(covariate_dict, S_eval, d):
     pri_S_eval = np.asarray(S_eval)
     lo = pm.gp.trisolve(S_eval, x.T, uplo='L').T
     post_tau = np.dot(lo,lo.T)
-    l = np.linalg.cholesky(post_tau)
+    try:
+        l = np.linalg.cholesky(post_tau)
+    except np.linalg.LinAlgError:
+        sig, m, piv = pm.gp.incomplete_chol.ichol_full(post_tau)
+        
 
     post_C = pm.gp.trisolve(l, np.eye(l.shape[0]),uplo='L')
     post_C = pm.gp.trisolve(l.T, post_C, uplo='U')
@@ -250,6 +254,7 @@ def get_d_S_eval(hf, f_label, nugget_label, i, mesh):
     C = all_chain_getitem(hf, 'C', i, vl=True)
     if nugget_label is not None:
         nug = all_chain_getitem(hf, nugget_label, i, vl=False)
+
     C_eval = C(mesh, mesh) + nug*np.eye(np.sum(mesh.shape[:-1]))
     S_eval = np.linalg.cholesky(C_eval)
     return d, S_eval
@@ -276,7 +281,17 @@ def covariate_trace(hf, f_label, nugget_label=None, burn=0, thin=1):
         mesh = meta.data_mesh[:]
 
     n = all_chain_len(hf)
+    time_count = -np.inf
+    time_start = time.time()
+        
     for i in xrange(burn,n,thin):
+
+        if time.time() - time_count > 10:
+            print ((i*100)/n), '% complete'
+            time_count = time.time()     
+            if i > 0:       
+                print 'Completion expected '+time.ctime((time_count-time_start)*n/float(i)+time_start)        
+
         d, S_eval = get_d_S_eval(hf, f_label, nugget_label, i, mesh)
         cur_vals = sample_covariates(covariate_dict, S_eval, d)
 

@@ -319,14 +319,17 @@ def hdf5_to_samps(hf, x, burn, thin, total, fns, f_label, f_has_nugget, x_label,
             postproc = postproc(**non_cov_columns)
     
     time_count = -np.inf
+    time_start = time.time()
     
     for k in xrange(len(iter)):
         
         i = iter[k]
         
         if time.time() - time_count > 10:
-            time_count = time.time()
             print ((k*100)/len(iter)), '% complete'
+            time_count = time.time()      
+            if k > 0:      
+                print 'Completion expected '+time.ctime((time_count-time_start)*len(iter)/float(k)+time_start)
         
         M_pred, S_pred = predictive_mean_and_std(hf, i, f_label, x_label, x, f_has_nugget, pred_cv_dict, nugget_label, diag_safe)
         cmin, cmax = thread_partition_array(M_pred)

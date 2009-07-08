@@ -136,7 +136,7 @@ covariate_dict = {}
 for k in meta.covariates[0].iterkeys():
     if k != 'm':
         try:
-            covariate_dict[k] = asc_to_vals(k+'.asc', path=o.ascii_path, thin=1, unmasked=None)
+            covariate_dict[k] = asc_to_vals(k+'.asc', path=o.ascii_path, thin=o.raster_thin, unmasked=unmasked)
         except IOError:
             raise IOError, 'Covariate raster %s not found in path %s.'%(k+'.asc',o.ascii_path)
             
