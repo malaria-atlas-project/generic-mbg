@@ -209,42 +209,32 @@ def basic_st_submodel(lon, lat, t, covariate_values, cpus):
         
     return locals()
 
-def sample_covariates(covariate_dict, S_eval, d):
+def sample_covariates(covariate_dict, C_eval, d):
     """
     Samples covariates back in when they have been marginalized away.
         - covariate_dict : {name : value-on-input, prior-variance}
         - M_eval : array. Probably zeros, unless you did something fancy in the mean.
-        - S_eval : Cholesky decomposition of covariance of d | covariates, m
+        - C_eval : covariance of d | covariates, m
         - d : current deviation from mean of covariates' immediate child.
     """
     # Extract keys to list to preserve order.
     n = covariate_dict.keys()
     
     cvv = [covariate_dict[k] for k in n]
-    x = np.vstack((np.asarray([v[0] for v in cvv])))
-    prior_val = [v[1] for v in cvv]
+    x = np.asarray([v[0] for v in cvv])
+    prior_var = np.diag([v[1] for v in cvv])
     
-    pri_S_eval = np.asarray(S_eval)
-    lo = pm.gp.trisolve(S_eval, x.T, uplo='L').T
-    post_tau = np.dot(lo,lo.T)
-    try:
-        l = np.linalg.cholesky(post_tau)
-    except np.linalg.LinAlgError:
-        sig, m, piv = pm.gp.incomplete_chol.ichol_full(post_tau)
-        
-
-    post_C = pm.gp.trisolve(l, np.eye(l.shape[0]),uplo='L')
-    post_C = pm.gp.trisolve(l.T, post_C, uplo='U')
-
-    post_mean = np.dot(lo, pm.gp.trisolve(pri_S_eval, d, uplo='L'))
-    post_mean = pm.gp.trisolve(l, post_mean, uplo='L')
-    post_mean = pm.gp.trisolve(l.T, post_mean, uplo='U')
-
+    prior_offdiag = np.dot(prior_var,x).T
+    prior_S = np.linalg.cholesky(np.asarray(C_eval) + np.dot(prior_offdiag, x))
+    pm.gp.trisolve(prior_S, prior_offdiag, uplo='L', transa='N', inplace=True)
+    post_C = prior_var - np.dot(prior_offdiag.T, prior_offdiag)
+    post_mean = np.dot(prior_offdiag.T, pm.gp.trisolve(prior_S, d, uplo='L', transa='N'))
+    
     new_val = pm.rmv_normal_cov(post_mean, post_C).squeeze()
 
     return dict(zip(n, new_val))
 
-def get_d_S_eval(hf, f_label, nugget_label, i, mesh):
+def get_d_C_eval(hf, f_label, nugget_label, i, mesh):
     """Utility fn"""
     if type(f_label) == type('str'):
         d = all_chain_getitem(hf, f_label, i, vl=False)
@@ -256,8 +246,7 @@ def get_d_S_eval(hf, f_label, nugget_label, i, mesh):
         nug = all_chain_getitem(hf, nugget_label, i, vl=False)
 
     C_eval = C(mesh, mesh) + nug*np.eye(np.sum(mesh.shape[:-1]))
-    S_eval = np.linalg.cholesky(C_eval)
-    return d, S_eval
+    return d, C_eval
 
 def covariate_trace(hf, f_label, nugget_label=None, burn=0, thin=1):
     """
@@ -287,13 +276,15 @@ def covariate_trace(hf, f_label, nugget_label=None, burn=0, thin=1):
     for i in xrange(burn,n,thin):
 
         if time.time() - time_count > 10:
-            print ((i*100)/n), '% complete'
+            print ((i*100)/n), '% complete',
             time_count = time.time()     
             if i > 0:       
-                print 'Completion expected '+time.ctime((time_count-time_start)*n/float(i)+time_start)        
+                print 'expect results '+time.ctime((time_count-time_start)*n/float(i)+time_start)        
+            else:
+                print
 
-        d, S_eval = get_d_S_eval(hf, f_label, nugget_label, i, mesh)
-        cur_vals = sample_covariates(covariate_dict, S_eval, d)
+        d, C_eval = get_d_C_eval(hf, f_label, nugget_label, i, mesh)
+        cur_vals = sample_covariates(covariate_dict, C_eval, d)
 
         for k, v in cur_vals.iteritems():
             out[k].append(v)
