@@ -97,7 +97,7 @@ else:
 # Parse input file
 
 input = csv2rec(file(o.pred_input,'U'))
-from np.ma import mrecords
+from numpy.ma import mrecords
 if isinstance(input, np.ma.mrecords.MaskedRecords):
     msg = 'Error, could not parse input at following rows:\n'
     for name in input.dtype.names:
@@ -122,7 +122,7 @@ non_cov_colnames = non_cov_coltypes.keys()
 
 covariate_dict = {}
 for n in input.dtype.names:
-    if n not in ['lon','lat','t']:
+    if n not in ['lon','lat','t','pos','neg']:
         if n in non_cov_colnames:
             non_cov_columns[n] = maybe_convert(input, n, non_cov_coltypes[n])
         else:
