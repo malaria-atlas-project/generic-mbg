@@ -51,7 +51,7 @@ def roc(p_samps, n_samps, pos, neg):
     fp = np.array(fp)
     tp = np.array(tp)
         
-    pl.fill(np.concatenate((fp,[1,1])),np.concatenate((tp,[0,1])), facecolor='.8',edgecolor='k',linewidth=1)
+    pl.fill(np.concatenate((fp,[1,1])), np.concatenate((tp,[0,1])), facecolor='.8', edgecolor='k', linewidth=1)
     pl.plot([0,1],[0,1],'k-.')
     
     pl.xlabel('False positive rate')
@@ -62,6 +62,8 @@ def roc(p_samps, n_samps, pos, neg):
         raise ValueError, 'AUC is NaN.'
     pl.title('AUC: %.3f'%AUC)
     pl.axis([0,1,0,1])
+    
+    return np.rec.fromarrays((fp,tp),names='false-pos,true-pos')
     
 def scatter(p_samps, n_samps, pos, neg):
     """
@@ -79,6 +81,8 @@ def scatter(p_samps, n_samps, pos, neg):
     pl.ylabel('Expected fraction positive')
     pl.axis([0,urc,0,urc])
     
+    return np.rec.fromarrays((p_pred,p_pos),names='predicted-pos-frac,observed-pos-frac')
+    
 def coverage(p_samps, n_samps, pos, neg):
     """
     Plots the coverage plot in the lower right panel of mbgw.
@@ -91,5 +95,7 @@ def coverage(p_samps, n_samps, pos, neg):
     pl.xlabel('Predictive quantile')
     pl.ylabel('Fraction of observations below quantile')
     pl.axis([0,1,0,1])
+    
+    return np.rec.fromarrays((pt,cover),names='probability,coverage')
             
 validation_fns = [roc,scatter,coverage]

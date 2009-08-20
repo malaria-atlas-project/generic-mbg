@@ -192,5 +192,6 @@ pl.rec2csv(errors,'mean-errors.csv')
 for f in validation_fns:
     print 'Generating plot of %s'%f.__name__
     pl.clf()
-    f(p_samples.T, n_samples.T, pos, neg)
+    res=f(p_samples.T, n_samples.T, pos, neg)
     pl.savefig(f.__name__ + '.pdf', transparent=True)
+    pl.rec2csv(res,f.__name__+'.csv')
