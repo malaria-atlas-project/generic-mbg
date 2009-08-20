@@ -81,7 +81,7 @@ def scatter(p_samps, n_samps, pos, neg):
     pl.ylabel('Expected fraction positive')
     pl.axis([0,urc,0,urc])
     
-    return np.rec.fromarrays((p_pred,p_pos),names='predicted-pos-frac,observed-pos-frac')
+    return np.rec.fromarrays((p_pred,p_obs),names='predicted-pos-frac,observed-pos-frac')
     
 def coverage(p_samps, n_samps, pos, neg):
     """
