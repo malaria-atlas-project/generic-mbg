@@ -185,7 +185,7 @@ Options
   Defaults to the current working directory.
 
 * ``-y`` or ``--year`` : If your model is spatiotemporal, you must provide the decimal year at 
-  which you want your map produced. For example, Jan 1 2008 would be ``-y -1.0``.
+  which you want your map produced. For example, Jan 1 2008 would be ``-y 2008``.
 
 
 ``mbg-validate``
@@ -284,7 +284,7 @@ Options
 * ``-m`` or ``--mean`` : The value of the global mean to use. Defaults to 0.
 
 * ``-y`` or ``-year`` : If your model is spatiotemporal, you must provide the decimal year at 
-  which you want your realizations produced. For example, Jan 1 2008 would be ``-y -1.0``.
+  which you want your realizations produced. For example, Jan 1 2008 would be ``-y 2008``.
 
 
 
