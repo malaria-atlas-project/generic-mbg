@@ -30,7 +30,7 @@ See <http://www.gnu.org/licenses/> for the terms of the license.
   input                 The csv file of input data to be divided.
   prop                  The proportion of the dataset to be used for the holdout set.
 """
-p = OptionParser('usage: %prog module database-file burn mask [options]' + req_doc)
+p = OptionParser('usage: %prog input prop [options]' + req_doc)
 p.add_option('-e','--exclude',help='Index definng rows of table to be excluded when drawing sample.',dest='exclude',type='int')
 p.add_option('-m','--minsample',help='Minimum sample size (supercedes prop if larger)',dest='minsample',type='int')
 p.add_option('-d','--decluster',help="Do we want to draw spatially declustered sample (default) or just simple random?",dest='decluster')
@@ -49,8 +49,3 @@ from rpy import *
 r.source('get_declustered_sample.R')
 
 r.getdeclusteredsample(o.input,o.prop,o.exclude,o.minsample,o.decluster,o.makeplot)
-
-
-
-
-
