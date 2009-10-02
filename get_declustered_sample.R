@@ -24,6 +24,7 @@ getdeclusteredsample<-function(tablepath,prop,exclude=c(),minSample=c(),DECLUSTE
     if(DECLUSTER=="True") DECLUSTER<-TRUE
     if(MAKEPLOT=="False") MAKEPLOT<-FALSE 
     if(MAKEPLOT=="True") MAKEPLOT<-TRUE 
+    if(exclude==0) exclude=c()
  
  ## check required packages are present 
     ip=installed.packages()

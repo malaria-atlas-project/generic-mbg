@@ -43,7 +43,7 @@ p.set_defaults(makeplot=True)
 
 o, args = p.parse_args()
 o.input = args[0]
-o.prop = args[1]
+o.prop = float(args[1])
 
 from rpy import *
 r.source('get_declustered_sample.R')
