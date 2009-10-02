@@ -122,6 +122,41 @@ Options
   many 'burnin' iterations are discarded. Defaults to 0, meaning no burnin.
 
 
+
+``mbg-decluster``
+========================
+::
+
+    mbg-decluster input prop [options]
+
+A wrapper for the R function getdeclusteredsample that results in two new tables with 
+suffix HOLDOUT and THINNED outut to same directory as tablepath  
+
+
+Required arguments
+------------------
+
+1. (string) path to input table. must include columns 'lon' and 'lat'. If
+   also 't' will treat as space-time. If only filename given (no path) assumes file
+   in current working directory.
+
+2. (float) what proportion of the full data set will be used for hold-out set.
+
+
+Options
+-------
+
+* ``-m`` or ``--minsample`` : (int) optional minimum sample size (supercedes prop.
+  if larger)
+
+* ``-d`` or ``--decluster`` : (logical) do we want to draw spatially declustered
+    sample (default) or just simple random.
+
+* ``-p`` or ``--makeplot`` : (logical) do we want to export a pdf map showing
+  location of data and selected points. This is exported to same directory as
+  tablepathoptional minimum sample size (supercedes prop if larger).
+
+
 ``mbg-map``
 ===========
 ::

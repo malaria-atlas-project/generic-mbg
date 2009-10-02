@@ -16,7 +16,7 @@
 require(deldir)
 require(seqinr)
 ##########################################################################
-getdeclusteredsample<-function(tablepath,prop,exclude=c(),minSample=c(),DECLUSTER=TRUE,MAKEPLOT=FALSE){
+getdeclusteredsample<-function(tablepath,prop,minSample=c(),DECLUSTER=TRUE,MAKEPLOT=FALSE){
                
 
  ## handle paramter passes from python and set defaults where necesssary
@@ -24,7 +24,6 @@ getdeclusteredsample<-function(tablepath,prop,exclude=c(),minSample=c(),DECLUSTE
     if(DECLUSTER=="True") DECLUSTER<-TRUE
     if(MAKEPLOT=="False") MAKEPLOT<-FALSE 
     if(MAKEPLOT=="True") MAKEPLOT<-TRUE 
-    if(exclude==0) exclude=c()
  
  ## check required packages are present 
     ip=installed.packages()
@@ -63,10 +62,6 @@ getdeclusteredsample<-function(tablepath,prop,exclude=c(),minSample=c(),DECLUSTE
    temp<-strsplit(fullpath,"/")[[1]][length((strsplit(fullpath,"/"))[[1]])]
    filesuffix<-strsplit(temp,".csv")[[1]][1]
    directory<-strsplit(fullpath,filesuffix)[[1]][1]
-  
-    
- ## if specified, remove those rows defined in exclude
-    if(class(exclude)!="NULL") tableIN<-tableIN[exclude,]  
 
  ## check for and define lat and lon columns
     if( (!any(names(tableIN)=="lon")) | (!any(names(tableIN)=="lat"))){
