@@ -31,21 +31,19 @@ See <http://www.gnu.org/licenses/> for the terms of the license.
   prop                  The proportion of the dataset to be used for the holdout set.
 """
 p = OptionParser('usage: %prog input prop [options]' + req_doc)
-p.add_option('-e','--exclude',help='Index definng rows of table to be excluded when drawing sample.',dest='exclude',type='int')
 p.add_option('-m','--minsample',help='Minimum sample size (supercedes prop if larger)',dest='minsample',type='int')
 p.add_option('-d','--decluster',help="Do we want to draw spatially declustered sample (default) or just simple random?",dest='decluster')
 p.add_option('-p','--makeplot',help="Do we want to export a pdf map showing location of data and selected points? This is exported to same directory as input.",dest='makeplot')
 
-p.set_defaults(exclude=0)
 p.set_defaults(minsample=0)
 p.set_defaults(decluster=True)
 p.set_defaults(makeplot=True)
 
 o, args = p.parse_args()
 o.input = args[0]
-o.prop = args[1]
+o.prop = float(args[1])
 
 from rpy import *
 r.source('get_declustered_sample.R')
 
-r.getdeclusteredsample(o.input,o.prop,o.exclude,o.minsample,o.decluster,o.makeplot)
+r.getdeclusteredsample(o.input,o.prop,o.minsample,o.decluster,o.makeplot)
