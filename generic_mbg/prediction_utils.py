@@ -320,7 +320,7 @@ def hdf5_to_samps(hf, x, burn, thin, total, fns, f_label, f_has_nugget, x_label,
     
     time_count = -np.inf
     time_start = time.time()
-    
+
     for k in xrange(len(iter)):
         
         i = iter[k]
@@ -451,7 +451,6 @@ def predictive_mean_and_std(hf, i, f_label, x_label, x, f_has_nugget=False, pred
     except:
         f = getattr(meta,f_label)[:]
         
-
     C_input = C(logp_mesh, logp_mesh)
 
     if pred_cv_dict is not None:

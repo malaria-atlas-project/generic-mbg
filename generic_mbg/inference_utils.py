@@ -65,13 +65,14 @@ def all_chain_getitem(hf, name, i, vl=False):
         raise IndexError, 'Index out of bounds'
     s = 0
     j = i
+
     for k in xrange(len(lens)):
         s += lens[k]
         if i<s:
             if vl:
                 return getattr(c[k].group0, name)[j]
             else:
-                return c[k].PyMCsamples.col(name)[j]
+                return getattr(c[k].PyMCsamples.cols,name)[j]
         else:
             j -= lens[k]
     
