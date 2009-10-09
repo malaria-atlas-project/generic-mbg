@@ -1,5 +1,3 @@
-#!/usr/bin/python
-#
 # Copyright (C) 2009 Anand Patil
 # 
 # This program is free software: you can redistribute it and/or modify
@@ -17,7 +15,6 @@
 
 from optparse import OptionParser
 import os
-import sys
 
 # Create option parser
 
@@ -70,7 +67,8 @@ import imp, sys
 import pymc as pm
 from pylab import csv2rec, rec2csv
 import pylab as pl
-import time
+import time, datetime
+import sys, subprocess
 
 pm.set_threadpool_size(o.ncpus)
 
@@ -106,9 +104,12 @@ mod = imp.load_module(mod_basename, *imp.find_module(mod_basename, mod_search_pa
 # Get revision
 
 curdir = os.getcwd()
-os.chdir(os.path.join(mod_path,'..'))
-print os.system('git show --pretty=format:"%H|%ci" --quiet')
-print os.system('git show --pretty=format:"%ci" --quiet')
+os.chdir(os.path.join(mod.__path__[0],'..'))
+process = subprocess.Popen('git show --pretty=format:"%H" --quiet', stdout=subprocess.PIPE, shell=True)
+os.waitpid(process.pid, 0)
+mod_commit = process.stdout.read().strip()
+
+os.chdir(curdir)
 
 for n in ['make_model', 'metadata_keys']:
     try:
@@ -166,6 +167,11 @@ if prev_db is None:
     add_standard_metadata(M, M.logp_mesh, M.data_mesh, M.covariate_dict, **(dict(zip(metadata_keys, [getattr(M,k) for k in metadata_keys]))))
     M.db._h5file.createTable('/','input_csv',csv2rec(file(o.input_name,'U')))
     M.db._h5file.root.input_csv.attrs.shellargs = ' '.join(sys.argv[1:])
+    M.db._h5file.root.input_csv.attrs.mod_name = mod_name
+    M.db._h5file.root.input_csv.attrs.mod_commit = mod_commit
+    M.db._h5file.root.input_csv.attrs.generic_commit = generic_commit
+    M.db._h5file.root.input_csv.attrs.starttime = datetime.datetime.now()
+    
 else:
     M = pm.MCMC(make_model(*mod_inputs,**non_cov_columns),db=prev_db)
     M.restore_sampler_state()

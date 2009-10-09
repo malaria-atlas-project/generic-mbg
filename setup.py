@@ -5,6 +5,7 @@
 from setuptools import setup
 from numpy.distutils.misc_util import Configuration
 import os
+import subprocess
 config = Configuration('generic_mbg',parent_package=None,top_path=None)
 
 config.add_extension(name='histogram_utils',sources=['generic_mbg/histogram_utils.f'])
@@ -21,7 +22,15 @@ if __name__ == '__main__':
             packages=['generic_mbg'],
             license="Creative commons BY-NC-SA",
             **(config.todict()))
-    for ex_fname in ['mbg-infer','mbg-map','mbg-validate','mbg-scalar-priors','mbg-realize-prior','mbg-covariate-traces','mbg-decluster','get_declustered_sample.R']:
-        os.system('chmod ugo+x %s'%ex_fname)
-        os.system('cp %s %s'%(ex_fname,prefix))
+    for ex_fname in ['mbg-map','mbg-validate','mbg-scalar-priors','mbg-realize-prior','mbg-covariate-traces','mbg-decluster','get_declustered_sample.R','mbg-infer','mbg-describe-tracefile']:
+
+        process = subprocess.Popen('git show --pretty=format:"%H" --quiet', stdout=subprocess.PIPE, shell=True)
+        os.waitpid(process.pid, 0)
+        commit = process.stdout.read().strip()
+
+        path_fname = os.path.join(prefix,ex_fname)
+        os.system('rm %s'%path_fname)
+        file(path_fname,'w').write('#!/usr/bin/python\ngeneric_commit = "%s"\n'%commit)
+        os.system('cat %s >> %s'%(ex_fname,path_fname))
+        os.system('chmod ugo+x %s'%path_fname)
 
