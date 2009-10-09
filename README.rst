@@ -150,7 +150,7 @@ Options
   if larger)
 
 * ``-d`` or ``--decluster`` : (logical) do we want to draw spatially declustered
-    sample (default) or just simple random.
+  sample (default) or just simple random.
 
 * ``-p`` or ``--makeplot`` : (logical) do we want to export a pdf map showing
   location of data and selected points. This is exported to same directory as

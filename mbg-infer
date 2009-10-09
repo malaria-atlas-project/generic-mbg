@@ -17,6 +17,7 @@
 
 from optparse import OptionParser
 import os
+import sys
 
 # Create option parser
 
