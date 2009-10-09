@@ -103,6 +103,13 @@ mod_basename, mod_ext = os.path.splitext(mod_name)
 mod_search_path = [mod_path, os.getcwd()] + sys.path
 mod = imp.load_module(mod_basename, *imp.find_module(mod_basename, mod_search_path))
 
+# Get revision
+
+curdir = os.getcwd()
+os.chdir(os.path.join(mod_path,'..'))
+print os.system('git show --pretty=format:"%H|%ci" --quiet')
+print os.system('git show --pretty=format:"%ci" --quiet')
+
 for n in ['make_model', 'metadata_keys']:
     try:
         exec("%s=getattr(mod,'%s')"%(n,n))
