@@ -29,6 +29,9 @@ subjective prior, there are two additional shell commands available to help:
   
 * ``mbg-realize-prior`` draws all scalar parameters from the prior, and realizes
   and plots the random field on grids matching a number of input ASCIIs.
+  
+* ``mbg-describe-tracefile`` provides information about the circumstances under which
+  a trace was produced.
 
 All shell commands can be run with only the ``-h`` option to print some help to the
 screen. However, if you're reading this document, you don't really need to do that.
@@ -91,6 +94,21 @@ Options
   algorithm. Should be less than or equal to the number of cores in your computer. The 
   All the cores you make available may not be utilized. Use top or the Activity Monitor
   to monitor your actual CPU usage. Large values are good but tie up more of your computer.
+
+``mbg-describe-tracefile``
+=============
+::
+
+  mbg-describe-tracefile database-file
+
+Inspects the database file. Prints out the version of the generic package, the module
+that produced the file and the date the run was started. Writes the input data to csv
+with filename ``database-file-input-csv``, substituting the actual filename.
+
+Required arguments
+------------------
+
+1. The name of the database file to be inspected.
 
 
 ``mbg-covariate-traces``
