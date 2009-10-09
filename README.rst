@@ -31,7 +31,7 @@ subjective prior, there are two additional shell commands available to help:
   and plots the random field on grids matching a number of input ASCIIs.
   
 * ``mbg-describe-tracefile`` provides information about the circumstances under which
-  a trace was produced.
+  traces were produced.
 
 All shell commands can be run with only the ``-h`` option to print some help to the
 screen. However, if you're reading this document, you don't really need to do that.
@@ -99,16 +99,20 @@ Options
 ==========================
 ::
 
-    mbg-describe-tracefile database-file
+    mbg-describe-tracefile path
 
-Inspects the database file. Prints out the version of the generic package, the module
-that produced the file and the date the run was started. Writes the input data to csv
-with filename ``database-file-input-csv``, substituting the actual filename.
+If path is a database file, inspects the database file. Prints out the version of the 
+generic package, the module that produced the file and the date the run was started. 
+Writes the input data to csv with filename ``database-file-input-csv``, substituting 
+the actual filename.
+
+If the path is a directory, walks the filesystem starting from the directory, inspecting
+every database file it finds. Does not produce any csvs.
 
 Required arguments
 ------------------
 
-1. The name of the database file to be inspected.
+1. The name of the database file or path to be inspected.
 
 
 ``mbg-covariate-traces``

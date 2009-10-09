@@ -13,18 +13,41 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+# TODO: If a file, inspect it; otherwise walk the tree starting from the given path.
+
 import sys
 import tables
 import matplotlib
 matplotlib.use('pdf')
 import pylab
+import os
 
-fname = sys.argv[1]
+path = sys.argv[1]
 
-hf = tables.openFile(fname)
-print
-print 'Generic package commit %s'%hf.root.input_csv.attrs.generic_commit
-print 'Module %s commit %s'%(hf.root.input_csv.attrs.mod_name, hf.root.input_csv.attrs.mod_commit)
-print 'Started %s'%hf.root.input_csv.attrs.starttime
-pylab.rec2csv(hf.root.input_csv[:],fname+'-input-data.csv')
-print
+def inspect_tracefile(fname, fromdir):
+    if fromdir:
+        tabstr = '\t'
+    else:
+        tabstr = ''
+    hf = tables.openFile(fname)
+    print
+    print tabstr + 'Generic package commit %s'%hf.root.input_csv.attrs.generic_commit
+    print tabstr + 'Module %s commit %s'%(hf.root.input_csv.attrs.mod_name, hf.root.input_csv.attrs.mod_commit)
+    print tabstr + 'Started %s'%hf.root.input_csv.attrs.starttime
+    if not fromdir:
+        pylab.rec2csv(hf.root.input_csv[:],fname+'-input-data.csv')
+    print
+    hf.close()
+    
+if os.path.isfile(path):
+    inspect_tracefile(path, False)
+else:
+    for dirpath, dirnames, filenames in os.walk(path):
+        for f in filenames:
+            fpath = os.path.join(dirpath, f)
+            if tables.isPyTablesFile(fpath):
+                print fpath+':'
+                try:
+                    inspect_tracefile(fpath,True)
+                except:
+                    print '\tCould not inspect.\n'
