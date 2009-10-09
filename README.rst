@@ -96,7 +96,7 @@ Options
   to monitor your actual CPU usage. Large values are good but tie up more of your computer.
 
 ``mbg-describe-tracefile``
-=============
+==========================
 ::
 
     mbg-describe-tracefile database-file
