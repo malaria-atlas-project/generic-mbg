@@ -99,7 +99,7 @@ Options
 =============
 ::
 
-  mbg-describe-tracefile database-file
+    mbg-describe-tracefile database-file
 
 Inspects the database file. Prints out the version of the generic package, the module
 that produced the file and the date the run was started. Writes the input data to csv
