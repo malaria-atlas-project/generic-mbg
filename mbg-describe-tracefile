@@ -45,9 +45,12 @@ else:
     for dirpath, dirnames, filenames in os.walk(path):
         for f in filenames:
             fpath = os.path.join(dirpath, f)
-            if tables.isPyTablesFile(fpath):
-                print fpath+':'
-                try:
-                    inspect_tracefile(fpath,True)
-                except:
-                    print '\tCould not inspect.\n'
+            try:
+                if tables.isPyTablesFile(fpath):
+                    print fpath+':'
+                    try:
+                        inspect_tracefile(fpath,True)
+                    except:
+                        print '\tCould not inspect.\n'
+            except:
+                continue
