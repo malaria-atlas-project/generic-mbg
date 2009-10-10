@@ -36,7 +36,7 @@ def inspect_tracefile(fname, fromdir):
         print tabstr + 'Generic package commit %s'%hf.root.input_csv.attrs.generic_commit
         print tabstr + 'Module %s commit %s'%(hf.root.input_csv.attrs.mod_name, hf.root.input_csv.attrs.mod_commit)
         print tabstr + 'Started %s'%hf.root.input_csv.attrs.starttime
-        print tabstr + '%i total iterations'%all_chain_len(hf)
+        print tabstr + 'Contains %i samples'%all_chain_len(hf)
         print tabstr + 'Input dataset %s'%hf.root.input_csv.attrs.input_filename
         if not fromdir:
             pylab.rec2csv(hf.root.input_csv[:],fname+'-input-data.csv')
