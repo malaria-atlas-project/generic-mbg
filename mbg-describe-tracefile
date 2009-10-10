@@ -53,7 +53,6 @@ else:
             try:
                 if tables.isPyTablesFile(fpath):
                     print fpath+':'
-                    try:
                     inspect_tracefile(fpath,True)
             except:
                 continue
