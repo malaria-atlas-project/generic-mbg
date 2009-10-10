@@ -30,14 +30,18 @@ def inspect_tracefile(fname, fromdir):
     else:
         tabstr = ''
     hf = tables.openFile(fname)
-    print
-    print tabstr + 'Generic package commit %s'%hf.root.input_csv.attrs.generic_commit
-    print tabstr + 'Module %s commit %s'%(hf.root.input_csv.attrs.mod_name, hf.root.input_csv.attrs.mod_commit)
-    print tabstr + 'Started %s'%hf.root.input_csv.attrs.starttime
-    print tabstr + 'Input dataset %s'%hf.root.input_csv.attrs.input_filename
-    if not fromdir:
-        pylab.rec2csv(hf.root.input_csv[:],fname+'-input-data.csv')
-    print
+    try:
+        print
+        print tabstr + 'Generic package commit %s'%hf.root.input_csv.attrs.generic_commit
+        print tabstr + 'Module %s commit %s'%(hf.root.input_csv.attrs.mod_name, hf.root.input_csv.attrs.mod_commit)
+        print tabstr + 'Started %s'%hf.root.input_csv.attrs.starttime
+        print tabstr + 'Input dataset %s'%hf.root.input_csv.attrs.input_filename
+        if not fromdir:
+            pylab.rec2csv(hf.root.input_csv[:],fname+'-input-data.csv')
+        print
+    except:
+        print '\tCould not inspect.\n'
+        
     hf.close()
     
 if os.path.isfile(path):
@@ -50,8 +54,6 @@ else:
                 if tables.isPyTablesFile(fpath):
                     print fpath+':'
                     try:
-                        inspect_tracefile(fpath,True)
-                    except:
-                        print '\tCould not inspect.\n'
+                    inspect_tracefile(fpath,True)
             except:
                 continue
