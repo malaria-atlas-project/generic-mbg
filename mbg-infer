@@ -171,6 +171,7 @@ if prev_db is None:
     M.db._h5file.root.input_csv.attrs.mod_commit = mod_commit
     M.db._h5file.root.input_csv.attrs.generic_commit = generic_commit
     M.db._h5file.root.input_csv.attrs.starttime = datetime.datetime.now()
+    M.db._h5file.root.input_csv.attrs.input_filename = o.input_name
     
 else:
     M = pm.MCMC(make_model(*mod_inputs,**non_cov_columns),db=prev_db)
