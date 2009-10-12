@@ -369,10 +369,14 @@ def vec_to_asc(vec, fname, out_fname, unmasked, path=''):
     Converts a vector of outputs on a thin, unmasked, ravelled subset of an
     ascii grid to an ascii file matching the original grid.
     """
+    
+    if np.any(np.isnan(vec)):
+        raise ValueError, 'NaN in vec'  
+    
     header, headlines = get_header(fname,path)
     lon,lat,data = asc_to_ndarray(fname,path)
     data = grid_convert(data,'y-x+','x+y+')
-    data_thin = np.empty(unmasked.shape)
+    data_thin = np.zeros(unmasked.shape)
     data_thin[unmasked] = vec
     
     mapgrid = np.array(mgrid[0:data.shape[0],0:data.shape[1]], dtype=float)
