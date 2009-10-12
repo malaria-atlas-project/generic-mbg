@@ -448,3 +448,14 @@ The following attributes are optional:
   total number of realization surfaces produced. The output should be a ``{name : surface}`` 
   dictionary, where all of the 'surfaces' are vectors ready to be injected into the mask and
   written out as ascii files.
+  
+  
+Version logging and installations
+---------------------------------
+
+To avoid unpleasantness when restarting projects after leaving them for a long time in the future,
+the SHA1 hash of the active commit of generic_mbg and the specialization module will be written into
+the trace hdf5 by mbg-infer.
+
+For this to work correctly, generic_mbg has to be installed using ``setup.py install`` and the 
+specialization module using ``setup.py develop``. 
