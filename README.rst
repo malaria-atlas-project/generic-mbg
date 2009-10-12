@@ -226,6 +226,9 @@ Options
   is on a 5km grid, and you use ``-r 5``, the maps will be rendered on a 25km grid, then
   interpolated back to a 5km grid when it is time to produce the output ASCIIs. Small values
   are good but slow. 1 is best.
+  
+  NOTE: If you use a value greater than one, you may see occasional small, negative pixels and
+  possibly larger errors due to edge effects. These are nothing to worry about.
 
 * ``-t`` or ``--thin`` : The factor by which to thin the MCMC trace stored in the database.
   If you use ``-t 10``, only every 10th stored MCMC iteration will be used to produce the maps.
