@@ -337,7 +337,7 @@ def hdf5_to_samps(hf, x, burn, thin, total, fns, f_label, f_has_nugget, x_label,
         
         M_pred, S_pred = predictive_mean_and_std(hf, i, f_label, x_label, x, f_has_nugget, pred_cv_dict, nugget_label, diag_safe)
         if M_pred is None:
-            actual_total -= 1
+            actual_total -= n_per
             continue
         else:
             cmin, cmax = thread_partition_array(M_pred)
@@ -452,6 +452,7 @@ def predictive_mean_and_std(hf, i, f_label, x_label, x, f_has_nugget=False, pred
     logp_mesh = np.asarray(getattr(meta,x_label)[:], order='F')    
     M_input = M(logp_mesh)
     M_pred = M(x)
+
     
     V_out = np.empty(M_pred.shape)
     M_out = np.empty(M_pred.shape)
@@ -531,7 +532,7 @@ def predictive_mean_and_std(hf, i, f_label, x_label, x, f_has_nugget=False, pred
         M_out[i_chunk] = M_pred[i_chunk] + np.asarray(np.dot(SC_cross.T,pm.gp.trisolve(S_input, (f-M_input), uplo='L'))).squeeze()
 
         if np.any(np.isnan(np.sqrt(V_out[i_chunk]))) or np.any(np.isnan(M_out[i_chunk])):
-            bad_x = x_chunk[np.where(np.isnan(np.sqrt(V_out[i_chunk])))]
+            bad_x = np.atleast_2d(x_chunk[np.where(np.isnan(np.sqrt(V_out[i_chunk])))[0][0]])
             bad_logp_mesh = np.vstack((logp_mesh, bad_x))
             bad_C_input = C(bad_logp_mesh, bad_logp_mesh)
             if nugget_label is not None:

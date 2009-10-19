@@ -155,6 +155,8 @@ def finalize(prod, n, q=q, ef=extra_finalize):
     std_to_mean = std/mean
     out = {'mean': mean, 'var': var, 'std': std, 'std-to-mean':std_to_mean}
     if len(q)>0:
+        # from IPython.Debugger import Pdb
+        # Pdb(color_scheme='Linux').set_trace()   
         out.update(hsf(prod, n))
     if ef is not None:
         out.update(ef(prod, n))
