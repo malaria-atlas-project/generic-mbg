@@ -526,7 +526,7 @@ def predictive_mean_and_std(hf, i, f_label, x_label, x, f_has_nugget=False, pred
         M_out[i_chunk] = M_pred[i_chunk] + np.asarray(np.dot(SC_cross.T,pm.gp.trisolve(S_input, (f-M_input), uplo='L'))).squeeze()
 
 
-    if np.any(np.isnan(np.sqrt(V_out))) or np.any(np.isnan(M_out)):
-        raise ValueError, 'Some predictive samples were NaN. Keep all your input files and tell Anand.'
+        if np.any(np.isnan(np.sqrt(V_out[i_chunk]))) or np.any(np.isnan(M_out[i_chunk])):
+            raise ValueError, 'Some predictive samples were NaN. Keep all your input files and tell Anand.'
 
     return M_out, np.sqrt(V_out)
