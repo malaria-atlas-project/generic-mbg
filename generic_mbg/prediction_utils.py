@@ -150,6 +150,8 @@ def asc_to_locs(fname, path='', thin=1, bufsize=1):
     
     # unmasked = None
     lat,lon = [dir[unmasked] for dir in np.meshgrid(lat[::thin],lon[::thin])]
+    if np.any(np.abs(lon)>180.) or np.any(np.abs(lat)>90.):
+        raise ValueError, 'Ascii file %s has incorrect header. Lower left corner is (%f,%f); upper right corner is (%f,%f).'%(fname,lat.min(),lon.min(),lat.max(),lon.max())
     # lon,lat = [dir.ravel() for dir in np.meshgrid(lon[::thin],lat[::thin])]
     return np.vstack((lon,lat)).T*np.pi/180., unmasked
 
