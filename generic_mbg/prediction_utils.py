@@ -14,6 +14,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
+import cPickle
+import hashlib
 import pymc as pm
 import tables as tb
 import numpy as np
@@ -334,24 +336,28 @@ def hdf5_to_samps(hf, x, burn, thin, total, fns, f_label, f_has_nugget, x_label,
                 print
         
         M_pred, S_pred = predictive_mean_and_std(hf, i, f_label, x_label, x, f_has_nugget, pred_cv_dict, nugget_label, diag_safe)
-        cmin, cmax = thread_partition_array(M_pred)
+        if M_pred is None:
+            actual_total -= 1
+            continue
+        else:
+            cmin, cmax = thread_partition_array(M_pred)
         
-        # Postprocess if necessary: logit, etc.
-        norms = np.random.normal(size=n_per)
+            # Postprocess if necessary: logit, etc.
+            norms = np.random.normal(size=n_per)
         
-        for j in xrange(n_per):
-            # surf = M_pred
-            # surf = M_pred + S_pred * norms[j]
+            for j in xrange(n_per):
+                # surf = M_pred
+                # surf = M_pred + S_pred * norms[j]
 
-            surf = M_pred.copy('F')
-            pm.map_noreturn(iaaxpy, [(norms[j], S_pred, surf, cmin[l], cmax[l]) for l in xrange(len(cmax))])
+                surf = M_pred.copy('F')
+                pm.map_noreturn(iaaxpy, [(norms[j], S_pred, surf, cmin[l], cmax[l]) for l in xrange(len(cmax))])
             
-            if postproc is not None:
-                surf = postproc(surf)
+                if postproc is not None:
+                    surf = postproc(surf)
                         
-            # Reduction step
-            for f in fns:
-                products[f] = f(products[f], surf)
+                # Reduction step
+                for f in fns:
+                    products[f] = f(products[f], surf)
 
     
     if finalize is not None:
@@ -485,7 +491,7 @@ def predictive_mean_and_std(hf, i, f_label, x_label, x, f_has_nugget=False, pred
     n_chunks = int(x.shape[0]/max_chunksize+1)
     splits = np.array(np.linspace(0,x.shape[0],n_chunks+1),dtype='int')
     x_chunks = np.split(x,splits[1:-1])
-    i_chunks = [slice(splits[i],splits[i+1],None) for i in xrange(n_chunks)]
+    i_chunks = [slice(splits[k],splits[k+1],None) for k in xrange(n_chunks)]
 
 
     for k in xrange(n_chunks):
@@ -508,7 +514,6 @@ def predictive_mean_and_std(hf, i, f_label, x_label, x, f_has_nugget=False, pred
         else:
             V_pred = C(x_chunk) + nug
         
-        
         if pred_cv_dict is not None:
             C_cross = crossmul_and_sum(C_cross, input_covariate_values, np.diag(prior_covariate_variance), pcv)
             V_pred_adj = V_pred + np.sum(np.dot(np.sqrt(prior_covariate_variance), pcv)**2, axis=0)
@@ -525,8 +530,25 @@ def predictive_mean_and_std(hf, i, f_label, x_label, x, f_has_nugget=False, pred
         V_out[i_chunk] = V_pred_adj - scc
         M_out[i_chunk] = M_pred[i_chunk] + np.asarray(np.dot(SC_cross.T,pm.gp.trisolve(S_input, (f-M_input), uplo='L'))).squeeze()
 
-
         if np.any(np.isnan(np.sqrt(V_out[i_chunk]))) or np.any(np.isnan(M_out[i_chunk])):
-            raise ValueError, 'Some predictive samples were NaN. Keep all your input files and tell Anand.'
+            bad_x = x_chunk[np.where(np.isnan(np.sqrt(V_out[i_chunk])))]
+            bad_logp_mesh = np.vstack((logp_mesh, bad_x))
+            bad_C_input = C(bad_logp_mesh, bad_logp_mesh)
+            if nugget_label is not None:
+                nug = all_chain_getitem(hf, 'V', i)
+                if f_has_nugget:
+                    bad_C_input += nug*np.eye(np.sum(bad_logp_mesh.shape[:-1]))
+                try:
+                    bad_S_input = np.linalg.cholesky(bad_C_input)
+                except np.linalg.LinAlgError:
+                    outdict = {'C': C, 'x': bad_logp_mesh, 'V': nug}
+                    outstr = cPickle.dumps(outdict)
+                    outname = hashlib.sha1(outstr).hexdigest()
+                    file('cov-error-%s.pickle'%outname,'w').write(outstr)
+                    print 'Some predictive samples were NaN at iteration %i due to a non-positive-definite covariance function. \nPlease send file cov-error-%s.pickle to Anand, and explain what happened.'%(i,outname)
+                    return None,None
+                    
+            raise ValueError, 'Some predictive samples were NaN at iteration %i, but I cannot find anything obviously wrong. \nKeep all your input files and tell Anand.'%i
+            # print 'Some predictive samples were NaN at iteration %i. Keep all your input files and tell Anand.'%i
 
     return M_out, np.sqrt(V_out)
