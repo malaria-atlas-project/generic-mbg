@@ -42,6 +42,6 @@ o.input = args[0]
 o.prop = float(args[1])
 
 from rpy import *
-r.source('get_declustered_sample.R')
+r.source('/usr/local/bin/get_declustered_sample.R')
 
 r.getdeclusteredsample(o.input,o.prop,o.minsample,o.decluster,o.makeplot)
