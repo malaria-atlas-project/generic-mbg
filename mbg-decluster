@@ -38,6 +38,9 @@ p.set_defaults(decluster=True)
 p.set_defaults(makeplot=True)
 
 o, args = p.parse_args()
+if len(args) != 2:
+    raise IOError, 'You must supply exactly two positional arguments. You supplied %i.'%len(args)
+
 o.input = args[0]
 o.prop = float(args[1])
 
