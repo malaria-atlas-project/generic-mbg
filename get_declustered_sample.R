@@ -75,14 +75,15 @@ getdeclusteredsample<-function(tablepath,prop,minSample=c(),DECLUSTER=TRUE,MAKEP
     if( (any(names(tableIN)=="t"))){
         ST<-TRUE
         time<-tableIN$t
+
+        #  order table by time of survey (so most recent surveys come first)
+        Order<-order(time,decreasing=TRUE)
+        tableIN<-tableIN[Order,]
+        
     }else{
         ST<-FALSE
         print("WARNING!! no 't' column founs, so assuming a spatial only database")
     }
-    
-  # if ST, order table by time of survey (so most recent surveys come first)
-    Order<-order(time,decreasing=TRUE)
-    tableIN<-tableIN[Order,]
 
   # now define index so can focus only on those records that are not spatial duplciates of preceding records
     SpatUniqueIndex<-!(duplicated(cbind(lon,lat)))
