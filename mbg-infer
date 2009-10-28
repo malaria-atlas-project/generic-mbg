@@ -84,12 +84,12 @@ if hf_basename in os.listdir(hf_path):
     if rm_q.strip() in ['y','YES','Yes','yes','Y']:
         prev_db = pm.database.hdf5.load(os.path.join(hf_path,hf_basename))
     elif rm_q.strip() in ['n','NO','No','no','N']:
-        rm_q = raw_input('\nShall I kill him, lord? [yes or no] ')
+        rm_q = raw_input('\nDo you want me to remove the file and start fresh? [yes or no] ')
         if rm_q.strip() in ['y','YES','Yes','yes','Y']:
             print '\nExcellent.'
             os.remove(o.hf_name)
         elif rm_q.strip() in ['n','NO','No','no','N']:
-            raise OSError, '\nYou must treat your filesystem more firmly.'
+            raise OSError, '\nPlease sort yourself out.'
         else:
             raise OSError, '\nI do not know what you are trying to say. Move, rename or delete the database to continue.'
 
