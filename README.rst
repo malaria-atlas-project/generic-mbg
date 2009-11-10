@@ -220,15 +220,14 @@ Options
   ``'0.25 0.5 0.75'`` would map the lower and upper quartiles and the medial. Default is 
   ``'0.05 0.25 0.5 0.75 0.95'``.
 
-* ``-r`` or ``--raster-thin`` : If you think your map is going to be smooth (eg because you
-  aren't using any covariates), you can use this option to render the maps on a degraded grid,
-  then interpolate back to the original grid using splines. For instance, if your input ASCII
-  is on a 5km grid, and you use ``-r 5``, the maps will be rendered on a 25km grid, then
-  interpolated back to a 5km grid when it is time to produce the output ASCIIs. Small values
-  are good but slow. 1 is best.
+* ``-r`` or ``--raster-thin`` : If you just want a quick preview, you can use this option to 
+  render the maps on a degraded grid, then interpolate back to the original grid using splines. 
+  For instance, if your input ASCII is on a 5km grid, and you use ``-r 5``, the maps will be 
+  rendered on a 25km grid, then interpolated back to a 5km grid when it is time to produce 
+  the output ASCIIs. Small values are good but slow. 1 is best.
   
-  NOTE: If you use a value greater than one, you may see occasional small, negative pixels and
-  possibly larger errors due to edge effects. These are nothing to worry about.
+  WARNING: The ``raster_thin`` argument has been implicated in some odd-looking results and 
+  should only be used for quick previews.
 
 * ``-t`` or ``--thin`` : The factor by which to thin the MCMC trace stored in the database.
   If you use ``-t 10``, only every 10th stored MCMC iteration will be used to produce the maps.
