@@ -17,6 +17,7 @@
 import pymc as pm
 import numpy as np
 import time
+import warnings
 
 class CovariateStepper(pm.StepMethod):
     """
@@ -130,7 +131,7 @@ class FieldStepper(pm.StepMethod):
         sig_step = C_step
         info = pm.gp.linalg_utils.dpotrf_wrap(C_step.T)
         if info > 0:
-            print 'WARNING: Full conditional covariance was not positive definite.'
+            warnings.warn('Full conditional covariance was not positive definite.')
             return
         
         # Update value of f.
