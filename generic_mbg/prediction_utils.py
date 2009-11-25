@@ -28,7 +28,7 @@ import os
 
 __all__ = ['grid_convert','mean_reduce','var_reduce','invlogit','hdf5_to_samps','vec_to_asc','asc_to_locs',
             'display_asc','display_datapoints','histogram_reduce','histogram_finalize','maybe_convert','sample_reduce',
-            'sample_finalize','asc_to_vals']
+            'sample_finalize','asc_to_vals','fast_inplace_mul','fast_inplace_square','square_and_sum','crossmul_and_sum']
             
 memmax = 2.5e8
 
@@ -54,7 +54,14 @@ def invlogit(x):
     pm.map_noreturn(iinvlogit, [(x,cmin[i],cmax[i]) for i in xrange(len(cmax))])
     return x
 
+def fast_inplace_mul(a,s):
+    """Multiplies a by s in-place and returns a."""
+    cmin, cmax = thread_partition_array(a)
+    pm.map_noreturn(iamul, [(a,s,cmin[i],cmax[i]) for i in xrange(len(cmax))])
+    return a
+
 def fast_inplace_square(a):
+    """Squares a in-place and returns it."""
     cmin, cmax = thread_partition_array(a)
     pm.map_noreturn(iasq, [(a,cmin[i],cmax[i]) for i in xrange(len(cmax))])
     return a
@@ -259,7 +266,7 @@ def histogram_finalize(bins, q, hr):
 
 
 
-def hdf5_to_samps(hf, x, burn, thin, total, fns, f_label, f_has_nugget, x_label, pred_cv_dict=None, nugget_label=None, postproc=None, finalize=None, diag_safe=False, **non_cov_columns):
+def hdf5_to_samps(hf, x, burn, thin, total, fns, f_labels, fs_have_nugget, x_label, nugget_labels, M_labels, C_labels, pred_cv_dicts, postproc, diags_safe, finalize=None, **non_cov_columns):
     """
     Parameters:
         hf : PyTables file
@@ -276,30 +283,34 @@ def hdf5_to_samps(hf, x, burn, thin, total, fns, f_label, f_has_nugget, x_label,
             Each function should take four arguments: sofar, next, cols and i.
             Sofar may be None.
             The functions will be applied according to the reduce pattern.
-        f_label : string
-            The name of the hdf5 node containing f
-        f_has_nugget : boolean
-            Whether f is nuggeted.
+        f_labels : list or array of strings
+            The names of the hdf5 nodes containing f's
+        fs_have_nugget : dictionary of booleans
+            Whether f's are nuggeted.
         x_label : string
             The name of the hdf5 node containing the input mesh associated with f
             in the metadata.
-        pred_cv_dict : dictionary
-            {name : value on x}
-        nugget_label : string (optional)
-            The name of the hdf5 node giving the nugget variance
-        postproc : function (optional)
+        nugget_labels, M_labels, C_labels : dictionaries of strings
+            The names of the hdf5 nodes giving the nugget variances, means
+            and covariances of the f's        
+        pred_cv_dicts : dictionary of dictionaries
+            {f label: {covariate name : value on x}}
+        postproc : function
             This function is applied to the realization before it is passed to
             the fns.
         finalize : function (optional)
             This function is applied to the products before returning. It should
             take a second argument which is the actual number of realizations
             produced.
+        diags_safe : dictionary of booleans (optional)
+            Whether C(x)=C.params['amp']**2 regardless of x
     """
     
     # Add constant mean
-    if pred_cv_dict is None:
-        pred_cv_dict = {}
-    pred_cv_dict['m'] = np.ones(x.shape[0])
+    if pred_cv_dicts is None:
+        pred_cv_dicts = dict([(label,{}) for label in f_labels])
+    for label in f_labels:
+        pred_cv_dicts[label]['m'] = np.ones(x.shape[0])
     
     products = dict(zip(fns, [None]*len(fns)))
     iter = np.arange(burn,all_chain_len(hf),thin)
@@ -318,9 +329,8 @@ def hdf5_to_samps(hf, x, burn, thin, total, fns, f_label, f_has_nugget, x_label,
     # i_chunks = np.split(np.arange(x.shape[0]), splits)
     
     # If postproc is not None, close on non-covariate columns.
-    if postproc is not None:
-        if len(non_cov_columns) > 0:
-            postproc = postproc(**non_cov_columns)
+    if len(non_cov_columns) > 0:
+        postproc = postproc(**non_cov_columns)
     
     time_count = -np.inf
     time_start = time.time()
@@ -337,25 +347,27 @@ def hdf5_to_samps(hf, x, burn, thin, total, fns, f_label, f_has_nugget, x_label,
             else:
                 print
         
-        M_pred, S_pred = predictive_mean_and_std(hf, i, f_label, x_label, x, f_has_nugget, pred_cv_dict, nugget_label, diag_safe)
-        if M_pred is None:
+        M_preds = {}
+        S_preds = {}
+        for fl in f_labels:
+            M_preds[fl], S_preds[fl] = predictive_mean_and_std(hf, i, fl, x_label, x, fs_have_nugget[fl], pred_cv_dicts[fl], nugget_labels[fl], M_labels[fl], C_labels[fl], diags_safe[fl])
+        if M_preds[f_labels[0]] is None:
             actual_total -= n_per
             continue
         else:
-            cmin, cmax = thread_partition_array(M_pred)
+            cmin, cmax = thread_partition_array(M_preds[f_labels[0]])
         
             # Postprocess if necessary: logit, etc.
             norms = np.random.normal(size=n_per)
         
             for j in xrange(n_per):
-                # surf = M_pred
-                # surf = M_pred + S_pred * norms[j]
-
-                surf = M_pred.copy('F')
-                pm.map_noreturn(iaaxpy, [(norms[j], S_pred, surf, cmin[l], cmax[l]) for l in xrange(len(cmax))])
+                
+                surfs = {}
+                for fl in f_labels:
+                    surfs[fl] = M_preds[fl].copy('F')
+                    pm.map_noreturn(iaaxpy, [(norms[j], S_preds[fl], surfs[fl], cmin[l], cmax[l]) for l in xrange(len(cmax))])
             
-                if postproc is not None:
-                    surf = postproc(surf)
+                surf = postproc(**surfs)
                         
                 # Reduction step
                 for f in fns:
@@ -419,7 +431,7 @@ def vec_to_asc(vec, fname, out_fname, unmasked, path=''):
     return out
     
 
-def predictive_mean_and_std(hf, i, f_label, x_label, x, f_has_nugget=False, pred_cv_dict=None, nugget_label=None, diag_safe=False):
+def predictive_mean_and_std(hf, i, f_label, x_label, x, f_has_nugget, pred_cv_dict, nugget_label, M_label, C_label, diag_safe=False):
     """
     Computes marginal (pointwise) predictive mean and variance for f(x).
     Expects input from an hdf5 datafile.
@@ -448,8 +460,8 @@ def predictive_mean_and_std(hf, i, f_label, x_label, x, f_has_nugget=False, pred
         input_covariate_values[j,:] = covariate_dict[n[j]][0]
     
     # How many times must a man condition a multivariate normal
-    M = all_chain_getitem(hf, 'M', i, True)
-    C = all_chain_getitem(hf, 'C', i, True)
+    M = all_chain_getitem(hf, M_label, i, True)
+    C = all_chain_getitem(hf, C_label, i, True)
 
     logp_mesh = np.asarray(getattr(meta,x_label)[:], order='F')    
     M_input = M(logp_mesh)
@@ -468,10 +480,9 @@ def predictive_mean_and_std(hf, i, f_label, x_label, x, f_has_nugget=False, pred
 
     if pred_cv_dict is not None:
         C_input += np.dot(np.dot(input_covariate_values.T, prior_covariate_variance), input_covariate_values)
-    if nugget_label is not None:
-        nug = all_chain_getitem(hf, 'V', i)
-        if f_has_nugget:
-            C_input += nug*np.eye(np.sum(logp_mesh.shape[:-1]))
+    nug = all_chain_getitem(hf, nugget_label, i)
+    if f_has_nugget:
+        C_input += nug*np.eye(np.sum(logp_mesh.shape[:-1]))
     else:
         nug = 0.
     
@@ -537,19 +548,18 @@ def predictive_mean_and_std(hf, i, f_label, x_label, x, f_has_nugget=False, pred
             bad_x = np.atleast_2d(x_chunk[np.where(np.isnan(np.sqrt(V_out[i_chunk])))[0][0]])
             bad_logp_mesh = np.vstack((logp_mesh, bad_x))
             bad_C_input = C(bad_logp_mesh, bad_logp_mesh)
-            if nugget_label is not None:
-                nug = all_chain_getitem(hf, 'V', i)
-                if f_has_nugget:
-                    bad_C_input += nug*np.eye(np.sum(bad_logp_mesh.shape[:-1]))
-                try:
-                    bad_S_input = np.linalg.cholesky(bad_C_input)
-                except np.linalg.LinAlgError:
-                    outdict = {'C': C, 'x': bad_logp_mesh, 'V': nug}
-                    outstr = cPickle.dumps(outdict)
-                    outname = hashlib.sha1(outstr).hexdigest()
-                    file('cov-error-%s.pickle'%outname,'w').write(outstr)
-                    print 'Some predictive samples were NaN at iteration %i due to a non-positive-definite covariance function. \nPlease send file cov-error-%s.pickle to Anand, and explain what happened.'%(i,outname)
-                    return None,None
+            nug = all_chain_getitem(hf, nugget_label, i)
+            if f_has_nugget:
+                bad_C_input += nug*np.eye(np.sum(bad_logp_mesh.shape[:-1]))
+            try:
+                bad_S_input = np.linalg.cholesky(bad_C_input)
+            except np.linalg.LinAlgError:
+                outdict = {'C': C, 'x': bad_logp_mesh, 'V': nug}
+                outstr = cPickle.dumps(outdict)
+                outname = hashlib.sha1(outstr).hexdigest()
+                file('cov-error-%s.pickle'%outname,'w').write(outstr)
+                print 'Some predictive samples were NaN at iteration %i due to a non-positive-definite covariance function. \nPlease send file cov-error-%s.pickle to Anand, and explain what happened.'%(i,outname)
+                return None,None
                     
             raise ValueError, 'Some predictive samples were NaN at iteration %i, but I cannot find anything obviously wrong. \nKeep all your input files and tell Anand.'%i
             # print 'Some predictive samples were NaN at iteration %i. Keep all your input files and tell Anand.'%i

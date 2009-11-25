@@ -169,7 +169,7 @@ if prev_db is None:
     M.db._h5file.root.input_csv.attrs.shellargs = ' '.join(sys.argv[1:])
     M.db._h5file.root.input_csv.attrs.mod_name = mod_name
     M.db._h5file.root.input_csv.attrs.mod_commit = mod_commit
-    M.db._h5file.root.input_csv.attrs.generic_commit = generic_commit
+    # M.db._h5file.root.input_csv.attrs.generic_commit = generic_commit
     M.db._h5file.root.input_csv.attrs.starttime = datetime.datetime.now()
     M.db._h5file.root.input_csv.attrs.input_filename = o.input_name
     
@@ -179,13 +179,15 @@ else:
 scalar_stochastics = filter(lambda s: len(np.atleast_1d(s.value)) == 1, M.stochastics)
 scale_dict = dict(zip(scalar_stochastics, .001*np.ones(len(scalar_stochastics))))
 
+for k, sm in mod.step_method_orders.iteritems():
+    M.use_step_method(sm[0], getattr(M,k), *[getattr(M,v) for v in sm[1:]])
 
-if hasattr(M, 'f'):
-    if hasattr(M,'ti'):
-        ti = M.ti
-    else:
-        ti = np.arange(M.logp_mesh.shape[0])
-    M.use_step_method(FieldStepper, M.f, M.V, M.C_eval, M.M_eval, M.logp_mesh, M.eps_p_f, ti)
+# if hasattr(M, 'f'):
+#     if hasattr(M,'ti'):
+#         ti = M.ti
+#     else:
+#         ti = np.arange(M.logp_mesh.shape[0])
+#     M.use_step_method(FieldStepper, M.f, M.V, M.C_eval, M.M_eval, M.logp_mesh, M.eps_p_f, ti)
 
 M.use_step_method(pm.AdaptiveMetropolis, scalar_stochastics, scales=scale_dict, delay=o.AM_delay)
 for s in M.stochastics:

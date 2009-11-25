@@ -143,6 +143,7 @@ if np.any(n_sampled==0):
     raise ValueError, 'Pos+neg = 0 in the rows (starting from zero):\n %s'%where_zero
 
 t1 = time.time()
+# (hf, x, burn, thin, total, fns, f_labels, fs_have_nugget, x_label, nugget_labels, M_labels, C_labels, pred_cv_dicts, postproc, diags_safe, finalize=None, **non_cov_columns)
 p_samples = hdf5_to_samps(hf,x,o.burn,o.thin,o.total,[sample_reduce],f_name,f_has_nugget,x_name,covariate_dict,nugget_name,postproc,sample_finalize,**non_cov_columns).T
 n_samples = np.array([pm.rbinomial(n_sampled[i], p_samples[:,i]) for i in xrange(len(n_sampled))])
 print '\nPredictive samples drawn in %f seconds\n'%(time.time() - t1)

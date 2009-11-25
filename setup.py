@@ -6,11 +6,23 @@ from setuptools import setup
 from numpy.distutils.misc_util import Configuration
 import os
 import subprocess
+import sys
+
+
+from optparse import OptionParser
+p = OptionParser()
+p.add_option('-e','--executable-dir',help='The place to write the executables. Defaults to /usr/local/bin',dest='prefix',type='str')
+p.set_defaults(prefix='/usr/local/bin')
+o, args = p.parse_args()
+
+for v in sys.argv:
+    if v.find('--executable-dir')>-1:
+        sys.argv.remove(v)
+
 config = Configuration('generic_mbg',parent_package=None,top_path=None)
 
 config.add_extension(name='histogram_utils',sources=['generic_mbg/histogram_utils.f'])
 
-prefix='/usr/local/bin'
 
 if __name__ == '__main__':
     from numpy.distutils.core import setup
@@ -28,7 +40,7 @@ if __name__ == '__main__':
         os.waitpid(process.pid, 0)
         commit = process.stdout.read().strip()
 
-        path_fname = os.path.join(prefix,ex_fname)
+        path_fname = os.path.join(o.prefix,ex_fname)
         os.system('rm %s'%path_fname)
         file(path_fname,'w').write('#!/usr/bin/python\ngeneric_commit = "%s"\n'%commit)
         os.system('cat %s >> %s'%(ex_fname,path_fname))

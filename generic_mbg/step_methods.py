@@ -79,12 +79,6 @@ class FieldStepper(pm.StepMethod):
 
         pm.StepMethod.__init__(self,[f])
 
-        # self.jump_tau = jump_tau
-        # if self.jump_tau:
-        #     pm.StepMethod.__init__(self,[f,tau])
-        # else:
-        #     pm.StepMethod.__init__(self,[f])
-            
         self.time = 0.
         self.incomp_time = 0.
     
@@ -99,14 +93,6 @@ class FieldStepper(pm.StepMethod):
         for i in xrange(len(self.scratch3)):
             self.scratch3[i] = np.sum(eps_p_f[self.ti[i]] - f[i])
     
-        # if self.jump_tau:
-        #     # tau's full conditional is Gamma.
-        #     amp_alph = eps_p_f.shape[0]/2.+1.
-        #     tau_alph = amp_alph + self.tau.parents['alpha']
-        #     tau_vec = self.scratch3 - self.f.value
-        #     tau_bet = np.dot(tau_vec, tau_vec)/2. + self.tau.parents['beta']
-        #     self.tau.value = pm.rgamma(tau_alph,tau_bet)
-
         # Compute Cholesky factor of covariance of eps_p_f, C(x,x) + V
         in_chol = fc(self.C_eval.value, self.scratch1)
         for i in xrange(self.logp_mesh.shape[0]):
