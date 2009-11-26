@@ -84,15 +84,6 @@ for n in ['f_labels', 'nugget_labels', 'fs_have_nugget', 'x_label', 'M_labels', 
         cls,inst,tb = sys.exc_info()
         new_inst = cls('Could not import %s from %s. Tell Anand. Original error message:\n\n\t%s'%(n,mod_name,inst.message))
         raise cls,new_inst,tb
-
-if hasattr(mod, 'map_postproc'):
-    postproc = mod.map_postproc
-elif hasattr(mod, 'postproc'):
-    postproc = mod.postproc
-else:
-    raise ValueError, 'Module %s lacks the postproc attribute. Tell Anand.'%mod
-
-diags_safe=mod.diags_safe
     
 if hasattr(mod, 'extra_reduce_fns'):
     extra_reduce_fns = mod.extra_reduce_fns
@@ -172,7 +163,7 @@ if len(q)>0:
 
 t_start = time.time()
 # (hf, x, burn, thin, total, fns, f_labels, fs_have_nugget, x_label, nugget_labels, M_labels, C_labels, pred_cv_dicts, postproc, diags_safe, finalize=None, **non_cov_columns)
-products = hdf5_to_samps(hf,x,o.burn,o.thin,o.total,reduce_fns + extra_reduce_fns, f_labels, fs_have_nugget, x_label, nugget_labels, M_labels, C_labels, covariate_dicts, postproc, diags_safe, finalize)
+products = hdf5_to_samps(hf,x,o.burn,o.thin,o.total,reduce_fns + extra_reduce_fns, f_labels, fs_have_nugget, x_label, nugget_labels, M_labels, C_labels, covariate_dicts, mod.map_postproc, mod.diags_safe, finalize)
 print '\nMaps produced in %f seconds\n'%(time.time() - t_start)
 
 

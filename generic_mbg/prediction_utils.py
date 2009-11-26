@@ -16,6 +16,7 @@
 
 import cPickle
 import hashlib
+import inspect
 import pymc as pm
 import tables as tb
 import numpy as np
@@ -330,9 +331,9 @@ def hdf5_to_samps(hf, x, burn, thin, total, fns, f_labels, fs_have_nugget, x_lab
     # x_chunks = np.split(x,splits)
     # i_chunks = np.split(np.arange(x.shape[0]), splits)
     
-    # If postproc is not None, close on non-covariate columns.
-    if len(non_cov_columns) > 0:
-        postproc = postproc(**non_cov_columns)
+    # Inspect postproc for extra arguments
+    postproc_args = inspect.getargspec(postproc)[0]
+    extra_postproc_args = set(postproc_args) - set(f_labels)
     
     time_count = -np.inf
     time_start = time.time()
@@ -364,12 +365,16 @@ def hdf5_to_samps(hf, x, burn, thin, total, fns, f_labels, fs_have_nugget, x_lab
         
             for j in xrange(n_per):
                 
-                surfs = {}
+                postproc_kwds = {}
+
                 for fl in f_labels:
-                    surfs[fl] = M_preds[fl].copy('F')
+                    postproc_kwds[fl] = M_preds[fl].copy('F')
                     pm.map_noreturn(iaaxpy, [(norms[j], S_preds[fl], surfs[fl], cmin[l], cmax[l]) for l in xrange(len(cmax))])
+                    
+                for extra_arg in extra_postproc_args:
+                    postproc_kwds[extra_arg] = all_chain_getitem(hf, extra_arg, i, False)
             
-                surf = postproc(**surfs)
+                surf = postproc(**postproc_kwds)
                         
                 # Reduction step
                 for f in fns:
