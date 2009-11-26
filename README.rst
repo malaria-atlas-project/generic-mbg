@@ -6,8 +6,8 @@
 :License: GPL, see GPL in this directory.
 
 The generic MBG package allows us to write PyMC probability models for each 
-project that works with spatial or spatiotemporal count data, then turn the
-model over to the project team for fitting, mapping and experimentation using 
+project that works with some kind of spatial GLM, then turn the model over 
+to the project team for testing, fitting, mapping and experimentation using 
 three easy shell commands:
 
 * ``mbg-infer`` runs the MCMC algorithm using the given model & an input dataset,
@@ -20,6 +20,8 @@ three easy shell commands:
 * ``mbg-validate`` takes the HDF5 archive produced by mbg-infer and a 'holdout'
   dataset, stored in a csv file, and creates a set of predictive samples at the
   holdout locations and some validation plots.
+  
+* ``mbg-decluster`` partitions a CSV datafile into 'kept' and 'holdout' portions.
   
 If the project's members are interested in changing the model or specifying a
 subjective prior, there are two additional shell commands available to help:
@@ -389,22 +391,30 @@ Other attributes
 
 The module must implement the following additional attributes:
 
-* ``f_name`` : The name of the evaluation of the random field in the model. This node's
-  trace will be used to generate predictions.
+* ``f_labels`` : The names of the evaluations of the random fields in the model. These nodes'
+  traces will be used to generate predictions.
   
-* ``x_name`` : The name of the mesh on which the field is evaluated to produce the
+* ``x_label`` : The name of the mesh on which the field is evaluated to produce the
   previous node. The value of the mesh is expected to be present in the hdf5 archive's
   metadata. If it is not ``logp_mesh`` or ``data_mesh``, it should be mentioned in the
   ``metadata_keys`` attribute.
   
-* ``f_has_nugget`` : A boolean indicating whether the ``f_name`` node is just the evaluation
-  of the field, or the evaluation plus the nugget.
+* ``fs_have_nugget`` : A dictionary of booleans indicating whether the ``f_labels`` nodes are 
+  just the evaluation of the corresponding field, or the evaluation plus the nugget.
   
-* ``nugget_name`` : The name of the nugget variance of the field. Not required if ``f_has_nugget``
-  is false.
+* ``nugget_names`` : A dictionary mapping ``f_labels`` to the names of the nugget variances of 
+  the fields. Can be ``None`` for fields where ``fs_have_nugget`` is false.
+  
+* ``M_labels`` : A dictionary mapping ``f_labels`` to the names of the means of the fields.
 
-* ``diag_safe`` : A boolean indicating whether it is safe to assume ``C(x) = C.params['amp']**2``.
-  Defaults to false.
+* ``C_labels`` : A dictionary mapping ``f_labels`` to the names of the covariances of the 
+  fields.
+
+* ``diags_safe`` : A dictionary mapping ``f_labels`` to booleans indicating whether it is safe 
+  to assume ``C(x) = C.params['amp']**2``.
+
+* ``covariate_pertenencies`` : A dictionary mapping ``f_labels`` to lists. Each list should
+  contain the names of the covariates that contribute to the corresponding field.
 
 * ``metadata_keys`` : A list of strings indicating the attributes of the model that should be
   interred in the metadata. These are recorded as PyTables variable-length arrays with object
@@ -413,8 +423,11 @@ The module must implement the following additional attributes:
 * ``non_cov_columns`` : A dictionary of ``{name : type}`` mappings for all the point metadata
   required by ``make_model`` that are not covariates.
   
-* ``postproc`` : When mapping and predicting, ``make_model`` is not called. Rather, the mean and
-  covariance are pulled out of the trace and used to generate field realizations, with nugget
+* ``mcmc_init`` : A function to be applied to the assembled model, before sampling begins.
+  May be used to assign step methods etc.
+  
+* ``map_postproc`` : When mapping and predicting, ``make_model`` is not called. Rather, the mean 
+  and covariance are pulled out of the trace and used to generate field realizations, with nugget
   added as appropriate.
   
   At the prediction stage, ``postproc`` is the function that translates these Gaussian 
@@ -422,20 +435,14 @@ The module must implement the following additional attributes:
   ``invlogit``. The generic mbg package provides a multithreaded, shape-preserving invlogit
   function that should be used in place of PyMC's.
   
-  If the module has any non-covariate columns, ``postproc`` must be a function that has one of two
-  behaviors: 
+  The function should take keyword arguments corresponding to the module's ``f_labels``.
   
-  1. If called with a standard Gaussian realization as its lone positional argument, it should 
-     automatically apply default values for the non-covariate columns.
-     
-  2. If it is called with the non-covariate columns as keyword arguments, it should return a
-     version of itself that is closed on these values as defaults. For example, for MBGWorld, 
-     ``postproc`` would accept ``lo_age`` and ``up_age`` values as input and return a closure. 
-     The latter would take Gaussian realizations, pass them through the inverse-logit function, 
-     and multiply age-correction factors as needed. 
-
-  Behavior 1 is used for prior realization and map generation, and behavior 2 is used to generate 
-  samples for predictive validation.
+* ``validate_postproc`` : A function called with the non-covariate columns as keyword arguments.
+  It should return a version of map_postproc that is closed on these values as defaults. For example, 
+  for MBGWorld, ``postproc`` would accept ``lo_age`` and ``up_age`` values as input and return a 
+  closure that accepts a single random field, ``eps_p_f``, as a keyword argument. The latter would 
+  take Gaussian realizations, pass them through the inverse-logit function, and multiply 
+  age-correction factors as needed.
   
 The following attributes are optional:
   

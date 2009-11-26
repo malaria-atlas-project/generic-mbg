@@ -56,6 +56,8 @@ def invlogit(x):
 
 def fast_inplace_mul(a,s):
     """Multiplies a by s in-place and returns a."""
+    a = np.atleast_2d(a)
+    s = np.atleast_2d(s)
     cmin, cmax = thread_partition_array(a)
     pm.map_noreturn(iamul, [(a,s,cmin[i],cmax[i]) for i in xrange(len(cmax))])
     return a

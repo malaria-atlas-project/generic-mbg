@@ -179,8 +179,7 @@ else:
 scalar_stochastics = filter(lambda s: len(np.atleast_1d(s.value)) == 1, M.stochastics)
 scale_dict = dict(zip(scalar_stochastics, .001*np.ones(len(scalar_stochastics))))
 
-for k, sm in mod.step_method_orders.iteritems():
-    M.use_step_method(sm[0], getattr(M,k), *[getattr(M,v) for v in sm[1:]])
+mod.mcmc_init(M)
 
 # if hasattr(M, 'f'):
 #     if hasattr(M,'ti'):
