@@ -12,7 +12,7 @@ prefix='/usr/local/bin'
 for v in sys.argv:
     if v.find('--executable-dir')>-1:
         sys.argv.remove(v)
-        prefix=vp.split('=')[1].strip()
+        prefix=v.split('=')[1].strip()
         
 
 config = Configuration('generic_mbg',parent_package=None,top_path=None)
