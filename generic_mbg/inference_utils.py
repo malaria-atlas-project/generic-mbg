@@ -76,25 +76,25 @@ def all_chain_getitem(hf, name, i, vl=False):
         else:
             j -= lens[k]
     
-def add_standard_metadata(M, logp_mesh, data_mesh, covariate_dict, **others):
+def add_standard_metadata(M, x_labels, *others):
     """
     Adds the standard metadata to an hdf5 archive.
     """
+    
     hf = M.db._h5file
     hf.createGroup('/','metadata')
-    
-    hf.createArray(hf.root.metadata, 'logp_mesh', logp_mesh[:])
-    hf.createArray(hf.root.metadata, 'data_mesh', data_mesh[:])
         
     hf.createVLArray(hf.root.metadata, 'covariates', tb.ObjectAtom())
-    for a,v in covariate_dict.itervalues():
-        if not len(a)==data_mesh.shape[0]:
-            raise ValueError, 'Recorded covariates must be of same length as data mesh. Tell Anand.'
-    hf.root.metadata.covariates.append(covariate_dict)
+    hf.root.metadata.covariates.append(M.covariate_dicts)
+    
+    for label in set(x_labels.itervalues()):
+        hf.createArray(hf.root.metadata, label, getattr(M, label))
         
-    for name, val in others.iteritems():
-        vla=hf.createVLArray(hf.root.metadata, name, tb.ObjectAtom())
-        vla.append(val)
+    for label in set(others):
+        vla=hf.createVLArray(hf.root.metadata, label, tb.ObjectAtom())
+        vla.append(getattr(M,label))
+        
+        
     
 def cd_and_C_eval(covariate_values, C, data_mesh, ui=slice(None,None,None), fac=1e6):
     """
@@ -117,9 +117,9 @@ def cd_and_C_eval(covariate_values, C, data_mesh, ui=slice(None,None,None), fac=
                     
     # The evaluation of the Covariance object, plus the nugget.
     @pm.deterministic(trace=False)
-    def C_eval(C=C,ui=ui):
+    def C_eval(C=C,ui=ui,cd=covariate_dict):
         out = C(logp_mesh, logp_mesh)
-        for val,var in covariate_dict.itervalues():
+        for val,var in cd.itervalues():
             valu = val[ui]
             out += np.outer(valu,valu)*var
         return out

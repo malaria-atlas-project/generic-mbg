@@ -77,7 +77,7 @@ mod_basename, mod_ext = os.path.splitext(mod_name)
 mod_search_path = [mod_path, os.getcwd()] + sys.path
 mod = imp.load_module(mod_basename, *imp.find_module(mod_basename, mod_search_path))
 
-for n in ['f_labels', 'nugget_labels', 'fs_have_nugget', 'x_label', 'M_labels', 'C_labels', 'covariate_pertenencies']:
+for n in ['f_labels', 'nugget_labels', 'fs_have_nugget', 'x_labels', 'M_labels', 'C_labels']:
     try:
         exec("%s=getattr(mod,'%s')"%(n,n))
     except:
@@ -111,15 +111,16 @@ if not o.year is None:
 
 hf = tb.openFile(o.hf_name)
 meta = hf.root.metadata
-if not meta.logp_mesh.shape[1] == x.shape[1]:
-    raise ValueError, 'It looks like you have inappropriately provided or omitted the year argument.'
 bins = np.linspace(0,1,o.n_bins)
 
 
 # Load covariates
 
+all_covariate_keys = set()
+[all_covariate_keys.update(cd.keys()) for cd in meta.covariates[0].itervalues()]
+
 covariate_dict = {}
-for k in meta.covariates[0].iterkeys():
+for k in all_covariate_keys:
     if k != 'm':
         try:
             covariate_dict[k] = asc_to_vals(k+'.asc', path=o.ascii_path, thin=o.raster_thin, unmasked=unmasked)
@@ -129,8 +130,9 @@ for k in meta.covariates[0].iterkeys():
 covariate_dicts = {}            
 for fl in f_labels:
     covariate_dicts[fl]={}
-    for k in covariate_pertenencies[fl]:
-        covariate_dicts[fl][k] = covariate_dict[k]
+    for k in meta.covariates[0][fl].keys():
+        if k != 'm':
+            covariate_dicts[fl][k] = covariate_dict[k]
 
 # Create utility fns
 
@@ -163,7 +165,7 @@ if len(q)>0:
 
 t_start = time.time()
 # (hf, x, burn, thin, total, fns, f_labels, fs_have_nugget, x_label, nugget_labels, M_labels, C_labels, pred_cv_dicts, postproc, diags_safe, finalize=None, **non_cov_columns)
-products = hdf5_to_samps(hf,x,o.burn,o.thin,o.total,reduce_fns + extra_reduce_fns, f_labels, fs_have_nugget, x_label, nugget_labels, M_labels, C_labels, covariate_dicts, mod.map_postproc, mod.diags_safe, finalize)
+products = hdf5_to_samps(hf,x,o.burn,o.thin,o.total,reduce_fns + extra_reduce_fns, f_labels, fs_have_nugget, x_labels, nugget_labels, M_labels, C_labels, covariate_dicts, mod.map_postproc, mod.diags_safe, finalize)
 print '\nMaps produced in %f seconds\n'%(time.time() - t_start)
 
 
@@ -188,5 +190,5 @@ for k,v in products.iteritems():
     pl.imshow(grid_convert(data,'y+x+','y-x+'), extent=[lon.min(), lon.max(), lat.min(), lat.max()], interpolation='nearest')
     # pl.imshow(data, extent=[lon.min(), lon.max(), lat.min(), lat.max()], interpolation='nearest')
     pl.colorbar()
-    pl.plot(meta.data_mesh[:,0]*180./np.pi,meta.data_mesh[:,1]*180./np.pi,'r.',markersize=2)
+    # pl.plot(meta.data_mesh[:,0]*180./np.pi,meta.data_mesh[:,1]*180./np.pi,'r.',markersize=2)
     pl.savefig('%s.pdf'%k)

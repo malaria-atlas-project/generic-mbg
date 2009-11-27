@@ -394,10 +394,10 @@ The module must implement the following additional attributes:
 * ``f_labels`` : The names of the evaluations of the random fields in the model. These nodes'
   traces will be used to generate predictions.
   
-* ``x_label`` : The name of the mesh on which the field is evaluated to produce the
-  previous node. The value of the mesh is expected to be present in the hdf5 archive's
-  metadata. If it is not ``logp_mesh`` or ``data_mesh``, it should be mentioned in the
-  ``metadata_keys`` attribute.
+* ``x_labels`` : A dictionary mapping the ``f_labels`` to the name of the mesh on which 
+  the corresponding field is evaluated to produce the previous node. The value of the 
+  mesh is expected to be present in the hdf5 archive's metadata. If it is not ``logp_mesh`` 
+  or ``data_mesh``, it should be mentioned in the ``metadata_keys`` attribute.
   
 * ``fs_have_nugget`` : A dictionary of booleans indicating whether the ``f_labels`` nodes are 
   just the evaluation of the corresponding field, or the evaluation plus the nugget.
@@ -412,9 +412,6 @@ The module must implement the following additional attributes:
 
 * ``diags_safe`` : A dictionary mapping ``f_labels`` to booleans indicating whether it is safe 
   to assume ``C(x) = C.params['amp']**2``.
-
-* ``covariate_pertenencies`` : A dictionary mapping ``f_labels`` to lists. Each list should
-  contain the names of the covariates that contribute to the corresponding field.
 
 * ``metadata_keys`` : A list of strings indicating the attributes of the model that should be
   interred in the metadata. These are recorded as PyTables variable-length arrays with object
@@ -435,7 +432,10 @@ The module must implement the following additional attributes:
   ``invlogit``. The generic mbg package provides a multithreaded, shape-preserving invlogit
   function that should be used in place of PyMC's.
   
-  The function should take keyword arguments corresponding to the module's ``f_labels``.
+  The function should take keyword arguments corresponding to the module's ``f_labels``. It may
+  take additional keyword arguments corresponding to model variables, in which case the values
+  corresponding to each iteration will be pulled out of the trace. It should not take any non-
+  keyword arguments, contain any default values or take any variable arguments.
   
 * ``validate_postproc`` : A function called with the non-covariate columns as keyword arguments.
   It should return a version of map_postproc that is closed on these values as defaults. For example, 
@@ -458,6 +458,13 @@ The following attributes are optional:
   dictionary, where all of the 'surfaces' are vectors ready to be injected into the mask and
   written out as ascii files.
   
+The ``make_model`` function must create the following local variables, which will be interred
+in the trace's metadata:
+
+* ``covariate_dicts`` : A dictionary mapping the ``f_label``s to the result of the corresponding
+  call to ``cd_and_C_eval``
+
+* All labels mentioned in the ``x_labels`` and ``metadata_keys`` items mentioned above.
   
 Version logging and installations
 ---------------------------------

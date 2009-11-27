@@ -29,7 +29,8 @@ import os
 
 __all__ = ['grid_convert','mean_reduce','var_reduce','invlogit','hdf5_to_samps','vec_to_asc','asc_to_locs',
             'display_asc','display_datapoints','histogram_reduce','histogram_finalize','maybe_convert','sample_reduce',
-            'sample_finalize','asc_to_vals','fast_inplace_mul','fast_inplace_square','square_and_sum','crossmul_and_sum']
+            'sample_finalize','asc_to_vals','fast_inplace_mul','fast_inplace_square','square_and_sum','crossmul_and_sum',
+            'thread_partition_array']
             
 memmax = 2.5e8
 
@@ -269,7 +270,7 @@ def histogram_finalize(bins, q, hr):
 
 
 
-def hdf5_to_samps(hf, x, burn, thin, total, fns, f_labels, fs_have_nugget, x_label, nugget_labels, M_labels, C_labels, pred_cv_dicts, postproc, diags_safe, finalize=None, **non_cov_columns):
+def hdf5_to_samps(hf, x, burn, thin, total, fns, f_labels, fs_have_nugget, x_labels, nugget_labels, M_labels, C_labels, pred_cv_dicts, postproc, diags_safe, finalize=None, **non_cov_columns):
     """
     Parameters:
         hf : PyTables file
@@ -290,9 +291,9 @@ def hdf5_to_samps(hf, x, burn, thin, total, fns, f_labels, fs_have_nugget, x_lab
             The names of the hdf5 nodes containing f's
         fs_have_nugget : dictionary of booleans
             Whether f's are nuggeted.
-        x_label : string
-            The name of the hdf5 node containing the input mesh associated with f
-            in the metadata.
+        x_labels : dictionary of strings
+            The names of the hdf5 nodes containing the input mesh associated with 
+            the f's in the metadata.
         nugget_labels, M_labels, C_labels : dictionaries of strings
             The names of the hdf5 nodes giving the nugget variances, means
             and covariances of the f's        
@@ -322,15 +323,6 @@ def hdf5_to_samps(hf, x, burn, thin, total, fns, f_labels, fs_have_nugget, x_lab
     n_per = total/len(iter)+1
     actual_total = n_per * len(iter)
     
-    x_obs = getattr(hf.root.metadata,x_label)[:]
-    
-    # Avoid memory errors
-    # max_chunksize = 1.e8 / x_obs.shape[0]
-    # n_chunks = int(x.shape[0]/max_chunksize+1)
-    # splits = np.array(np.linspace(0,x.shape[0],n_chunks+1)[1:-1],dtype='int')
-    # x_chunks = np.split(x,splits)
-    # i_chunks = np.split(np.arange(x.shape[0]), splits)
-    
     # Inspect postproc for extra arguments
     postproc_args = inspect.getargspec(postproc)[0]
     extra_postproc_args = set(postproc_args) - set(f_labels)
@@ -353,7 +345,7 @@ def hdf5_to_samps(hf, x, burn, thin, total, fns, f_labels, fs_have_nugget, x_lab
         M_preds = {}
         S_preds = {}
         for fl in f_labels:
-            M_preds[fl], S_preds[fl] = predictive_mean_and_std(hf, i, fl, x_label, x, fs_have_nugget[fl], pred_cv_dicts[fl], nugget_labels[fl], M_labels[fl], C_labels[fl], diags_safe[fl])
+            M_preds[fl], S_preds[fl] = predictive_mean_and_std(hf, i, fl, x_labels[fl], x, fs_have_nugget[fl], pred_cv_dicts[fl], nugget_labels[fl], M_labels[fl], C_labels[fl], diags_safe[fl])
         if M_preds[f_labels[0]] is None:
             actual_total -= n_per
             continue
@@ -362,21 +354,25 @@ def hdf5_to_samps(hf, x, burn, thin, total, fns, f_labels, fs_have_nugget, x_lab
         
             # Postprocess if necessary: logit, etc.
             norms = np.random.normal(size=n_per)
-        
+            
             for j in xrange(n_per):
                 
                 postproc_kwds = {}
 
+                # Evaluate fields, and store them in argument dict for postproc
                 for fl in f_labels:
                     postproc_kwds[fl] = M_preds[fl].copy('F')
-                    pm.map_noreturn(iaaxpy, [(norms[j], S_preds[fl], surfs[fl], cmin[l], cmax[l]) for l in xrange(len(cmax))])
+                    pm.map_noreturn(iaaxpy, [(norms[j], S_preds[fl], postproc_kwds[fl], cmin[l], cmax[l]) for l in xrange(len(cmax))])
                     
+                # Pull any extra variables needed for postprocessing out of trace
                 for extra_arg in extra_postproc_args:
-                    postproc_kwds[extra_arg] = all_chain_getitem(hf, extra_arg, i, False)
+                    if hasattr(hf.root.chain0.PyMCsamples.cols, extra_arg):
+                        postproc_kwds[extra_arg] = all_chain_getitem(hf, extra_arg, i, False)
             
+                # Evaluate postprocessing function to get a surface
                 surf = postproc(**postproc_kwds)
-                        
-                # Reduction step
+                
+                # Reduce surface into products needed
                 for f in fns:
                     products[f] = f(products[f], surf)
 
@@ -457,7 +453,7 @@ def predictive_mean_and_std(hf, i, f_label, x_label, x, f_has_nugget, pred_cv_di
             
     n = pred_cv_dict.keys()
 
-    covariate_dict = meta.covariates[0]
+    covariate_dict = meta.covariates[0][f_label]
     prior_covariate_variance = np.diag([covariate_dict[key][1] for key in n])
 
     pred_covariate_values = np.empty((len(pred_cv_dict), x.shape[0]), order='F')
