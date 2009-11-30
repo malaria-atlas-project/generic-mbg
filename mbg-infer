@@ -169,7 +169,7 @@ if prev_db is None:
     M.db._h5file.root.input_csv.attrs.shellargs = ' '.join(sys.argv[1:])
     M.db._h5file.root.input_csv.attrs.mod_name = mod_name
     M.db._h5file.root.input_csv.attrs.mod_commit = mod_commit
-    # M.db._h5file.root.input_csv.attrs.generic_commit = generic_commit
+    M.db._h5file.root.input_csv.attrs.generic_commit = generic_commit
     M.db._h5file.root.input_csv.attrs.starttime = datetime.datetime.now()
     M.db._h5file.root.input_csv.attrs.input_filename = o.input_name
     
