@@ -203,7 +203,7 @@ if prev_db is not None:
 t_start = time.time()
 M.isample(o.total,0,o.thin)
 print '\nMCMC completed in %f seconds\n'%(time.time() - t_start)
-
+M.db._h5file.flush()
 
 # Write out
 
