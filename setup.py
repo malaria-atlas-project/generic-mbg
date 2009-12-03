@@ -34,7 +34,17 @@ if __name__ == '__main__':
             packages=['generic_mbg'],
             license="Creative commons BY-NC-SA",
             **(config.todict()))
-    for ex_fname in ['mbg-map','mbg-validate','mbg-scalar-priors','mbg-realize-prior','mbg-covariate-traces','mbg-decluster','get_declustered_sample.R','mbg-infer','mbg-describe-tracefile']:
+            
+    for ex_fname in ['mbg-map',
+                    'mbg-validate',
+                    'mbg-scalar-priors',
+                    'mbg-realize-prior',
+                    'mbg-covariate-traces',
+                    'mbg-decluster',
+                    'get_declustered_sample.R',
+                    'mbg-infer',
+                    'mbg-describe-tracefile',
+                    'mbg-init-specializing-module']:
 
         commit = get_syscall_output('git show --pretty=format:"%H" --quiet')
         pythonpath = get_syscall_output('which python')
