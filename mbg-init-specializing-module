@@ -167,13 +167,22 @@ config.packages = ["%s"]
 if __name__ == '__main__':
     from numpy.distutils.core import setup
     setup(**(config.todict()))"""%(inner_dirname, ext_lines, inner_dirname))
+
+# Initialize Git repo
+os.system('git init')
+os.system('git add setup.py')
+os.system('git add LICENSE')
+os.system('git add README.rst')
     
 # Write module contents
 os.mkdir(inner_dirname)
 os.chdir(inner_dirname)
 
+
 init = file('__init__.py','w')
 model = file('model.py','w')
+os.system('git add __init__.py')
+os.system('git add model.py')
 
 init.write(short_gpl_txt+"""from model import *
 import %s
@@ -195,6 +204,7 @@ from generic_mbg import *
 if o.extensions is not None:
     for e in o.extensions:
         f=file(e+'.f','w')
+        os.system('git add %s.f'%e)        
         f.write(short_gpl_txt.replace('#','!'))
         
         f.write("""
@@ -246,3 +256,5 @@ def make_model(lon,lat,covariate_values,**non_cov_columns):
     # Your PyMC probability model here
     
     return locals()""")
+    
+os.system("git commit -a -m 'Initial commit'")

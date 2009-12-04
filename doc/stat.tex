@@ -15,26 +15,21 @@ Try the following from the shell, on a single line:
         -e 'cut_matern, utils' 
         -a 'Anand Patil, Carlos Guerra, Rosalind Howes'
 \end{verbatim}
-The command \texttt{mbg-init-specializing-module} is there to help you get the file structure of your specializing module right. It will create Fortran extensions according to the \texttt{-e} option, add the commands to compile them in \texttt{setup.py}, and license the package to the given authors under the GPL. Take a moment to browse the directory tree you've created, which should look like this:
+The command \texttt{mbg-init-specializing-module} is there to help you get the file structure of your specializing module right. It will create Fortran extensions according to the \texttt{-e} option, add the commands to compile them in \texttt{setup.py}, and license the package to the given authors under the GPL. It will also initialize a git repository in the new directory, and make the initial commit.
+
+Take a moment to browse the directory tree you've created, which should look like this:
 \begin{center}
 \includegraphics[width=12cm]{filestructure.png}     
 \end{center}
 Pay special attention to the \texttt{\_\_init\_\_.py} file, which lists the attributes you'll need to define to tell the generic package how to use your specializing module.
 
-\subsection{Installation}
-You'll need to initialize the specializing module as a Git repository as follows:
+\subsection{Importing}
+You can install the new package as follows:
 \begin{verbatim}
     cd duffy-vivax
-    git init
-\end{verbatim}
-and then you can install it using
-\begin{verbatim}
     python setup.py develop
 \end{verbatim}
-See section \ref{sec:spec-local} for more detail.
-
-\subsection{Importing}
-Now that you've installed the module, change directory to \texttt{\~}, start your favorite Python interpreter, and import the \texttt{duffy\_vivax} module. Browse through its namespace. Pay special attention to the calling conventions of the Fortran subroutines you've generated:
+See section \ref{sec:spec-local} for more detail. Now change directory to \texttt{\~}, start your favorite Python interpreter, and import the \texttt{duffy\_vivax} module. Browse through its namespace. Pay special attention to the calling conventions of the Fortran subroutines you've generated:
 \begin{verbatim}
     In [2]: duffy_vivax.utils.dummy?
     Type:           fortran
