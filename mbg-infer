@@ -176,8 +176,8 @@ if prev_db is None:
 else:
     M = pm.MCMC(make_model(*mod_inputs,**non_cov_columns),db=prev_db)
     M.restore_sampler_state()
-scalar_stochastics = filter(lambda s: len(np.atleast_1d(s.value)) == 1, M.stochastics)
-scale_dict = dict(zip(scalar_stochastics, .001*np.ones(len(scalar_stochastics))))
+# scalar_stochastics = filter(lambda s: len(np.atleast_1d(s.value)) == 1, M.stochastics)
+# scale_dict = dict(zip(scalar_stochastics, .001*np.ones(len(scalar_stochastics))))
 
 mod.mcmc_init(M)
 
@@ -188,10 +188,10 @@ mod.mcmc_init(M)
 #         ti = np.arange(M.logp_mesh.shape[0])
 #     M.use_step_method(FieldStepper, M.f, M.V, M.C_eval, M.M_eval, M.logp_mesh, M.eps_p_f, ti)
 
-M.use_step_method(pm.AdaptiveMetropolis, scalar_stochastics, scales=scale_dict, delay=o.AM_delay)
-for s in M.stochastics:
-    if s not in scalar_stochastics and s.__name__ != 'f':
-        M.use_step_method(pm.AdaptiveMetropolis, s, scales={s: .0001*np.ones(np.shape(s.value))}, delay=o.AM_delay)
+# M.use_step_method(pm.AdaptiveMetropolis, scalar_stochastics, scales=scale_dict, delay=o.AM_delay)
+# for s in M.stochastics:
+#     if s not in scalar_stochastics and s.__name__ != 'f':
+#         M.use_step_method(pm.AdaptiveMetropolis, s, scales={s: .0001*np.ones(np.shape(s.value))}, delay=o.AM_delay)
 
 M.assign_step_methods()        
 if prev_db is not None:
