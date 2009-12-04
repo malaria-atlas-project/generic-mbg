@@ -44,7 +44,8 @@ if __name__ == '__main__':
                     'get_declustered_sample.R',
                     'mbg-infer',
                     'mbg-describe-tracefile',
-                    'mbg-init-specializing-module']:
+                    'mbg-init-specializing-module',
+                    'mbg-init-user-account']:
 
         commit = get_syscall_output('git show --pretty=format:"%H" --quiet')
         pythonpath = get_syscall_output('which python')
