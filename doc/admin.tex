@@ -5,8 +5,16 @@ The core generic package contains tightly-optimized, multithreaded posterior pre
 
 The core package is adapted to each scientific situation by means of a `specializing module'. The specializing modules are plain Python packages, complete with \texttt{setup.py} scripts, that expose certain attributes. These attributes are documented in detail in chapter \ref{chap:stat}.
 
+\begin{figure}[hhh]
+    \begin{center}
+        \epsfig{file=installation.pdf, width=10cm} 
+    \end{center}
+    \caption{The overall installation scheme. The \texttt{generic\_mbg} and \texttt{PyMC} packages are installed to the system-wide \texttt{site-packages} directory, and the executables \texttt{mbg-infer}, \texttt{mbg-map} etc. are installed to \texttt{/usr/local/bin}. The specializing modules are installed locally to user accounts using the \texttt{develop} command (see section \ref{sec:spec-local}). This command places a link to the source code in the user's \texttt{site-packages} directory, so the user can alter the code in-place the changes will take effect immediately. Git repositories are shown as pink boxes. The \texttt{generic-mbg} package and the specializing modules must be git repositories, because the commit hashes of both are stored in the MCMC trace to avoid versioning confusion. Yellow pages are flat files.}
+    \label{fig:installation}
+\end{figure}
+
 \bigskip
-This chapter explains how to install and maintain the core package and the specializing modules at an IT level, and how to administer user accounts.
+This chapter explains how to install and maintain the core package and the specializing modules at an IT level, and how to administer user accounts. The overall installation scheme is illustrated in figure \ref{fig:installation}.
 
 \bigskip
 Before reading this chapter, you should become familiar with \href{http://docs.python.org/install/index.html}{Python's library management system}.
@@ -43,12 +51,22 @@ The package has to be installed from a local clone of the repository (rather tha
 
 \subsection{Local installation to a user account}
 \label{sub:core-local} 
-By default, the executables are installed to \texttt{/usr/local/bin}. The setup script can be instructed to make a local installation in a user's account. In this case, the installation should be done as the user (rather than as \texttt{su}):
+By default, the executables are installed to \texttt{/usr/local/bin}. The setup script can be instructed to make a local installation in a user's account, if the user requires a special version of the generic package. The local installation scheme is illustrated in figure \ref{fig:local-installation} 
+
+In this case, the installation should be done as the user (rather than as \texttt{su}):
 \begin{verbatim}
     python setup.py install --install-dir=~/ros/python2.6/site-packages
        --executable-dir=~/ros/bin 
 \end{verbatim}
 The \texttt{executable-dir} argument is specific to this package. The \texttt{install-dir} argument is used by setuptools. Be sure to add the executable directory to the user's path!
+
+\begin{figure}[hhh]
+    \begin{center}
+        \epsfig{file=installation-local.pdf, width=10cm} 
+    \end{center}
+    \caption{Local installation to a user account. The \texttt{generic-mbg} package is installed to the local \texttt{site-packages} directory alongside the specializing modules, and its executables are written to the local \texttt{bin} directory. PyMC is still installed system-wide. As in figure \ref{fig:installation}, pink boxes are git repositories and yellow pages are files.}
+    \label{fig:local-installation}
+\end{figure}
 
 \section{Installing the specializing modules}
 \label{sec:spec-local} 
