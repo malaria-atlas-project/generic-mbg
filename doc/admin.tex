@@ -64,7 +64,7 @@ The \texttt{executable-dir} argument is specific to this package. The \texttt{in
     \begin{center}
         \epsfig{file=installation-local.pdf, width=10cm} 
     \end{center}
-    \caption{Local installation to a user account. The \texttt{generic-mbg} package is installed to the local \texttt{site-packages} directory alongside the specializing modules, and its executables are written to the local \texttt{bin} directory. PyMC is still installed system-wide. As in figure \ref{fig:installation}, pink boxes are git repositories and yellow pages are files.}
+    \caption{Local installation to a user account. A special version of the \texttt{generic-mbg} package is installed to the local \texttt{site-packages} directory alongside the specializing modules, and its executables are written to the local \texttt{bin} directory. PyMC and the standard package are still installed system-wide. The user's \texttt{PATH} and \texttt{PYTHONPATH} environment variables must be set so that the local installation is preferred to the global one. As in figure \ref{fig:installation}, pink boxes are git repositories and yellow pages are files.}
     \label{fig:local-installation}
 \end{figure}
 
@@ -88,9 +88,9 @@ The \texttt{install-dir} argument tells setuptools where to put the link. Be sur
 \section{Environment variables}
 The following environment variables affect the functioning of the generic package:
 \begin{description}
-    \item[PATH] Should include the executable directory in section \ref{sub:core-local}.
-    \item[PYTHONPATH] Should include the \texttt{site-packages} directories in sections \ref{sub:core-local} and \ref{sec:spec-local}. The one in \ref{sec:spec-local} should come first.
-    \item[OMP\_NUM\_THREADS] Sets the maximum number of CPU cores available to the package's operations. 
+    \item[\texttt{PATH}] Should include the executable directory in section \ref{sub:core-local}.
+    \item[\texttt{PYTHONPATH}] Should include the \texttt{site-packages} directories in sections \ref{sub:core-local} and \ref{sec:spec-local}. The one in \ref{sec:spec-local} should come first.
+    \item[\texttt{OMP\_NUM\_THREADS}] Sets the maximum number of CPU cores available to the package's operations. 
 \end{description}
 
 \section{Explaining to users how to work in UNIX-like environments}
