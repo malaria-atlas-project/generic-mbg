@@ -178,7 +178,7 @@ The following attributes tag certain variables created by the model factory as p
 \begin{description}
     \item[\texttt{f\_labels}] A list giving the names of the variables that represent field evaluations. For the submodel in section \ref{sub:example}, you could use either \texttt{['f\_x']} or \texttt{['g\_x']}. It's completely up to you and shouldn't make much difference at any stage.
     \item[\texttt{fs\_have\_nugget}] A dictionary mapping the \texttt{f\_labels} to booleans indicating whether they have a nugget variance. In the context of \ref{sub:example}, you would use either \texttt{\{'f\_x': False\}} or \texttt{\{'g\_x': True\}}, depending on which \texttt{f\_label} you chose.
-    \item[\texttt{nugget\_labels}] A dictionary mapping the \texttt{f\_labels} to the labels of their associated nugget variances, ie \texttt{\{'f\_x': 'V'\}}. Not used at keys where \texttt{fs\_have\_nugget} is false.
+    \item[\texttt{nugget\_labels}] A dictionary mapping the \texttt{f\_labels} to the labels of their associated nugget variances, ie \texttt{\{'g\_x': 'V'\}}. Not used at keys where \texttt{fs\_have\_nugget} is false.
     \item[\texttt{M\_labels}, \texttt{C\_labels}]: Dictionaries mapping the field labels to the labels of their corresponding means and covariances. For section \ref{sub:example}, these would be \texttt{\{'g\_x': 'M'\}} and \texttt{\{'g\_x': 'C'\}}, assuming you chose $g_x$ as the field label.
     \item[\texttt{x\_labels}]: A dictionary mapping the field labels to the array of input locations on which the field was evaluated, ie \texttt{\{'f\_x': 'x'\}}.
     \item[\texttt{diags\_safe}]: Some covariance functions have parameters called \texttt{amp}, and have the property
