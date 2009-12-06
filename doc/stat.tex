@@ -157,6 +157,9 @@ Now we're ready to create $f_x$ and $g_x$:
 \end{verbatim}
 PyMC parameterizes the normal distribution by precision rather than variance, so the second parameter of $g_x$ is $\tau=1/V$. That's all there is to producing GP submodels in the generic package. You can complete the model any way you like: add more GP submodels, likelihoods, etc.
 
+\subsection{Be sure to commit}
+\label{sub:git-commit} 
+It's important to commit any changes you make to the specialization module to the local repository before running any MCMC, because the hash of the current git head is stored in the MCMC trace. If the state of the code doesn't correspond to the hash, you may not be able to reproduce your results later.
 
 \section{Required attributes}
 
