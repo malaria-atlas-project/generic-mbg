@@ -43,7 +43,7 @@ See section \ref{sec:spec-local} for more detail. Now change directory to \textt
         Return objects:
           y : rank-1 array('d') with bounds (n)
 \end{verbatim}
-The f2py directives in \texttt{utils.f} (the lines beginning with \texttt{cf2py}) determine which arguments to the subroutine are inputs you need to provide from Python, which inputs Python should see as outputs, and which should be inferred from other arguments. Learning how to write your own Fortran extensions is very worthwhile.
+The \texttt{f2py} directives in \texttt{utils.f} (the lines beginning with \texttt{cf2py}) determine which arguments to the subroutine are inputs you need to provide from Python, which inputs Python should see as outputs, and which should be inferred from other arguments. Learning how to write your own Fortran extensions is very worthwhile.
 
 \section{Writing the model}
 
@@ -101,7 +101,7 @@ can be marginalized to obtain the following model:
     \label{eq:int-covariates} 
     \begin{array}{r}
     M:x\rightarrow f_0(x;\phi)\\\\
-    C:x,y\rightarrow K(x,y;\theta) + V_{\beta_0} + \sum_{i=1}^n V_{\beta,i}c_i(x)c_i(x)^T\\\\
+    C:x,y\rightarrow K(x,y;\theta) + V_{\beta_0} + \sum_{i=1}^n V_{\beta,i}c_i(x)c_i(y)^T\\\\
     f\sim\textup{GP}(M,C)
     \end{array}
 \end{equation}
