@@ -19,6 +19,79 @@ import time
 import tables as tb
 from st_cov_fun import my_st
 
+def creeate_model(mod,db,input=None):
+    """
+    Takes either:
+    - A module and a database object, or:
+    - A module, a filename and a record array
+    and returns an MCMC object, with step methods assigned.
+    """
+    
+    if isinstance(db,pm.database.hdf5.Database):
+        input = db._h5file.root.input_csv[:]
+        
+    if isinstance(input, np.ma.mrecords.MaskedRecords):
+        msg = 'Error, could not parse input at following rows:\n'
+        for name in input.dtype.names:
+            if np.sum(input[name].mask)>0:
+                msg += '\t%s: %s\n'%(name, str(np.where(input[name].mask)[0]+1))
+        raise ValueError, msg
+
+    lon = maybe_convert(input, 'lon', 'float')
+    lat = maybe_convert(input, 'lat', 'float')
+    mod_inputs = (lon,lat)
+    if hasattr(input, 't'):
+        t = maybe_convert(input, 't', 'float')
+        x = combine_st_inputs(lon,lat,t)
+        mod_inputs = mod_inputs + (t,)
+    else:
+        x = combine_spatial_inputs(lon,lat)
+
+    non_cov_columns = {'cpus': o.ncpus}
+    if hasattr(mod, 'non_cov_columns'):
+        non_cov_coltypes = mod.non_cov_columns
+    else:
+        non_cov_coltypes = {}
+    non_cov_colnames = non_cov_coltypes.keys()
+
+    covariate_dict = {}
+    for n in input.dtype.names:
+        if n not in ['lon','lat','t']:
+            if n in non_cov_colnames:
+                non_cov_columns[n] = maybe_convert(input, n, non_cov_coltypes[n])
+            else:
+                covariate_dict[n]=maybe_convert(input, n, 'float')
+
+    mod_inputs = mod_inputs + (covariate_dict,)
+
+    # Create MCMC object, add metadata, and assign appropriate step method.
+
+    if prev_db is None:
+        M = pm.MCMC(make_model(*mod_inputs,**non_cov_columns),db='hdf5',dbname=hfname,complevel=1,complib='zlib')
+        add_standard_metadata(M, mod.x_labels, *metadata_keys)
+        M.db._h5file.createTable('/','input_csv',csv2rec(file(o.input_name,'U')))
+        M.db._h5file.root.input_csv.attrs.shellargs = ' '.join(sys.argv[1:])
+        M.db._h5file.root.input_csv.attrs.mod_name = mod_name
+        M.db._h5file.root.input_csv.attrs.mod_commit = mod_commit
+        M.db._h5file.root.input_csv.attrs.generic_commit = generic_commit
+        M.db._h5file.root.input_csv.attrs.starttime = datetime.datetime.now()
+        M.db._h5file.root.input_csv.attrs.input_filename = o.input_name
+
+    else:
+        M = pm.MCMC(make_model(*mod_inputs,**non_cov_columns),db=prev_db)
+        M.restore_sampler_state()
+        
+    # Pass MCMC object through the module's mcmc_init function.
+    mod.mcmc_init(M)
+    
+    # Restore step method state if possible.
+    M.assign_step_methods() 
+    if prev_db is not None:
+        M.restore_sm_state()
+
+    return M
+
+
 def spatial_mean(x, m_const):
     return m_const*np.ones(x.shape[0])
     
@@ -75,6 +148,9 @@ def all_chain_getitem(hf, name, i, vl=False):
                 return getattr(c[k].PyMCsamples.cols,name)[j]
         else:
             j -= lens[k]
+            
+def all_chain_remember(M, name, i):
+    raise NotImplementedError, 'May need to be fixed in PyMC.'
     
 def add_standard_metadata(M, x_labels, *others):
     """
@@ -94,121 +170,76 @@ def add_standard_metadata(M, x_labels, *others):
         vla=hf.createVLArray(hf.root.metadata, label, tb.ObjectAtom())
         vla.append(getattr(M,label))
         
+class CachingCovariateEvaluator(object):
+    """
+    Evaluate this object on an array. If it has already been
+    told what its value on the array is, it will return that value.
+    Otherwise, it will throw an error.
+    """
+    def __init__(self, mesh, value):
+        self.meshes = [mesh]
+        self.values = [value]
+    def add_value_to_cache(mesh, value):
+        self.meshes.append(mesh)
+        self.values.append(value)
+    def __call__(self, mesh):
+        for m,i in enumerate(self.meshes):
+            if np.all(m==mesh):
+                return self.values[i]
+        raise RuntimeError, 'The given mesh is not in the cache.'
         
+def CovarianceWithCovariates(object):
+    """
+    A callable that adds some covariates to the given covariance function C.
     
-def cd_and_C_eval(covariate_values, C, data_mesh, ui=slice(None,None,None), fac=1e6):
-    """
-    Returns a {name: value, prior variance} dictionary
-    and an evaluated covariance with covariates incorporated.
-    """
-    covariate_dict = {}
-    # Set prior variances of covariate coefficients. They're huge, and scaled.
-    means = []
+    The output is:
+        ~C(x,y) = C(x,y) + fac(m + \sum_{n\in names} outer(~cov[n](x), ~cov[n](y)))
+
+    m is the number of covariates.
         
-    for cname, cval in covariate_values.iteritems():
-        cov_var = np.var(cval)
-        cov_mean = np.abs(np.mean(cval))+np.sqrt(cov_var)
-        means.append(cov_mean)
-        covariate_dict[cname] = (cval, cov_var*fac)
+    ~cov[n](x) is (cov[n](x)-mu[n])/sig[n], where mu[n] and sig[n] are the mean and
+    standard deviation of the values passed into the init method.
+    """
+    def __init__(self, cov_fun, mesh, cv, fac=1e6, diag_safe=False):
+        self.cv = cv
+        self.m = len(cv)
+        self.means = dict([(k,np.mean(v)) for k,v in cv.iteritems()])
+        self.stds = dict([(k,np.std(v)) for k,v in cv.iteritems()])
+        self.evaluators = dict([(k,CachingCovariateEvaluator(mesh, v)) for k,v in cv.iteritems()])
+        self.cov_fun = cov_fun
+        self.fac = fac
+        self.diag_safe = diag_safe
+
+    def eval_covariates(self, x):
+        return dict([(k,(self.evaluators[k](x)-self.means[k])/self.stds[k]) for k in self.cv.iterkeys()])
         
-    # Constant term
-    covariate_dict['m'] = (np.ones(data_mesh.shape[0]), (np.sum(np.array(means)**2) + 1)*fac)
-    logp_mesh = data_mesh[ui]
-                    
-    # The evaluation of the Covariance object, plus the nugget.
-    @pm.deterministic(trace=False)
-    def C_eval(C=C,ui=ui,cd=covariate_dict):
-        out = C(logp_mesh, logp_mesh)
-        for val,var in cd.itervalues():
-            valu = val[ui]
-            out += np.outer(valu,valu)*var
-        return out
-    
-    return covariate_dict, C_eval
-    
-def trivial_means(lpm):
-    """
-    Returns a trivial mean function and an evaluating node.
-    """
-    # The mean of the field
-    @pm.deterministic(trace=True)
-    def M():
-        return pm.gp.Mean(zero_mean)
-    
-    # The mean, evaluated  at the observation points, plus the covariates    
-    @pm.deterministic(trace=False)
-    def M_eval(M=M, lpm=lpm):
-        return M(lpm)
-    return M, M_eval
+    def add_values_to_cache(mesh, new_cv):
+        for k,v in self.evaluators.iteritems():
+            v.add_value_to_cache(new_cv[k])
 
-def basic_spatial_submodel(lon, lat, covariate_values):
-    """
-    A stem for building spatial models.
-    """
-    logp_mesh = combine_spatial_inputs(lon,lat)
-
-    # =====================
-    # = Create PyMC model =
-    # =====================  
-
-    inc = pm.CircVonMises('inc', 0,0)
-    sqrt_ecc = pm.Uniform('sqrt_ecc',0,.95)
-    ecc = pm.Lambda('ecc', lambda s=sqrt_ecc: s**2)
-    amp = pm.Exponential('amp',.1,value=1.)
-    scale_shift = pm.Exponential('scale_shift',1./.08,value=1./.08)
-    scale = pm.Lambda('scale',lambda ss=scale_shift:ss+.01)
-    diff_degree = pm.Uniform('diff_degree',.01,3)
-    
-    M, M_eval = trivial_means(logp_mesh)
-
-    @pm.deterministic(trace=True)
-    def C(amp=amp,scale=scale,inc=inc,ecc=ecc,diff_degree=diff_degree):
-        return pm.gp.FullRankCovariance(pm.gp.cov_funs.matern.aniso_geo_rad, amp=amp, scale=scale, inc=inc, ecc=ecc, diff_degree=diff_degree)
-    
-    covariate_dict, C_eval = cd_and_C_eval(covariate_values, C, logp_mesh)
-    
-    return locals()
-
-
-def basic_st_submodel(lon, lat, t, covariate_values, cpus):
-    """
-    A stem for building spatiotemporal models.
-    """
+    def __call__(self, x, y=None, *args, **kwds):
+        # FIXME: Use prediction_utils.square_and_sum, and crossmul_and_sum here.
+        x_evals = self.eval_covariates(x)
         
-    logp_mesh = combine_st_inputs(lon,lat,t)
-
-    inc = pm.CircVonMises('inc', 0,0)
-    sqrt_ecc = pm.Uniform('sqrt_ecc',0,.95)
-    ecc = pm.Lambda('ecc', lambda s=sqrt_ecc: s**2)
-    amp = pm.Exponential('amp',.1,value=1.)
-    scale = pm.Exponential('scale',1.,value=1.)
-    scale_t = pm.Exponential('scale_t',.1,value=.1)
-    t_lim_corr = pm.Uniform('t_lim_corr',0,.95)
-
-    @pm.stochastic(__class__ = pm.CircularStochastic, lo=0, hi=1)
-    def sin_frac(value=.1):
-        return 0.
-
-    M, M_eval = trivial_means(logp_mesh)
+        # Evaluate with one argument:
+        if y None:
+            if self.diag_safe:
+                Cbase = self.cov_fun.params['amp']**2 * np.ones(x.shape[0])
+            else:
+                Cbase = self.cov_fun(x,y,*args,**kwds)
+            for i in xrange(len(Cbase)):
+                C = Cbase + self.fac * (self.m + np.sum([x_evals[k]**2 for k in self.cv.iterkeys()], axis=0))
+                return C
         
-    # A constraint on the space-time covariance parameters that ensures temporal correlations are 
-    # always between -1 and 1.
-    @pm.potential
-    def st_constraint(sd=.5, sf=sin_frac, tlc=t_lim_corr):    
-        if -sd >= 1./(-sf*(1-tlc)+tlc):
-            return -np.Inf
+        # Evaluate with both arguments:
         else:
-            return 0.
-
-    # A Deterministic valued as a Covariance object. Uses covariance my_st, defined above. 
-    @pm.deterministic
-    def C(amp=amp,scale=scale,inc=inc,ecc=ecc,scale_t=scale_t, t_lim_corr=t_lim_corr, sin_frac=sin_frac):
-        return pm.gp.FullRankCovariance(my_st, amp=amp, scale=scale, inc=inc, ecc=ecc,st=scale_t, sd=.5,
-                                        tlc=t_lim_corr, sf = sin_frac, n_threads=cpus)
-
-    covariate_dict, C_eval = cd_and_C_eval(covariate_values, C, logp_mesh)
-        
-    return locals()
+            Cbase = self.cov_fun(x,y,*args,**kwds)
+            if x is y:
+                y_evals = x_evals
+            else:
+                y_evals = self.eval_covariates(y)
+            C = Cbase + self.fac * (self.m + np.sum([np.outer(x_evals[k], y_evals[k]) for k in self.cv.iterkeys()], axis=0))
+            return C
 
 def sample_covariates(covariate_dict, C_eval, d):
     """
@@ -218,6 +249,8 @@ def sample_covariates(covariate_dict, C_eval, d):
         - C_eval : covariance of d | covariates, m
         - d : current deviation from mean of covariates' immediate child.
     """
+    raise NotImplementedError, 'This has not been ported to PyMC 2.1 yet.'
+    
     # Extract keys to list to preserve order.
     n = covariate_dict.keys()
     

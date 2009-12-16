@@ -23,14 +23,14 @@ import numpy as np
 from map_utils import asc_to_ndarray, get_header, exportAscii
 from scipy import ndimage, mgrid
 from histogram_utils import *
-from inference_utils import all_chain_len, all_chain_getitem
+from inference_utils import all_chain_len, all_chain_getitem, CovarianceWithCovariates
 import time
 import os
 
 __all__ = ['grid_convert','mean_reduce','var_reduce','invlogit','hdf5_to_samps','vec_to_asc','asc_to_locs',
             'display_asc','display_datapoints','histogram_reduce','histogram_finalize','maybe_convert','sample_reduce',
             'sample_finalize','asc_to_vals','fast_inplace_mul','fast_inplace_square','square_and_sum','crossmul_and_sum',
-            'thread_partition_array']
+            'thread_partition_array','restore_model']
             
 memmax = 2.5e8
 
@@ -266,17 +266,18 @@ def histogram_finalize(bins, q, hr):
             out['quantile-%s'%q[i]] = quantile_surfs[i]
 
         return out
-    return fin
+    return fin    
 
-
-
-def hdf5_to_samps(hf, x, burn, thin, total, fns, f_labels, fs_have_nugget, x_labels, nugget_labels, M_labels, C_labels, pred_cv_dicts, postproc, diags_safe, finalize=None, **non_cov_columns):
+def hdf5_to_samps(M, x, nuggets, burn, thin, total, fns, postproc, pred_covariate_dict, finalize=None):
     """
     Parameters:
-        hf : PyTables file
-            The trace file from which predictions should be made.
+        M : MCMC object
+            Its database should have samples in it.
         x : array
             The lon, lat locations at which predictions are desired.
+        nuggets : dict
+            Should map the GP submodels of M to the corresponding nugget values,
+            if any.
         burn : int
             Burnin iterations to discard.
         thin : int
@@ -287,37 +288,25 @@ def hdf5_to_samps(hf, x, burn, thin, total, fns, f_labels, fs_have_nugget, x_lab
             Each function should take four arguments: sofar, next, cols and i.
             Sofar may be None.
             The functions will be applied according to the reduce pattern.
-        f_labels : list or array of strings
-            The names of the hdf5 nodes containing f's
-        fs_have_nugget : dictionary of booleans
-            Whether f's are nuggeted.
-        x_labels : dictionary of strings
-            The names of the hdf5 nodes containing the input mesh associated with 
-            the f's in the metadata.
-        nugget_labels, M_labels, C_labels : dictionaries of strings
-            The names of the hdf5 nodes giving the nugget variances, means
-            and covariances of the f's        
-        pred_cv_dicts : dictionary of dictionaries
-            {f label: {covariate name : value on x}}
         postproc : function
             This function is applied to the realization before it is passed to
             the fns.
+        pred_covariate_dict : dict
+            Maps covariate keys to values on x.
         finalize : function (optional)
             This function is applied to the products before returning. It should
             take a second argument which is the actual number of realizations
             produced.
-        diags_safe : dictionary of booleans (optional)
-            Whether C(x)=C.params['amp']**2 regardless of x
-    """
-    
-    # Add constant mean
-    if pred_cv_dicts is None:
-        pred_cv_dicts = dict([(label,{}) for label in f_labels])
-    for label in f_labels:
-        pred_cv_dicts[label]['m'] = np.ones(x.shape[0])
+    """    
+    hf=M.db._h5file
+    gp_submods = filter(lambda c: isinstance(c,pm.gp.GPSubmodel) for c in M.containers)
     
     products = dict(zip(fns, [None]*len(fns)))
     iter = np.arange(burn,all_chain_len(hf),thin)
+
+    M_preds = {}
+    S_preds = {}
+
     if len(iter)==0:
         raise ValueError, 'You asked for %i burnin iterations with thinnnig %i but the chains are only %i iterations long.'%(burn, thin, all_chain_len(hf))
     n_per = total/len(iter)+1
@@ -333,6 +322,13 @@ def hdf5_to_samps(hf, x, burn, thin, total, fns, f_labels, fs_have_nugget, x_lab
     for k in xrange(len(iter)):
         
         i = iter[k]
+        # Restore the i'th cache fram
+        all_chain_remember(M,i)
+        
+        # Add the covariate values on the prediction mesh to the appropriate caches.
+        covariate_covariances = filter(lambda d: isinstance(d.value, CovarianceWithCovariates), M.deterministics)
+        for c in covariate_covariances:
+            c.add_values_to_cache(x,pred_covariate_dict)
         
         if time.time() - time_count > 10:
             print ((k*100)/len(iter)), '% complete',
@@ -342,45 +338,39 @@ def hdf5_to_samps(hf, x, burn, thin, total, fns, f_labels, fs_have_nugget, x_lab
             else:
                 print
         
-        M_preds = {}
-        S_preds = {}
-        for fl in f_labels:
-            M_preds[fl], S_preds[fl] = predictive_mean_and_std(hf, i, fl, x_labels[fl], x, fs_have_nugget[fl], pred_cv_dicts[fl], nugget_labels[fl], M_labels[fl], C_labels[fl], diags_safe[fl])
-        if M_preds[f_labels[0]] is None:
-            actual_total -= n_per
-            continue
-        else:
-            cmin, cmax = thread_partition_array(M_preds[f_labels[0]])
-        
-            # Postprocess if necessary: logit, etc.
-            norms = np.random.normal(size=n_per)
+        for s in gp_submods:
+            M_preds[s] = s.M_obs(x)
+            V_pred = s.C_obs(x) + pm.utils.value(nuggets[s])
+            S_preds[s] = np.sqrt(V_pred)
             
-            for j in xrange(n_per):
-                
-                postproc_kwds = {}
-
-                # Evaluate fields, and store them in argument dict for postproc
-                for fl in f_labels:
-                    postproc_kwds[fl] = M_preds[fl].copy('F')
-                    pm.map_noreturn(iaaxpy, [(norms[j], S_preds[fl], postproc_kwds[fl], cmin[l], cmax[l]) for l in xrange(len(cmax))])
-                    
-                # Pull any extra variables needed for postprocessing out of trace
-                for extra_arg in extra_postproc_args:
-                    if hasattr(hf.root.chain0.PyMCsamples.cols, extra_arg):
-                        postproc_kwds[extra_arg] = all_chain_getitem(hf, extra_arg, i, False)
-            
-                # Evaluate postprocessing function to get a surface
-                surf = postproc(**postproc_kwds)
-                
-                # Reduce surface into products needed
-                for f in fns:
-                    products[f] = f(products[f], surf)
-
+        cmin, cmax = thread_partition_array(M_preds[f_labels[0]])
     
+        # Postprocess if necessary: logit, etc.
+        norms = np.random.normal(size=n_per)
+        
+        for j in xrange(n_per):
+
+            # Evaluate fields, and store them in argument dict for postproc
+            for s in submods:
+                postproc_kwds[s.name] = M_preds[s].copy('F')
+                pm.map_noreturn(iaaxpy, [(norms[j], S_preds[s], postproc_kwds[s], cmin[l], cmax[l]) for l in xrange(len(cmax))])
+                
+            # Pull any extra variables needed for postprocessing out of trace
+            for n in extra_postproc_args:
+                postproc_kwds[n] = getattr(M,n).value
+        
+            # Evaluate postprocessing function to get a surface
+            surf = postproc(**postproc_kwds)
+            
+            # Reduce surface into products needed
+            for f in fns:
+                products[f] = f(products[f], surf)
+                    
     if finalize is not None:
         return finalize(products, actual_total)
     else:          
         return products
+
         
 def normalize_for_mapcoords(arr, max):
     "Used to create inputs to ndimage.map_coordinates."
@@ -414,157 +404,9 @@ def vec_to_asc(vec, fname, out_fname, unmasked, path=''):
     if np.any(np.isnan(out)):
         raise ValueError, 'NaN in output'
     
-    # import pylab as pl
-    # pl.close('all')
-    # pl.figure()
-    # pl.imshow(out, interpolation='nearest', vmin=0.)
-    # pl.colorbar()
-    # pl.title('Resampled')
-    # 
-    # pl.figure()
-    # pl.imshow(np.ma.masked_array(data_thin, mask=True-unmasked), interpolation='nearest', vmin=0)
-    # pl.colorbar()
-    # pl.title('Original')
-    
     out_conv = grid_convert(out,'x+y+','y-x+')
     
     header['NODATA_value'] = -9999
     exportAscii(out_conv.data,out_fname,header,True-out_conv.mask)
     
     return out
-    
-
-def predictive_mean_and_std(hf, i, f_label, x_label, x, f_has_nugget, pred_cv_dict, nugget_label, M_label, C_label, diag_safe=False):
-    """
-    Computes marginal (pointwise) predictive mean and variance for f(x).
-    Expects input from an hdf5 datafile.
-        - hf : hdf5 file.
-        - i : integer.
-        - f_label : string or array.
-        - x : numpy array
-        - pred_cv_dict : {name : value-on-predmesh}
-        - nugget_label : string
-    """
-
-    meta = hf.root.metadata
-
-    if pred_cv_dict is None:
-        raise ValueError, 'No pred_cv_dict provided. You always have the constant term. Tell Anand.'
-            
-    n = pred_cv_dict.keys()
-
-    covariate_dict = meta.covariates[0][f_label]
-    prior_covariate_variance = np.diag([covariate_dict[key][1] for key in n])
-
-    pred_covariate_values = np.empty((len(pred_cv_dict), x.shape[0]), order='F')
-    input_covariate_values = np.empty((len(pred_cv_dict), len(covariate_dict[key][0])), order='F')
-    for j in xrange(len(n)):
-        pred_covariate_values[j,:] = pred_cv_dict[n[j]]
-        input_covariate_values[j,:] = covariate_dict[n[j]][0]
-    
-    # How many times must a man condition a multivariate normal
-    M = all_chain_getitem(hf, M_label, i, True)
-    C = all_chain_getitem(hf, C_label, i, True)
-
-    logp_mesh = np.asarray(getattr(meta,x_label)[:], order='F')    
-    M_input = M(logp_mesh)
-    M_pred = M(x)
-
-    
-    V_out = np.empty(M_pred.shape)
-    M_out = np.empty(M_pred.shape)
-    
-    try:
-        f = all_chain_getitem(hf, f_label, i)
-    except:
-        f = getattr(meta,f_label)[:]
-        
-    C_input = C(logp_mesh, logp_mesh)
-
-    if pred_cv_dict is not None:
-        C_input += np.dot(np.dot(input_covariate_values.T, prior_covariate_variance), input_covariate_values)
-    nug = all_chain_getitem(hf, nugget_label, i)
-    if f_has_nugget:
-        C_input += nug*np.eye(np.sum(logp_mesh.shape[:-1]))
-    else:
-        nug = 0.
-    
-    try:
-        S_input = np.linalg.cholesky(C_input)
-        piv = None
-    except np.linalg.LinAlgError:
-        U, rank, piv = pm.gp.incomplete_chol.ichol_full(c=C_input, reltol=1.e-10)
-        print 'Warning, full conditional covariance was not positive definite at iteration %i. Rank is %i of %i.'%(i, rank, C_input.shape[0])        
-        if rank<=0:
-            raise ValueError, "Matrix does not appear to be positive semidefinite. Tell Anand."
-        else:
-            S_input = np.asarray(U[:rank,:rank].T, order='F')
-            logp_mesh = logp_mesh[piv[:rank]]
-            f = f[piv[:rank]]
-            M_input = M_input[piv[:rank]]
-            input_covariate_values = np.asarray(input_covariate_values[:,piv[:rank]], order='F')
-                
-    max_chunksize = memmax / 8 / logp_mesh.shape[0]
-    n_chunks = int(x.shape[0]/max_chunksize+1)
-    splits = np.array(np.linspace(0,x.shape[0],n_chunks+1),dtype='int')
-    x_chunks = np.split(x,splits[1:-1])
-    i_chunks = [slice(splits[k],splits[k+1],None) for k in xrange(n_chunks)]
-
-
-    for k in xrange(n_chunks):
-
-        i_chunk = i_chunks[k]
-        x_chunk = x_chunks[k]
-        
-        pcv = pred_covariate_values[:,i_chunk]
-        C_cross = C(logp_mesh, x_chunk) 
-        if diag_safe:
-            if np.any(C_cross>C.params['amp']**2):
-                raise ValueError, 'Off-diagonal elements of C are too large. Tell Anand.'
-        
-        for mat in [input_covariate_values, pcv, C_cross, S_input]:
-            if not mat.flags['F_CONTIGUOUS']:
-                raise ValueError, 'Matrix is not Fortran-contiguous. Tell Anand.'
-        
-        if diag_safe:
-            V_pred = C.params['amp']**2 + nug
-        else:
-            V_pred = C(x_chunk) + nug
-        
-        if pred_cv_dict is not None:
-            C_cross = crossmul_and_sum(C_cross, input_covariate_values, np.diag(prior_covariate_variance), pcv)
-            V_pred_adj = V_pred + np.sum(np.dot(np.sqrt(prior_covariate_variance), pcv)**2, axis=0)
-                        
-        SC_cross = pm.gp.trisolve(S_input,C_cross,uplo='L',inplace=True)
-
-        for mat in S_input, C_cross, SC_cross:
-            if not mat.flags['F_CONTIGUOUS']:
-                raise ValueError, 'Matrix is not Fortran-contiguous. Tell Anand.'
-        
-        scc = np.empty(x_chunk.shape[0])
-        square_and_sum(SC_cross, scc)
-        
-        V_out[i_chunk] = V_pred_adj - scc
-        M_out[i_chunk] = M_pred[i_chunk] + np.asarray(np.dot(SC_cross.T,pm.gp.trisolve(S_input, (f-M_input), uplo='L'))).squeeze()
-
-        if np.any(np.isnan(np.sqrt(V_out[i_chunk]))) or np.any(np.isnan(M_out[i_chunk])):
-            bad_x = np.atleast_2d(x_chunk[np.where(np.isnan(np.sqrt(V_out[i_chunk])))[0][0]])
-            bad_logp_mesh = np.vstack((logp_mesh, bad_x))
-            bad_C_input = C(bad_logp_mesh, bad_logp_mesh)
-            nug = all_chain_getitem(hf, nugget_label, i)
-            if f_has_nugget:
-                bad_C_input += nug*np.eye(np.sum(bad_logp_mesh.shape[:-1]))
-            try:
-                bad_S_input = np.linalg.cholesky(bad_C_input)
-            except np.linalg.LinAlgError:
-                outdict = {'C': C, 'x': bad_logp_mesh, 'V': nug}
-                outstr = cPickle.dumps(outdict)
-                outname = hashlib.sha1(outstr).hexdigest()
-                file('cov-error-%s.pickle'%outname,'w').write(outstr)
-                print 'Some predictive samples were NaN at iteration %i due to a non-positive-definite covariance function. \nPlease send file cov-error-%s.pickle to Anand, and explain what happened.'%(i,outname)
-                return None,None
-                    
-            raise ValueError, 'Some predictive samples were NaN at iteration %i, but I cannot find anything obviously wrong. \nKeep all your input files and tell Anand.'%i
-            # print 'Some predictive samples were NaN at iteration %i. Keep all your input files and tell Anand.'%i
-
-    return M_out, np.sqrt(V_out)
