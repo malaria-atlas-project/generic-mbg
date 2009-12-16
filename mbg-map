@@ -77,7 +77,7 @@ mod_basename, mod_ext = os.path.splitext(mod_name)
 mod_search_path = [mod_path, os.getcwd()] + sys.path
 mod = imp.load_module(mod_basename, *imp.find_module(mod_basename, mod_search_path))
 
-for n in ['f_labels', 'nugget_labels', 'fs_have_nugget', 'x_labels', 'M_labels', 'C_labels']:
+for n in ['nugget_labels', 'obs_labels']:
     try:
         exec("%s=getattr(mod,'%s')"%(n,n))
     except:
@@ -107,18 +107,17 @@ if not o.year is None:
     x = np.vstack((x.T,o.year*np.ones(x.shape[0]))).T
 
 
-# Open hdf5 archive
-
-hf = tb.openFile(o.hf_name)
+# Restore model
+M = create_model(mod,pm.database.hdf5.load(hfname))
+hf = M.db._h5file
 meta = hf.root.metadata
+nuggets = dict([(getattr(M,k),getattr(M,v)) for k,v in mod.nugget_labels.iteritems()])
 bins = np.linspace(0,1,o.n_bins)
 
 
+
 # Load covariates
-
 all_covariate_keys = set()
-[all_covariate_keys.update(cd.keys()) for cd in meta.covariates[0].itervalues()]
-
 covariate_dict = {}
 for k in all_covariate_keys:
     if k != 'm':
@@ -127,15 +126,8 @@ for k in all_covariate_keys:
         except IOError:
             raise IOError, 'Covariate raster %s not found in path %s.'%(k+'.asc',o.ascii_path)
 
-covariate_dicts = {}            
-for fl in f_labels:
-    covariate_dicts[fl]={}
-    for k in meta.covariates[0][fl].keys():
-        if k != 'm':
-            covariate_dicts[fl][k] = covariate_dict[k]
 
 # Create utility fns
-
 if len(q)>0:
     def binfn(arr,n_bins=o.n_bins):
         return np.array(arr*n_bins,dtype=int)
@@ -164,8 +156,7 @@ if len(q)>0:
 # Create rasters
 
 t_start = time.time()
-# (hf, x, burn, thin, total, fns, f_labels, fs_have_nugget, x_label, nugget_labels, M_labels, C_labels, pred_cv_dicts, postproc, diags_safe, finalize=None, **non_cov_columns)
-products = hdf5_to_samps(hf,x,o.burn,o.thin,o.total,reduce_fns + extra_reduce_fns, f_labels, fs_have_nugget, x_labels, nugget_labels, M_labels, C_labels, covariate_dicts, mod.map_postproc, mod.diags_safe, finalize)
+products = hdf5_to_samps(M,x,nuggets,o.thin,o.total,reduce_fns + extra_reduce_fns, mod.map_postproc, mod.diags_safe, covariate_dict, finalize)
 print '\nMaps produced in %f seconds\n'%(time.time() - t_start)
 
 

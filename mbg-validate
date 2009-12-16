@@ -16,6 +16,7 @@
 
 from optparse import OptionParser
 
+raise NotImplementedError, 'This has not been ported to the PyMC 2.1 branch yet.'
 
 # Create option parser
 

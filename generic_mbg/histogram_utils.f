@@ -213,40 +213,6 @@ cf2py threadsafe
       RETURN
       END
 
-
-      SUBROUTINE asqs(C,S,nx,ny,cmin,cmax)
-
-cf2py intent(in) C
-cf2py intent(inplace) S
-cf2py integer intent(in), optional :: cmin = 0
-cf2py integer intent(in), optional :: cmax = -1
-cf2py intent(hide) nx,ny
-cf2py threadsafe
-
-      DOUBLE PRECISION C(nx,ny), cn, S(ny)
-      INTEGER nx, ny, i, j, cmin, cmax
-
-      EXTERNAL DSCAL
-
-      if (cmax.EQ.-1) then
-          cmax = ny
-      end if
-
-
-        do j=cmin+1,cmax
-            S(j) = 0.0D0
-            do i=1,nx
-                cn = C(i,j)
-                S(j) = S(j) + cn * cn
-            end do
- !          CALL DSCAL(nx,a,C(1,j),1)
-        enddo
-
-
-      RETURN
-      END
-
-
       SUBROUTINE iamul(C,A,nx,ny,cmin,cmax)
 
 cf2py intent(inplace) C
