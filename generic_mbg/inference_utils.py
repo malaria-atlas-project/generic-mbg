@@ -19,7 +19,36 @@ import time
 import tables as tb
 from st_cov_fun import my_st
 
-def creeate_model(mod,db,input=None):
+def invlogit(x):
+    """A shape-preserving, in-place, threaded inverse logit function."""
+    if np.prod(np.shape(x))<10000:
+        return pm.flib.invlogit(x)
+    if not x.flags['F_CONTIGUOUS']:
+        raise ValueError, 'x is not Fortran-contiguous'
+    cmin, cmax = thread_partition_array(x)        
+    pm.map_noreturn(iinvlogit, [(x,cmin[i],cmax[i]) for i in xrange(len(cmax))])
+    return x
+
+def fast_inplace_mul(a,s):
+    """Multiplies a by s in-place and returns a."""
+    a = np.atleast_2d(a)
+    s = np.atleast_2d(s)
+    cmin, cmax = thread_partition_array(a)
+    pm.map_noreturn(iamul, [(a,s,cmin[i],cmax[i]) for i in xrange(len(cmax))])
+    return a
+
+def fast_inplace_square(a):
+    """Squares a in-place and returns it."""
+    cmin, cmax = thread_partition_array(a)
+    pm.map_noreturn(iasq, [(a,cmin[i],cmax[i]) for i in xrange(len(cmax))])
+    return a
+    
+def crossmul_and_sum(c,x,d,y):
+    cmin, cmax = thread_partition_array(y)
+    pm.map_noreturn(icsum, [(c,x,d,y,cmin[i],cmax[i]) for i in xrange(len(cmax))])
+    return c
+
+def create_model(mod,db,input=None):
     """
     Takes either:
     - A module and a database object, or:
@@ -200,46 +229,47 @@ def CovarianceWithCovariates(object):
     ~cov[n](x) is (cov[n](x)-mu[n])/sig[n], where mu[n] and sig[n] are the mean and
     standard deviation of the values passed into the init method.
     """
-    def __init__(self, cov_fun, mesh, cv, fac=1e6, diag_safe=False):
+    
+                        
+    def __init__(self, cov_fun, mesh, cv, fac=1e6, ampsq_is_diag=False):
         self.cv = cv
+        self.labels = self.cv.keys()
         self.m = len(cv)
         self.means = dict([(k,np.mean(v)) for k,v in cv.iteritems()])
         self.stds = dict([(k,np.std(v)) for k,v in cv.iteritems()])
         self.evaluators = dict([(k,CachingCovariateEvaluator(mesh, v)) for k,v in cv.iteritems()])
         self.cov_fun = cov_fun
         self.fac = fac
-        self.diag_safe = diag_safe
+        self.privar = np.ones(len(self.labels))*self.fac
 
+    def diag_call(self,x, *args, **kwds):
+        # Evaluate with one argument:
+        x_evals = self.eval_covariates(x)        
+        if hasattr(self.cov_fun, 'diag_call'):
+            Cbase = self.cov_fun.diag_call(x,*args,**kwds)
+        else:
+            Cbase = self.cov_fun(x,y=None,*args,**kwds)
+        C = Cbase + np.sum(self.privar * x_evals**2, axis=0) + self.frac*self.m
+        return C
+        
     def eval_covariates(self, x):
-        return dict([(k,(self.evaluators[k](x)-self.means[k])/self.stds[k]) for k in self.cv.iterkeys()])
+        return np.asarray([(self.evaluators[k](x)-self.means[k])/self.stds[k] for k in self.labels], order='F')
         
     def add_values_to_cache(mesh, new_cv):
         for k,v in self.evaluators.iteritems():
             v.add_value_to_cache(new_cv[k])
 
-    def __call__(self, x, y=None, *args, **kwds):
-        # FIXME: Use prediction_utils.square_and_sum, and crossmul_and_sum here.
+    def __call__(self, x, y, *args, **kwds):
         x_evals = self.eval_covariates(x)
         
-        # Evaluate with one argument:
-        if y None:
-            if self.diag_safe:
-                Cbase = self.cov_fun.params['amp']**2 * np.ones(x.shape[0])
-            else:
-                Cbase = self.cov_fun(x,y,*args,**kwds)
-            for i in xrange(len(Cbase)):
-                C = Cbase + self.fac * (self.m + np.sum([x_evals[k]**2 for k in self.cv.iterkeys()], axis=0))
-                return C
-        
         # Evaluate with both arguments:
+        Cbase = self.cov_fun(x,y,*args,**kwds)
+        if x is y:
+            y_evals = x_evals
         else:
-            Cbase = self.cov_fun(x,y,*args,**kwds)
-            if x is y:
-                y_evals = x_evals
-            else:
-                y_evals = self.eval_covariates(y)
-            C = Cbase + self.fac * (self.m + np.sum([np.outer(x_evals[k], y_evals[k]) for k in self.cv.iterkeys()], axis=0))
-            return C
+            y_evals = self.eval_covariates(y)
+        C = crossmul_and_sum(Cbase, self.x_evals, self.privar, self.y_evals) + self.fac*self.m
+        return C
 
 def sample_covariates(covariate_dict, C_eval, d):
     """

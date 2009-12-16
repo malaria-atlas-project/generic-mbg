@@ -24,6 +24,7 @@ from map_utils import asc_to_ndarray, get_header, exportAscii
 from scipy import ndimage, mgrid
 from histogram_utils import *
 from inference_utils import all_chain_len, all_chain_getitem, CovarianceWithCovariates
+from inference_utils import thread_partition_array, invlogit, fast_inplace_mul, fast_inplace_square, square_and_sum, crossmul_and_sum
 import time
 import os
 
@@ -33,52 +34,6 @@ __all__ = ['grid_convert','mean_reduce','var_reduce','invlogit','hdf5_to_samps',
             'thread_partition_array','restore_model']
             
 memmax = 2.5e8
-
-def thread_partition_array(x):
-    "Partition work arrays for multithreaded addition and multiplication"
-    n_threads = int(os.environ['OMP_NUM_THREADS'])
-    if len(x.shape)>1:
-        maxind = x.shape[1]
-    else:
-        maxind = x.shape[0]
-    bounds = np.array(np.linspace(0, maxind, n_threads+1),dtype='int')
-    cmin = bounds[:-1]
-    cmax = bounds[1:]
-    return cmin,cmax
-
-def invlogit(x):
-    """A shape-preserving, in-place, threaded inverse logit function."""
-    if np.prod(np.shape(x))<10000:
-        return pm.flib.invlogit(x)
-    if not x.flags['F_CONTIGUOUS']:
-        raise ValueError, 'x is not Fortran-contiguous'
-    cmin, cmax = thread_partition_array(x)        
-    pm.map_noreturn(iinvlogit, [(x,cmin[i],cmax[i]) for i in xrange(len(cmax))])
-    return x
-
-def fast_inplace_mul(a,s):
-    """Multiplies a by s in-place and returns a."""
-    a = np.atleast_2d(a)
-    s = np.atleast_2d(s)
-    cmin, cmax = thread_partition_array(a)
-    pm.map_noreturn(iamul, [(a,s,cmin[i],cmax[i]) for i in xrange(len(cmax))])
-    return a
-
-def fast_inplace_square(a):
-    """Squares a in-place and returns it."""
-    cmin, cmax = thread_partition_array(a)
-    pm.map_noreturn(iasq, [(a,cmin[i],cmax[i]) for i in xrange(len(cmax))])
-    return a
-    
-def square_and_sum(a,s):
-    cmin, cmax = thread_partition_array(a)
-    pm.map_noreturn(asqs, [(a,s,cmin[i],cmax[i]) for i in xrange(len(cmax))])
-    return a
-    
-def crossmul_and_sum(c,x,d,y):
-    cmin, cmax = thread_partition_array(y)
-    pm.map_noreturn(icsum, [(c,x,d,y,cmin[i],cmax[i]) for i in xrange(len(cmax))])
-    return c
 
 def maybe_convert(ra, field, dtype):
     """
