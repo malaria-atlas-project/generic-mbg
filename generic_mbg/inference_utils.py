@@ -188,9 +188,14 @@ class CachingCovariateEvaluator(object):
         self.values.append(value)
     def __call__(self, mesh):
         for i,m in enumerate(self.meshes):
-            # FIXME: Make this work for subchunks.
-            if np.all(m==mesh):
-                return self.values[i]
+            if m.shape == mesh.shape:
+                if np.all(m==mesh):
+                    return self.values[i]
+            elif m.shape > mesh.shape:
+                for j,row in enumerate(m):
+                    if np.all(row == mesh[0]):
+                        if np.all(m[j:j+mesh.shape[0]]==mesh):
+                            return self.values[i][j:j+mesh.shape[0]]
         raise RuntimeError, 'The given mesh is not in the cache.'
         
 class CovarianceWithCovariates(object):
