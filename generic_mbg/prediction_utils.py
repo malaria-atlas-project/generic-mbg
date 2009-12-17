@@ -23,33 +23,43 @@ import numpy as np
 from map_utils import asc_to_ndarray, get_header, exportAscii
 from scipy import ndimage, mgrid
 from histogram_utils import *
-from inference_utils import all_chain_len, all_chain_getitem, CovarianceWithCovariates
-from inference_utils import thread_partition_array, invlogit, fast_inplace_mul, fast_inplace_square, square_and_sum, crossmul_and_sum
+from inference_utils import invlogit, fast_inplace_mul, fast_inplace_square, crossmul_and_sum, CovarianceWithCovariates
 import time
 import os
 
-__all__ = ['grid_convert','mean_reduce','var_reduce','invlogit','hdf5_to_samps','vec_to_asc','asc_to_locs',
-            'display_asc','display_datapoints','histogram_reduce','histogram_finalize','maybe_convert','sample_reduce',
-            'sample_finalize','asc_to_vals','fast_inplace_mul','fast_inplace_square','square_and_sum','crossmul_and_sum',
-            'thread_partition_array','restore_model']
+# __all__ = ['grid_convert','mean_reduce','var_reduce','invlogit','hdf5_to_samps','vec_to_asc','asc_to_locs',
+#             'display_asc','display_datapoints','histogram_reduce','histogram_finalize','maybe_convert','sample_reduce',
+#             'sample_finalize','asc_to_vals','restore_model','all_chain_len','all_chain']
             
 memmax = 2.5e8
 
-def maybe_convert(ra, field, dtype):
-    """
-    Tries to cast given field of given record array to given dtype. 
-    Raises helpful error on failure.
-    """
-    arr = ra[field]
-    try:
-        return arr.astype(dtype)
-    except:
-        for i in xrange(len(arr)):
-            try:
-                np.array(arr[i],dtype=dtype)
-            except:
-                raise ValueError, 'Input column %s, element %i (starting from zero) is %s,\n which cannot be cast to %s'%(field,i,arr[i],dtype)
+def all_chain_len(hf):
+    return np.sum([len(chain.PyMCsamples) for chain in chains(hf)])
+    
+def all_chain_trace(hf, name):
+    return np.concatenate([np.ravel(chain.PyMCsamples.col(name)) for chain in chains(hf)])
+    
+def all_chain_getitem(hf, name, i, vl=False):
+    c = chains(hf)
+    lens = [len(chain.PyMCsamples) for chain in c]
+    if i >= np.sum(lens):
+        raise IndexError, 'Index out of bounds'
+    s = 0
+    j = i
 
+    for k in xrange(len(lens)):
+        s += lens[k]
+        if i<s:
+            if vl:
+                return getattr(c[k].group0, name)[j]
+            else:
+                return getattr(c[k].PyMCsamples.cols,name)[j]
+        else:
+            j -= lens[k]
+            
+def all_chain_remember(M, name, i):
+    raise NotImplementedError, 'May need to be fixed in PyMC.'
+    
 def validate_format_str(st):
     for i in [0,2]:
         if not st[i] in ['x','y']:
@@ -298,7 +308,7 @@ def hdf5_to_samps(M, x, nuggets, burn, thin, total, fns, postproc, pred_covariat
             V_pred = s.C_obs(x) + pm.utils.value(nuggets[s])
             S_preds[s] = np.sqrt(V_pred)
             
-        cmin, cmax = thread_partition_array(M_preds[f_labels[0]])
+        cmin, cmax = pm.thread_partition_array(M_preds[f_labels[0]])
     
         # Postprocess if necessary: logit, etc.
         norms = np.random.normal(size=n_per)

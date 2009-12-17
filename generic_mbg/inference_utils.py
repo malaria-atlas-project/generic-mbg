@@ -18,6 +18,23 @@ import numpy as np
 import time
 import tables as tb
 from st_cov_fun import my_st
+from histogram_utils import iinvlogit, iamul, iasq, icsum
+
+def maybe_convert(ra, field, dtype):
+    """
+    Tries to cast given field of given record array to given dtype. 
+    Raises helpful error on failure.
+    """
+    arr = ra[field]
+    try:
+        return arr.astype(dtype)
+    except:
+        for i in xrange(len(arr)):
+            try:
+                np.array(arr[i],dtype=dtype)
+            except:
+                raise ValueError, 'Input column %s, element %i (starting from zero) is %s,\n which cannot be cast to %s'%(field,i,arr[i],dtype)
+
 
 def invlogit(x):
     """A shape-preserving, in-place, threaded inverse logit function."""
@@ -25,7 +42,7 @@ def invlogit(x):
         return pm.flib.invlogit(x)
     if not x.flags['F_CONTIGUOUS']:
         raise ValueError, 'x is not Fortran-contiguous'
-    cmin, cmax = thread_partition_array(x)        
+    cmin, cmax = pm.thread_partition_array(x)        
     pm.map_noreturn(iinvlogit, [(x,cmin[i],cmax[i]) for i in xrange(len(cmax))])
     return x
 
@@ -33,18 +50,19 @@ def fast_inplace_mul(a,s):
     """Multiplies a by s in-place and returns a."""
     a = np.atleast_2d(a)
     s = np.atleast_2d(s)
-    cmin, cmax = thread_partition_array(a)
+    cmin, cmax = pm.thread_partition_array(a)
     pm.map_noreturn(iamul, [(a,s,cmin[i],cmax[i]) for i in xrange(len(cmax))])
     return a
 
 def fast_inplace_square(a):
     """Squares a in-place and returns it."""
-    cmin, cmax = thread_partition_array(a)
+    cmin, cmax = pm.thread_partition_array(a)
     pm.map_noreturn(iasq, [(a,cmin[i],cmax[i]) for i in xrange(len(cmax))])
     return a
     
 def crossmul_and_sum(c,x,d,y):
-    cmin, cmax = thread_partition_array(y)
+    """Returns C + \sum_i d_i*outer(x[i,:],y[i,:])"""
+    cmin, cmax = pm.thread_partition_array(y)
     pm.map_noreturn(icsum, [(c,x,d,y,cmin[i],cmax[i]) for i in xrange(len(cmax))])
     return c
 
@@ -57,7 +75,15 @@ def create_model(mod,db,input=None):
     """
     
     if isinstance(db,pm.database.hdf5.Database):
+        if input is not None:
+            raise ValueError, 'Input provided with preexisting db.'
         input = db._h5file.root.input_csv[:]
+        prev_db = db
+    else:
+        if input is None:
+            raise ValueError, 'No input or preexisting db provided.'
+        prev_db=None
+        hfname = db
         
     if isinstance(input, np.ma.mrecords.MaskedRecords):
         msg = 'Error, could not parse input at following rows:\n'
@@ -75,8 +101,8 @@ def create_model(mod,db,input=None):
         mod_inputs = mod_inputs + (t,)
     else:
         x = combine_spatial_inputs(lon,lat)
-
-    non_cov_columns = {'cpus': o.ncpus}
+    
+    non_cov_columns = {}
     if hasattr(mod, 'non_cov_columns'):
         non_cov_coltypes = mod.non_cov_columns
     else:
@@ -96,7 +122,7 @@ def create_model(mod,db,input=None):
     # Create MCMC object, add metadata, and assign appropriate step method.
 
     if prev_db is None:
-        M = pm.MCMC(make_model(*mod_inputs,**non_cov_columns),db='hdf5',dbname=hfname,complevel=1,complib='zlib')
+        M = pm.MCMC(mod.make_model(*mod_inputs,**non_cov_columns),db='hdf5',dbname=hfname,complevel=1,complib='zlib')
         add_standard_metadata(M, mod.x_labels, *metadata_keys)
         M.db._h5file.createTable('/','input_csv',csv2rec(file(o.input_name,'U')))
         M.db._h5file.root.input_csv.attrs.shellargs = ' '.join(sys.argv[1:])
@@ -154,33 +180,6 @@ def combine_st_inputs(lon,lat,t):
 def chains(hf):
     return [gr for gr in hf.listNodes("/") if gr._v_name[:5]=='chain']
 
-def all_chain_len(hf):
-    return np.sum([len(chain.PyMCsamples) for chain in chains(hf)])
-    
-def all_chain_trace(hf, name):
-    return np.concatenate([np.ravel(chain.PyMCsamples.col(name)) for chain in chains(hf)])
-    
-def all_chain_getitem(hf, name, i, vl=False):
-    c = chains(hf)
-    lens = [len(chain.PyMCsamples) for chain in c]
-    if i >= np.sum(lens):
-        raise IndexError, 'Index out of bounds'
-    s = 0
-    j = i
-
-    for k in xrange(len(lens)):
-        s += lens[k]
-        if i<s:
-            if vl:
-                return getattr(c[k].group0, name)[j]
-            else:
-                return getattr(c[k].PyMCsamples.cols,name)[j]
-        else:
-            j -= lens[k]
-            
-def all_chain_remember(M, name, i):
-    raise NotImplementedError, 'May need to be fixed in PyMC.'
-    
 def add_standard_metadata(M, x_labels, *others):
     """
     Adds the standard metadata to an hdf5 archive.
@@ -212,12 +211,12 @@ class CachingCovariateEvaluator(object):
         self.meshes.append(mesh)
         self.values.append(value)
     def __call__(self, mesh):
-        for m,i in enumerate(self.meshes):
+        for i,m in enumerate(self.meshes):
             if np.all(m==mesh):
                 return self.values[i]
         raise RuntimeError, 'The given mesh is not in the cache.'
         
-def CovarianceWithCovariates(object):
+class CovarianceWithCovariates(object):
     """
     A callable that adds some covariates to the given covariance function C.
     
@@ -260,15 +259,19 @@ def CovarianceWithCovariates(object):
             v.add_value_to_cache(new_cv[k])
 
     def __call__(self, x, y, *args, **kwds):
-        x_evals = self.eval_covariates(x)
         
         # Evaluate with both arguments:
         Cbase = self.cov_fun(x,y,*args,**kwds)
-        if x is y:
-            y_evals = x_evals
+        
+        if len(self.evaluators) > 0:
+            x_evals = self.eval_covariates(x)
+            if x is y:
+                y_evals = x_evals
+            else:
+                y_evals = self.eval_covariates(y)
+            C = crossmul_and_sum(Cbase, x_evals, self.privar, y_evals) + self.fac*self.m            
         else:
-            y_evals = self.eval_covariates(y)
-        C = crossmul_and_sum(Cbase, self.x_evals, self.privar, self.y_evals) + self.fac*self.m
+            C = Cbase
         return C
 
 def sample_covariates(covariate_dict, C_eval, d):
