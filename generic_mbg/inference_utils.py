@@ -19,6 +19,7 @@ import time
 import tables as tb
 from st_cov_fun import my_st
 from histogram_utils import iinvlogit, iamul, iasq, icsum
+from pylab import csv2rec
 
 def maybe_convert(ra, field, dtype):
     """
@@ -123,15 +124,6 @@ def create_model(mod,db,input=None):
 
     if prev_db is None:
         M = pm.MCMC(mod.make_model(*mod_inputs,**non_cov_columns),db='hdf5',dbname=hfname,complevel=1,complib='zlib')
-        add_standard_metadata(M, mod.x_labels, *metadata_keys)
-        M.db._h5file.createTable('/','input_csv',csv2rec(file(o.input_name,'U')))
-        M.db._h5file.root.input_csv.attrs.shellargs = ' '.join(sys.argv[1:])
-        M.db._h5file.root.input_csv.attrs.mod_name = mod_name
-        M.db._h5file.root.input_csv.attrs.mod_commit = mod_commit
-        M.db._h5file.root.input_csv.attrs.generic_commit = generic_commit
-        M.db._h5file.root.input_csv.attrs.starttime = datetime.datetime.now()
-        M.db._h5file.root.input_csv.attrs.input_filename = o.input_name
-
     else:
         M = pm.MCMC(make_model(*mod_inputs,**non_cov_columns),db=prev_db)
         M.restore_sampler_state()
@@ -180,7 +172,7 @@ def combine_st_inputs(lon,lat,t):
 def chains(hf):
     return [gr for gr in hf.listNodes("/") if gr._v_name[:5]=='chain']
 
-def add_standard_metadata(M, x_labels, *others):
+def add_standard_metadata(M, *labels):
     """
     Adds the standard metadata to an hdf5 archive.
     """
@@ -188,13 +180,7 @@ def add_standard_metadata(M, x_labels, *others):
     hf = M.db._h5file
     hf.createGroup('/','metadata')
         
-    hf.createVLArray(hf.root.metadata, 'covariates', tb.ObjectAtom())
-    hf.root.metadata.covariates.append(M.covariate_dicts)
-    
-    for label in set(x_labels.itervalues()):
-        hf.createArray(hf.root.metadata, label, getattr(M, label))
-        
-    for label in set(others):
+    for label in set(labels):
         vla=hf.createVLArray(hf.root.metadata, label, tb.ObjectAtom())
         vla.append(getattr(M,label))
         

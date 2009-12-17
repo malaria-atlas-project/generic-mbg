@@ -129,7 +129,15 @@ from numpy.ma import mrecords
 if prev_db is not None:
     M = create_model(mod, prev_db, input)
 else:
-    M = create_model(mod, os.path.join(hf_path, hf_basename), input)
+    M = create_model(mod, os.path.join(hf_path, hf_basename), input, o.input_name)
+    add_standard_metadata(M, *mod.metadata_keys)
+    M.db._h5file.createTable('/','input_csv',input)
+    M.db._h5file.root.input_csv.attrs.shellargs = ' '.join(sys.argv[1:])
+    M.db._h5file.root.input_csv.attrs.mod_name = mod_name
+    M.db._h5file.root.input_csv.attrs.mod_commit = mod_commit
+    M.db._h5file.root.input_csv.attrs.generic_commit = generic_commit
+    M.db._h5file.root.input_csv.attrs.starttime = datetime.datetime.now()
+    M.db._h5file.root.input_csv.attrs.input_filename = o.input_name
 
 # Run MCMC
 
