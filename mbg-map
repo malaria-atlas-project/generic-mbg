@@ -108,7 +108,7 @@ if not o.year is None:
 
 
 # Restore model
-M = create_model(mod,pm.database.hdf5.load(hfname))
+M = create_model(mod,pm.database.hdf5.load(o.hf_name))
 hf = M.db._h5file
 meta = hf.root.metadata
 nuggets = dict([(getattr(M,k),getattr(M,v)) for k,v in mod.nugget_labels.iteritems()])
@@ -117,7 +117,7 @@ bins = np.linspace(0,1,o.n_bins)
 
 
 # Load covariates
-all_covariate_keys = set()
+all_covariate_keys = M.covariate_values.keys()
 covariate_dict = {}
 for k in all_covariate_keys:
     if k != 'm':
@@ -156,7 +156,7 @@ if len(q)>0:
 # Create rasters
 
 t_start = time.time()
-products = hdf5_to_samps(M,x,nuggets,o.thin,o.total,reduce_fns + extra_reduce_fns, mod.map_postproc, mod.diags_safe, covariate_dict, finalize)
+products = hdf5_to_samps(M,x,nuggets,o.burn,o.thin,o.total,reduce_fns + extra_reduce_fns, mod.map_postproc, covariate_dict, finalize)
 print '\nMaps produced in %f seconds\n'%(time.time() - t_start)
 
 

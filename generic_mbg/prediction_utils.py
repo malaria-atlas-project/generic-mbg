@@ -33,6 +33,9 @@ import os
             
 memmax = 2.5e8
 
+def chains(hf):
+    return [gr for gr in hf.listNodes("/") if gr._v_name[:5]=='chain']
+
 def all_chain_len(hf):
     return np.sum([len(chain.PyMCsamples) for chain in chains(hf)])
     
@@ -57,8 +60,9 @@ def all_chain_getitem(hf, name, i, vl=False):
         else:
             j -= lens[k]
             
-def all_chain_remember(M, name, i):
-    raise NotImplementedError, 'May need to be fixed in PyMC.'
+def all_chain_remember(M, i):
+    # raise NotImplementedError, 'May need to be fixed in PyMC.'
+    pass
     
 def validate_format_str(st):
     for i in [0,2]:
@@ -264,7 +268,7 @@ def hdf5_to_samps(M, x, nuggets, burn, thin, total, fns, postproc, pred_covariat
             produced.
     """    
     hf=M.db._h5file
-    gp_submods = filter(lambda c: isinstance(c,pm.gp.GPSubmodel) for c in M.containers)
+    gp_submods = filter(lambda c: isinstance(c,pm.gp.GPSubmodel), M.containers)
     
     products = dict(zip(fns, [None]*len(fns)))
     iter = np.arange(burn,all_chain_len(hf),thin)
@@ -279,7 +283,7 @@ def hdf5_to_samps(M, x, nuggets, burn, thin, total, fns, postproc, pred_covariat
     
     # Inspect postproc for extra arguments
     postproc_args = inspect.getargspec(postproc)[0]
-    extra_postproc_args = set(postproc_args) - set(f_labels)
+    extra_postproc_args = set(postproc_args) - set([gps.name for gps in gp_submods])
     
     time_count = -np.inf
     time_start = time.time()
@@ -291,9 +295,11 @@ def hdf5_to_samps(M, x, nuggets, burn, thin, total, fns, postproc, pred_covariat
         all_chain_remember(M,i)
         
         # Add the covariate values on the prediction mesh to the appropriate caches.
-        covariate_covariances = filter(lambda d: isinstance(d.value, CovarianceWithCovariates), M.deterministics)
-        for c in covariate_covariances:
-            c.add_values_to_cache(x,pred_covariate_dict)
+        covariate_covariances = []
+        for d in M.deterministics:
+            if isinstance(d.value, pm.gp.Covariance):
+                if isinstance(d.value.eval_fun,CovarianceWithCovariates):
+                    d.value.eval_fun.add_values_to_cache(x,pred_covariate_dict)
         
         if time.time() - time_count > 10:
             print ((k*100)/len(iter)), '% complete',
@@ -304,11 +310,11 @@ def hdf5_to_samps(M, x, nuggets, burn, thin, total, fns, postproc, pred_covariat
                 print
         
         for s in gp_submods:
-            M_preds[s] = s.M_obs(x)
-            V_pred = s.C_obs(x) + pm.utils.value(nuggets[s])
+            M_preds[s] = pm.utils.value(s.M_obs)(x)            
+            V_pred = pm.utils.value(s.C_obs)(x) + pm.utils.value(nuggets[s])
             S_preds[s] = np.sqrt(V_pred)
             
-        cmin, cmax = pm.thread_partition_array(M_preds[f_labels[0]])
+        cmin, cmax = pm.thread_partition_array(M_preds[s])
     
         # Postprocess if necessary: logit, etc.
         norms = np.random.normal(size=n_per)

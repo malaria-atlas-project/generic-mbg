@@ -86,13 +86,6 @@ def create_model(mod,db,input=None):
         prev_db=None
         hfname = db
         
-    if isinstance(input, np.ma.mrecords.MaskedRecords):
-        msg = 'Error, could not parse input at following rows:\n'
-        for name in input.dtype.names:
-            if np.sum(input[name].mask)>0:
-                msg += '\t%s: %s\n'%(name, str(np.where(input[name].mask)[0]+1))
-        raise ValueError, msg
-
     lon = maybe_convert(input, 'lon', 'float')
     lat = maybe_convert(input, 'lat', 'float')
     mod_inputs = (lon,lat)
@@ -125,7 +118,7 @@ def create_model(mod,db,input=None):
     if prev_db is None:
         M = pm.MCMC(mod.make_model(*mod_inputs,**non_cov_columns),db='hdf5',dbname=hfname,complevel=1,complib='zlib')
     else:
-        M = pm.MCMC(make_model(*mod_inputs,**non_cov_columns),db=prev_db)
+        M = pm.MCMC(mod.make_model(*mod_inputs,**non_cov_columns),db=prev_db)
         M.restore_sampler_state()
         
     # Pass MCMC object through the module's mcmc_init function.
@@ -169,9 +162,6 @@ def combine_st_inputs(lon,lat,t):
     data_mesh = np.vstack((lon, lat, t)).T 
     return data_mesh
 
-def chains(hf):
-    return [gr for gr in hf.listNodes("/") if gr._v_name[:5]=='chain']
-
 def add_standard_metadata(M, *labels):
     """
     Adds the standard metadata to an hdf5 archive.
@@ -193,7 +183,7 @@ class CachingCovariateEvaluator(object):
     def __init__(self, mesh, value):
         self.meshes = [mesh]
         self.values = [value]
-    def add_value_to_cache(mesh, value):
+    def add_value_to_cache(self, mesh, value):
         self.meshes.append(mesh)
         self.values.append(value)
     def __call__(self, mesh):
@@ -234,15 +224,15 @@ class CovarianceWithCovariates(object):
             Cbase = self.cov_fun.diag_call(x,*args,**kwds)
         else:
             Cbase = self.cov_fun(x,y=None,*args,**kwds)
-        C = Cbase + np.sum(self.privar * x_evals**2, axis=0) + self.frac*self.m
+        C = Cbase + np.sum(self.privar * x_evals**2, axis=0) + self.fac*self.m
         return C
         
     def eval_covariates(self, x):
         return np.asarray([(self.evaluators[k](x)-self.means[k])/self.stds[k] for k in self.labels], order='F')
         
-    def add_values_to_cache(mesh, new_cv):
+    def add_values_to_cache(self, mesh, new_cv):
         for k,v in self.evaluators.iteritems():
-            v.add_value_to_cache(new_cv[k])
+            v.add_value_to_cache(mesh, new_cv[k])
 
     def __call__(self, x, y, *args, **kwds):
         

@@ -89,9 +89,9 @@ if hf_basename in os.listdir(hf_path):
             print '\nExcellent.'
             os.remove(o.hf_name)
         elif rm_q.strip() in ['n','NO','No','no','N']:
-            raise OSError, '\nPlease sort yourself out.'
+            raise OSError, "\nOK, I'm leaving it to you to sort yourself out."
         else:
-            raise OSError, '\nI do not know what you are trying to say. Move, rename or delete the database to continue.'
+            raise OSError, "\nI don't know what you are trying to say. Move, rename or delete the database to continue."
 
 
 # Load up given module and load its relevant contents
@@ -111,25 +111,16 @@ mod_commit = process.stdout.read().strip()
 
 os.chdir(curdir)
 
-for n in ['make_model', 'metadata_keys']:
-    try:
-        exec("%s=getattr(mod,'%s')"%(n,n))
-    except:
-        cls,inst,tb = sys.exc_info()
-        new_inst = cls('Could not import %s from %s. Tell Anand. Original error message:\n\n\t%s'%(n,mod_name,inst.message))
-        raise cls,new_inst,tb
-
-
 # Parse input file
 
 input = csv2rec(file(o.input_name,'U'))
-from numpy.ma import mrecords
+mod.check_data(input)
 
 # Create model
 if prev_db is not None:
     M = create_model(mod, prev_db, input)
 else:
-    M = create_model(mod, os.path.join(hf_path, hf_basename), input, o.input_name)
+    M = create_model(mod, os.path.join(hf_path, hf_basename), input)
     add_standard_metadata(M, *mod.metadata_keys)
     M.db._h5file.createTable('/','input_csv',input)
     M.db._h5file.root.input_csv.attrs.shellargs = ' '.join(sys.argv[1:])
