@@ -275,6 +275,7 @@ def hdf5_to_samps(M, x, nuggets, burn, thin, total, fns, postproc, pred_covariat
 
     M_preds = {}
     S_preds = {}
+    postproc_kwds = {}
 
     if len(iter)==0:
         raise ValueError, 'You asked for %i burnin iterations with thinnnig %i but the chains are only %i iterations long.'%(burn, thin, all_chain_len(hf))
@@ -322,9 +323,9 @@ def hdf5_to_samps(M, x, nuggets, burn, thin, total, fns, postproc, pred_covariat
         for j in xrange(n_per):
 
             # Evaluate fields, and store them in argument dict for postproc
-            for s in submods:
+            for s in gp_submods:
                 postproc_kwds[s.name] = M_preds[s].copy('F')
-                pm.map_noreturn(iaaxpy, [(norms[j], S_preds[s], postproc_kwds[s], cmin[l], cmax[l]) for l in xrange(len(cmax))])
+                pm.map_noreturn(iaaxpy, [(norms[j], S_preds[s], postproc_kwds[s.name], cmin[l], cmax[l]) for l in xrange(len(cmax))])
                 
             # Pull any extra variables needed for postprocessing out of trace
             for n in extra_postproc_args:
