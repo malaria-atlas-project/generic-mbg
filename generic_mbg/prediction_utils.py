@@ -61,8 +61,19 @@ def all_chain_getitem(hf, name, i, vl=False):
             j -= lens[k]
             
 def all_chain_remember(M, i):
-    # raise NotImplementedError, 'May need to be fixed in PyMC.'
-    pass
+    c = chains(hf)
+    lens = [len(chain.PyMCsamples) for chain in c]
+    if i >= np.sum(lens):
+        raise IndexError, 'Index out of bounds'
+    s = 0
+    j = i
+
+    for k in xrange(len(lens)):
+        s += lens[k]
+        if i<s:
+            M.remember(k,j)
+        else:
+            j -= lens[k]
     
 def validate_format_str(st):
     for i in [0,2]:
@@ -311,9 +322,8 @@ def hdf5_to_samps(M, x, nuggets, burn, thin, total, fns, postproc, pred_covariat
                 print
         
         for s in gp_submods:
-            M_preds[s] = pm.utils.value(s.M_obs)(x)            
-            V_pred = pm.utils.value(s.C_obs)(x) + pm.utils.value(nuggets[s])
-            S_preds[s] = np.sqrt(V_pred)
+            M_preds[s], V_pred = pm.gp.joint_eval(pm.utils.value(s.M_obs), pm.utils.value(C_obs), x)            
+            S_preds[s] = np.sqrt(V_pred + pm.utils.value(nuggets[s]))
             
         cmin, cmax = pm.thread_partition_array(M_preds[s])
     
