@@ -61,7 +61,7 @@ def all_chain_getitem(hf, name, i, vl=False):
             j -= lens[k]
             
 def all_chain_remember(M, i):
-    c = chains(hf)
+    c = chains(M.db._h5file)
     lens = [len(chain.PyMCsamples) for chain in c]
     if i >= np.sum(lens):
         raise IndexError, 'Index out of bounds'
@@ -322,7 +322,7 @@ def hdf5_to_samps(M, x, nuggets, burn, thin, total, fns, postproc, pred_covariat
                 print
         
         for s in gp_submods:
-            M_preds[s], V_pred = pm.gp.joint_eval(pm.utils.value(s.M_obs), pm.utils.value(C_obs), x)            
+            M_preds[s], V_pred = pm.gp.point_eval(pm.utils.value(s.M_obs), pm.utils.value(s.C_obs), x)            
             S_preds[s] = np.sqrt(V_pred + pm.utils.value(nuggets[s]))
             
         cmin, cmax = pm.thread_partition_array(M_preds[s])
