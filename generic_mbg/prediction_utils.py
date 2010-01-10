@@ -26,6 +26,7 @@ from histogram_utils import *
 from inference_utils import all_chain_len, all_chain_getitem
 import time
 import os
+import copy
 
 __all__ = ['grid_convert','mean_reduce','var_reduce','invlogit','hdf5_to_samps','vec_to_asc','asc_to_locs',
             'display_asc','display_datapoints','histogram_reduce','histogram_finalize','maybe_convert','sample_reduce',
@@ -270,7 +271,7 @@ def histogram_finalize(bins, q, hr):
 
 
 
-def hdf5_to_samps(hf, x, burn, thin, total, fns, f_labels, fs_have_nugget, x_labels, nugget_labels, M_labels, C_labels, pred_cv_dicts, postproc, diags_safe, finalize=None, **non_cov_columns):
+def hdf5_to_samps(hf, x, burn, thin, total, fns, f_labels, fs_have_nugget, x_labels, nugget_labels, M_labels, C_labels, pred_cv_dicts, postprocs, diags_safe, finalize=None, **non_cov_columns):
     """
     Parameters:
         hf : PyTables file
@@ -299,9 +300,9 @@ def hdf5_to_samps(hf, x, burn, thin, total, fns, f_labels, fs_have_nugget, x_lab
             and covariances of the f's        
         pred_cv_dicts : dictionary of dictionaries
             {f label: {covariate name : value on x}}
-        postproc : function
-            This function is applied to the realization before it is passed to
-            the fns.
+        postprocs : list of functions
+            These functions are applied to the realization before it is passed 
+            to the fns.
         finalize : function (optional)
             This function is applied to the products before returning. It should
             take a second argument which is the actual number of realizations
@@ -316,17 +317,22 @@ def hdf5_to_samps(hf, x, burn, thin, total, fns, f_labels, fs_have_nugget, x_lab
     for label in f_labels:
         pred_cv_dicts[label]['m'] = np.ones(x.shape[0])
     
-    products = dict(zip(fns, [None]*len(fns)))
+    # Have a look at the postprocessing functions
+    products = {}
+    postproc_args = {}
+    extra_postproc_args = {}
+    for postproc in postprocs:
+        products[postproc] = dict(zip(fns, [None]*len(fns)))
+        # Inspect postprocs for extra arguments
+        postproc_args[postproc] = inspect.getargspec(postproc)[0]
+        extra_postproc_args[postproc] = set(postproc_args[postproc]) - set(f_labels)
+        
     iter = np.arange(burn,all_chain_len(hf),thin)
     if len(iter)==0:
         raise ValueError, 'You asked for %i burnin iterations with thinnnig %i but the chains are only %i iterations long.'%(burn, thin, all_chain_len(hf))
     n_per = total/len(iter)+1
     actual_total = n_per * len(iter)
-    
-    # Inspect postproc for extra arguments
-    postproc_args = inspect.getargspec(postproc)[0]
-    extra_postproc_args = set(postproc_args) - set(f_labels)
-    
+        
     time_count = -np.inf
     time_start = time.time()
 
@@ -358,27 +364,28 @@ def hdf5_to_samps(hf, x, burn, thin, total, fns, f_labels, fs_have_nugget, x_lab
             for j in xrange(n_per):
                 
                 postproc_kwds = {}
-
                 # Evaluate fields, and store them in argument dict for postproc
                 for fl in f_labels:
                     postproc_kwds[fl] = M_preds[fl].copy('F')
                     pm.map_noreturn(iaaxpy, [(norms[j], S_preds[fl], postproc_kwds[fl], cmin[l], cmax[l]) for l in xrange(len(cmax))])
-                    
-                # Pull any extra variables needed for postprocessing out of trace
-                for extra_arg in extra_postproc_args:
-                    if hasattr(hf.root.chain0.PyMCsamples.cols, extra_arg):
-                        postproc_kwds[extra_arg] = all_chain_getitem(hf, extra_arg, i, False)
-            
-                # Evaluate postprocessing function to get a surface
-                surf = postproc(**postproc_kwds)
                 
-                # Reduce surface into products needed
-                for f in fns:
-                    products[f] = f(products[f], surf)
+                for postproc in postprocs:    
+                    postproc_kwds_ = copy.copy(postproc_kwds)
+                    # Pull any extra variables needed for postprocessing out of trace
+                    for extra_arg in extra_postproc_args[postproc]:
+                        if hasattr(hf.root.chain0.PyMCsamples.cols, extra_arg):
+                            postproc_kwds_[extra_arg] = all_chain_getitem(hf, extra_arg, i, False)
+            
+                    # Evaluate postprocessing function to get a surface
+                    surf = postproc(**postproc_kwds_)
+                
+                    # Reduce surface into products needed
+                    for f in fns:
+                        products[postproc][f] = f(products[postproc][f], surf)
 
     
     if finalize is not None:
-        return finalize(products, actual_total)
+        return dict(zip(postprocs, [finalize(products[postproc], actual_total) for postproc in postprocs]))
     else:          
         return products
         

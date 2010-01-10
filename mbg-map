@@ -165,12 +165,15 @@ if len(q)>0:
 
 t_start = time.time()
 # (hf, x, burn, thin, total, fns, f_labels, fs_have_nugget, x_label, nugget_labels, M_labels, C_labels, pred_cv_dicts, postproc, diags_safe, finalize=None, **non_cov_columns)
+if np.iterable(mod.map_postproc):
+    mp = mod.map_postproc
+else:
+    mp = [mod.map_postproc]
 products = hdf5_to_samps(hf,x,o.burn,o.thin,o.total,reduce_fns + extra_reduce_fns, f_labels, fs_have_nugget, x_labels, nugget_labels, M_labels, C_labels, covariate_dicts, mod.map_postproc, mod.diags_safe, finalize)
 print '\nMaps produced in %f seconds\n'%(time.time() - t_start)
 
 
 # Write out
-
 hf_path, hf_basename  = os.path.split(o.hf_name)
 base_outname = os.path.splitext(hf_basename)[0]
 map_dir = os.path.join(hf_path, base_outname+'-maps')
@@ -180,15 +183,21 @@ except OSError:
     pass
 os.chdir(map_dir)
 
-for k,v in products.iteritems():
-    out_name = os.path.join('%s.asc'%k)
-    print 'Generating output file %s'%(out_name)
-    q=vec_to_asc(v,'../'+o.mask_name,out_name,unmasked)
+for f in mp:
+    for k,v in products[f].iteritems():
+        if f is mod.map_postproc:
+            out_name = k
+        else:
+            out_name = f.__name__ + '_' + k
+        asc_name = out_name + '.asc'
+        pdf_name = out_name + '.pdf'
+        print 'Generating output file %s'%(asc_name)
+        q=vec_to_asc(v,'../'+o.mask_name,asc_name,unmasked)
 
-    lon, lat, data= asc_to_ndarray(out_name) 
-    pl.clf()
-    pl.imshow(grid_convert(data,'y+x+','y-x+'), extent=[lon.min(), lon.max(), lat.min(), lat.max()], interpolation='nearest')
-    # pl.imshow(data, extent=[lon.min(), lon.max(), lat.min(), lat.max()], interpolation='nearest')
-    pl.colorbar()
-    # pl.plot(meta.data_mesh[:,0]*180./np.pi,meta.data_mesh[:,1]*180./np.pi,'r.',markersize=2)
-    pl.savefig('%s.pdf'%k)
+        lon, lat, data= asc_to_ndarray(asc_name) 
+        pl.clf()
+        pl.imshow(grid_convert(data,'y+x+','y-x+'), extent=[lon.min(), lon.max(), lat.min(), lat.max()], interpolation='nearest')
+        # pl.imshow(data, extent=[lon.min(), lon.max(), lat.min(), lat.max()], interpolation='nearest')
+        pl.colorbar()
+        # pl.plot(meta.data_mesh[:,0]*180./np.pi,meta.data_mesh[:,1]*180./np.pi,'r.',markersize=2)
+        pl.savefig(pdf_name)
