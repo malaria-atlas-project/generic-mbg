@@ -281,6 +281,7 @@ def hdf5_to_samps(M, x, nuggets, burn, thin, total, fns, postprocs, pred_covaria
     """    
     hf=M.db._h5file
     gp_submods = filter(lambda c: isinstance(c,pm.gp.GPSubmodel), M.containers)
+    f_labels = [gps.name for gps in gp_submods]
     
     # Have a look at the postprocessing functions
     products = {}
