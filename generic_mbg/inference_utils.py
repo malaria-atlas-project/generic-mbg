@@ -131,7 +131,6 @@ def create_model(mod,db,input=None):
 
     return M
 
-
 def spatial_mean(x, m_const):
     return m_const*np.ones(x.shape[0])
     
