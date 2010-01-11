@@ -280,7 +280,7 @@ def hdf5_to_samps(M, x, nuggets, burn, thin, total, fns, postprocs, pred_covaria
             produced.
     """    
     hf=M.db._h5file
-    gp_submods = filter(lambda c: isinstance(c,pm.gp.GPSubmodel), M.containers)
+    gp_submods = list(set(filter(lambda c: isinstance(c,pm.gp.GPSubmodel), M.containers)))
     f_labels = [gps.name for gps in gp_submods]
     
     # Have a look at the postprocessing functions
@@ -304,7 +304,7 @@ def hdf5_to_samps(M, x, nuggets, burn, thin, total, fns, postprocs, pred_covaria
     actual_total = n_per * len(iter)
     time_count = -np.inf
     time_start = time.time()
-
+    
     for k in xrange(len(iter)):
         
         i = iter[k]
@@ -327,6 +327,7 @@ def hdf5_to_samps(M, x, nuggets, burn, thin, total, fns, postprocs, pred_covaria
                 print
         
         for s in gp_submods:
+            # FIXME: long time in a single thread here. L168 of FullRankCovariance.py
             M_preds[s], V_pred = pm.gp.point_eval(pm.utils.value(s.M_obs), pm.utils.value(s.C_obs), x)            
             S_preds[s] = np.sqrt(V_pred + pm.utils.value(nuggets[s]))
             

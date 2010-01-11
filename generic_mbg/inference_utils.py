@@ -229,11 +229,22 @@ class CovarianceWithCovariates(object):
             Cbase = self.cov_fun.diag_call(x,*args,**kwds)
         else:
             Cbase = self.cov_fun(x,y=None,*args,**kwds)
+        # FIXME: This probably needs to be optimized too.
+        # FIXME: And there is another bottleneck somewhere other than the ones
+        # FIXME: on this page.
+        print 'Now 2'
         C = Cbase + np.sum(self.privar * x_evals**2, axis=0) + self.fac*self.m
+        print 'Done 2'
         return C
         
     def eval_covariates(self, x):
-        return np.asarray([(self.evaluators[k](x)-self.means[k])/self.stds[k] for k in self.labels], order='F')
+        # FIXME: This is a bottleneck, lot of time in single-threading. Use iaaxpy.
+        # FIXME: Might need to optimize the stacking also. 
+        print 'Now 1'
+        out = np.asarray([(self.evaluators[k](x)-self.means[k])/self.stds[k] for k in self.labels], order='F')
+        print 'Done 1'
+        return out
+        # return np.asarray([np.ones(len(x)) for k in self.labels], order='F')
         
     def add_values_to_cache(self, mesh, new_cv):
         for k,v in self.evaluators.iteritems():
