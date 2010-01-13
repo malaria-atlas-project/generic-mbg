@@ -193,6 +193,8 @@ class CachingCovariateEvaluator(object):
             # Pdb(color_scheme='LightBG').set_trace() 
             start,stop = subset_eq(m,mesh)
             if start>-1 and stop>-1:
+                if stop-start != mesh.shape[0]:
+                    raise ValueError
                 return self.values[i][start:stop]
             # if subset_eq(m,mesh):
             #     

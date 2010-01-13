@@ -74,7 +74,7 @@ cf2py intent(out) start,stopp
     1         if (all) then
 !                 print *,'All match, returning ',i
                 start=i-1
-                stopp=i+n2
+                stopp=i+n2-1
                 RETURN
               end if
             end do
