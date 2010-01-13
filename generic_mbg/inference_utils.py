@@ -18,7 +18,7 @@ import numpy as np
 import time
 import tables as tb
 from st_cov_fun import my_st
-from histogram_utils import iinvlogit, iamul, iasq, icsum, subset_eq
+from histogram_utils import iinvlogit, iamul, iasq, icsum, subset_eq, iasadd
 from pylab import csv2rec
 
 def maybe_convert(ra, field, dtype):
@@ -59,7 +59,7 @@ def fast_inplace_scalar_add(a,s):
     """Adds s to a in-place and returns a. s should be a scalar."""
     a = np.atleast_2d(a)
     cmin, cmax = pm.thread_partition_array(a)
-    pm.map_noreturn(iamul, [(a,s,cmin[i],cmax[i]) for i in xrange(len(cmax))])
+    pm.map_noreturn(iasadd, [(a,s,cmin[i],cmax[i]) for i in xrange(len(cmax))])
     return a
 
 def fast_inplace_square(a):
@@ -247,12 +247,7 @@ class CovarianceWithCovariates(object):
             Cbase = self.cov_fun.diag_call(x,*args,**kwds)
         else:
             Cbase = self.cov_fun(x,y=None,*args,**kwds)
-        # FIXME: This probably needs to be optimized too.
-        # FIXME: And there is another bottleneck somewhere other than the ones
-        # FIXME: on this page.
-        print 'Now 2'
         C = Cbase + np.sum(self.privar * x_evals**2, axis=0) + self.fac*self.m
-        print 'Done 2'
         return C
         
     def eval_covariates(self, x):

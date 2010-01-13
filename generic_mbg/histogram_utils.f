@@ -233,29 +233,29 @@ cf2py integer intent(in), optional :: cmax = -1
 cf2py intent(hide) nx,ny
 cf2py threadsafe
 
-     DOUBLE PRECISION C(nx,ny)
-     DOUBLE PRECISION a
-     INTEGER nx, ny, i, j, cmin, cmax
-
-     EXTERNAL DSCAL
-
-     if (cmax.EQ.-1) then
-         cmax = ny
-     end if
-
-
-       do j=cmin+1,cmax
-           do i=1,nx
-               C(i,j) = C(i,j) + a
-           end do
+      DOUBLE PRECISION C(nx,ny)
+      DOUBLE PRECISION a
+      INTEGER nx, ny, i, j, cmin, cmax
+ 
+      EXTERNAL DSCAL
+ 
+      if (cmax.EQ.-1) then
+          cmax = ny
+      end if
+ 
+ 
+        do j=cmin+1,cmax
+            do i=1,nx
+                C(i,j) = C(i,j) + a
+            end do
 !          CALL DSCAL(nx,a,C(1,j),1)
-       enddo
-
-
-
-     RETURN
-     END
-
+        enddo
+ 
+ 
+ 
+      RETURN
+      END
+ 
 
       SUBROUTINE iaadd(C,A,nx,ny,cmin,cmax)
 
