@@ -54,6 +54,13 @@ def fast_inplace_mul(a,s):
     cmin, cmax = pm.thread_partition_array(a)
     pm.map_noreturn(iamul, [(a,s,cmin[i],cmax[i]) for i in xrange(len(cmax))])
     return a
+    
+def fast_inplace_scalar_add(a,s):
+    """Adds s to a in-place and returns a. s should be a scalar."""
+    a = np.atleast_2d(a)
+    cmin, cmax = pm.thread_partition_array(a)
+    pm.map_noreturn(iamul, [(a,s,cmin[i],cmax[i]) for i in xrange(len(cmax))])
+    return a
 
 def fast_inplace_square(a):
     """Squares a in-place and returns it."""
@@ -243,17 +250,13 @@ class CovarianceWithCovariates(object):
         # FIXME: This probably needs to be optimized too.
         # FIXME: And there is another bottleneck somewhere other than the ones
         # FIXME: on this page.
-        # print 'Now 2'
+        print 'Now 2'
         C = Cbase + np.sum(self.privar * x_evals**2, axis=0) + self.fac*self.m
-        # print 'Done 2'
+        print 'Done 2'
         return C
         
     def eval_covariates(self, x):
-        # FIXME: This is a bottleneck, lot of time in single-threading. Use iaaxpy.
-        # FIXME: Might need to optimize the stacking also. 
-        print 'Now 1'
         out = np.asarray([self.evaluators[k](x) for k in self.labels], order='F')
-        print 'Done 1'
         return out
         # return np.asarray([np.ones(len(x)) for k in self.labels], order='F')
         
@@ -272,7 +275,8 @@ class CovarianceWithCovariates(object):
                 y_evals = x_evals
             else:
                 y_evals = self.eval_covariates(y)
-            C = crossmul_and_sum(Cbase, x_evals, self.privar, y_evals) + self.fac*self.m            
+            C = crossmul_and_sum(Cbase, x_evals, self.privar, y_evals)
+            C = fast_inplace_scalar_add(C, self.fac*self.m)
         else:
             C = Cbase
         return C
