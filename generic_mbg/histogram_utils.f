@@ -13,6 +13,82 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+! elif m.shape > mesh.shape:
+!     for j,row in enumerate(m):
+!         if np.all(row == mesh[0]):
+!             if np.all(m[j:j+mesh.shape[0]]==mesh):
+!                 return self.values[i][j:j+mesh.shape[0]]
+
+
+      SUBROUTINE subset_eq(m1,m2,start,stopp,n1,n2,nd)
+cf2py intent(hide) n1,n2,nd
+cf2py intent(out) start,stopp
+      INTEGER n1,n2,start,stopp,i,j
+      DOUBLE PRECISION m1(n1,nd), m2(n2,nd)
+      LOGICAL all
+
+!      If the second is bigger than the first, no match is possible.
+      if (n2.GT.n1) then
+        start = -1
+        stopp = -1
+        RETURN
+
+      else if (n2.EQ.n1) then
+        do j=1,nd
+          do i=1,n1
+!           If they're the same size, no mismatch is tolerated.
+            if (m1(i,j).NE.m2(i,j)) then
+              start = -1
+              stopp = -1
+              RETURN
+            end if
+          end do
+        end do
+        start = 0
+        stopp = n2
+        RETURN
+
+      else
+!       Look for a match between any in m1 and the first row in m2.
+        do i=1,(n1-n2+1)
+          all=.TRUE.
+          do j=1,nd
+            if (m1(i,j).NE.m2(1,j)) then
+              all=.FALSE.
+            end if
+          end do
+!         If a match is found, check the next n2 rows of m1 against m2.
+          if (all) then
+!             print*,'First row matches at ',i
+            do j=1,nd
+              all = .TRUE.
+!             Check the next n2 rows. If any mismatch is found, drop out of the loop.
+              do k=1,n2-1
+                if (m1(i+k,j).NE.m2(k+1,j)) then
+                  all = .FALSE.
+!                   print *,'Mismatch at ',k
+                  goto 1
+                end if
+              end do
+!             If all the next n2 rows match, return.
+    1         if (all) then
+!                 print *,'All match, returning ',i
+                start=i-1
+                stopp=i+n2
+                RETURN
+              end if
+            end do
+          end if
+        end do
+        start = -1
+        stopp = -1
+        RETURN
+      end if
+      
+!       print*, 'Control reached EOF'
+      
+      END
+
       SUBROUTINE multiinc(x,ind,nxi,nxk)
 cf2py intent(hide) nxi,nxk
 cf2py intent(inplace) x
