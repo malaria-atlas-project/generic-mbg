@@ -131,23 +131,12 @@ def get_circle(n):
 
 def buffer(arr, n=5):
     """Creates an n-pixel buffer in all directions."""
-    out = np.zeros(arr.shape,order='F',dtype='bool')
     arr = np.asarray(arr,order='F',dtype='bool')
-    n = 20
     if n > 0:
         circ_ind = get_circle(n)
-        cmin, cmax = pm.thread_partition_array(arr) 
-        # for mi,ma in zip(cmin,cmax):
-        #     bufster(arr, circ_ind, out, mi, ma)
-        pm.map_noreturn(bufster, [(arr, circ_ind, out, mi, ma) for mi,ma in zip(cmin,cmax)])
-        # bufster(arr, circ_ind, out)
-    import pylab as pl
-    pl.figure()
-    pl.imshow(arr)
-    pl.figure()
-    pl.imshow(out)
-    from IPython.Debugger import Pdb
-    Pdb(color_scheme='LightBG').set_trace() 
+        out = bufster(arr, circ_ind)
+    else:
+        out = arr.copy('F')
     return out.astype('bool')
 
 def asc_to_locs(fname, path='', thin=1, bufsize=1):
