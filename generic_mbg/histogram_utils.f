@@ -20,9 +20,10 @@ cf2py integer intent(in), optional :: cmin = 0
 cf2py integer intent(in), optional :: cmax = -1
 cf2py intent(in) arr, ci
 cf2py threadsafe
-      INTEGER ci(nci,2), arr(ni,nj), barr(ni,nj)
+      INTEGER ci(nci,2)
+      LOGICAL arr(ni,nj), barr(ni,nj), this
       INTEGER ni,nj,nci,cmin,cmax
-      INTEGER i,j,k,this
+      INTEGER i,j,k
       
       if (cmax.EQ.-1) then
           cmax = nj
@@ -30,16 +31,14 @@ cf2py threadsafe
       
       do j=cmin+1, cmax
           do i=1,ni
-            this = 0
+            this = .FALSE.
             do k=1,nci
-                this=this+arr(i+ci(k,1),j+ci(k,2)+1)
+                if (arr(i+ci(k,1),j+ci(k,2)+1))
+                    this = .TRUE.
+                end if
             end do
-            if (this.GT.0) then
-                barr(i,j)=1
-            else
-                barr(i,j)=0
-            end if
-          end do
+            barr(i,j) = this
+        end do
       end do    
       
       RETURN
