@@ -122,16 +122,25 @@ def grid_convert(g, frm, to, validate=False):
     # print first_dir, sec_dir
     return g
 
+def get_circle(n):
+    cover = np.arange(-n,n+1)
+    coversq = np.dstack(np.meshgrid(cover,cover))
+    covercirc = np.where(np.sum(coversq**2, axis=-1)<=n**2)
+    out =  coversq[covercirc]
+    return out
+
 def buffer(arr, n=5):
     """Creates an n-pixel buffer in all directions."""
-    out = arr.copy()
-    if n==0:
-        return out
-    for i in xrange(1,n+1):
-        out[i:,:] += arr[:-i,:]
-        out[:-i,:] += arr[i:,:]
-        out[:,i:] += arr[:,:-i]
-        out[:,:-i] += arr[:,i:]
+    out = np.zeros(arr.shape,order='F')
+    arr = np.asarray(arr,order='F')
+    n = 20
+    if n > 0:
+        circ_ind = get_circle(n)
+        # cmin, cmax = pm.thread_partition_array(arr) 
+        # for mi,ma in zip(cmin,cmax):
+        #     bufster(arr, circ_ind, out, mi, ma)
+        # pm.map_noreturn(bufster, [(arr, circ_ind, out, mi, ma) for mi,ma in zip(cmin,cmax)])
+        bufster(arr, circ_ind, out)
     return out
 
 def asc_to_locs(fname, path='', thin=1, bufsize=1):
@@ -362,7 +371,6 @@ def hdf5_to_samps(M, x, nuggets, burn, thin, total, fns, postprocs, pred_covaria
     else:          
         return products
 
-        
 def normalize_for_mapcoords(arr, max):
     "Used to create inputs to ndimage.map_coordinates."
     arr /= arr.max()

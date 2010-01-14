@@ -13,6 +13,38 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+      SUBROUTINE bufster(arr,ci,barr,ni,nj,nci,cmin,cmax)
+cf2py intent(inplace) barr
+cf2py intent(hide) ni, nj, nci
+cf2py integer intent(in), optional :: cmin = 0
+cf2py integer intent(in), optional :: cmax = -1
+cf2py intent(in) arr, ci
+cf2py threadsafe
+      INTEGER ci(nci,2), arr(ni,nj), barr(ni,nj)
+      INTEGER ni,nj,nci,cmin,cmax
+      INTEGER i,j,k,this
+      
+      if (cmax.EQ.-1) then
+          cmax = nj
+      end if
+      
+      do j=cmin+1, cmax
+          do i=1,ni
+            this = 0
+            do k=1,nci
+                this=this+arr(i+ci(k,1),j+ci(k,2)+1)
+            end do
+            if (this.GT.0) then
+                barr(i,j)=1
+            else
+                barr(i,j)=0
+            end if
+          end do
+      end do    
+      
+      RETURN
+      END
+
       SUBROUTINE multiinc(x,ind,nxi,nxk)
 cf2py intent(hide) nxi,nxk
 cf2py intent(inplace) x
