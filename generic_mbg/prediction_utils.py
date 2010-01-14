@@ -136,6 +136,7 @@ def buffer(arr, n=5):
     n = 20
     if n > 0:
         circ_ind = get_circle(n)
+        # FIXME: Why doesn't the multithreaded version work?
         # cmin, cmax = pm.thread_partition_array(arr) 
         # for mi,ma in zip(cmin,cmax):
         #     bufster(arr, circ_ind, out, mi, ma)
