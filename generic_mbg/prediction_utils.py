@@ -378,6 +378,9 @@ def vec_to_asc(vec, fname, out_fname, unmasked, path=''):
     ascii grid to an ascii file matching the original grid.
     """
     
+    # FXIME: Just resample in Fortran. Only draw from pixels that are inside the mask.
+    # FIXME: Just do it bilinear, nothing fancy.
+    
     if np.any(np.isnan(vec)):
         raise ValueError, 'NaN in vec'  
     
