@@ -18,7 +18,7 @@ import numpy as np
 import time
 import tables as tb
 from st_cov_fun import my_st
-from histogram_utils import iinvlogit, iamul, iasq, icsum
+from histogram_utils import iinvlogit, iamul, iasq, icsum, subset_eq, iasadd
 from pylab import csv2rec
 
 def maybe_convert(ra, field, dtype):
@@ -53,6 +53,13 @@ def fast_inplace_mul(a,s):
     s = np.atleast_2d(s)
     cmin, cmax = pm.thread_partition_array(a)
     pm.map_noreturn(iamul, [(a,s,cmin[i],cmax[i]) for i in xrange(len(cmax))])
+    return a
+    
+def fast_inplace_scalar_add(a,s):
+    """Adds s to a in-place and returns a. s should be a scalar."""
+    a = np.atleast_2d(a)
+    cmin, cmax = pm.thread_partition_array(a)
+    pm.map_noreturn(iasadd, [(a,s,cmin[i],cmax[i]) for i in xrange(len(cmax))])
     return a
 
 def fast_inplace_square(a):
@@ -179,22 +186,33 @@ class CachingCovariateEvaluator(object):
     told what its value on the array is, it will return that value.
     Otherwise, it will throw an error.
     """
-    def __init__(self, mesh, value):
+    def __init__(self, mesh, value, shift, scale):
         self.meshes = [mesh]
         self.values = [value]
+        self.shift = shift
+        self.scale = scale
     def add_value_to_cache(self, mesh, value):
         self.meshes.append(mesh)
-        self.values.append(value)
+        self.values.append((value-self.shift)/self.scale)
     def __call__(self, mesh):
         for i,m in enumerate(self.meshes):
-            if m.shape == mesh.shape:
-                if np.all(m==mesh):
-                    return self.values[i]
-            elif m.shape > mesh.shape:
-                for j,row in enumerate(m):
-                    if np.all(row == mesh[0]):
-                        if np.all(m[j:j+mesh.shape[0]]==mesh):
-                            return self.values[i][j:j+mesh.shape[0]]
+            # from IPython.Debugger import Pdb
+            # Pdb(color_scheme='LightBG').set_trace() 
+            start,stop = subset_eq(m,mesh)
+            if start>-1 and stop>-1:
+                if stop-start != mesh.shape[0]:
+                    raise ValueError
+                return self.values[i][start:stop]
+            # if subset_eq(m,mesh):
+            #     
+            # if m.shape == mesh.shape:
+            #     if np.all(m==mesh):
+            #         return self.values[i]
+            # elif m.shape > mesh.shape:
+            #     for j,row in enumerate(m):
+            #         if np.all(row == mesh[0]):
+            #             if np.all(m[j:j+mesh.shape[0]]==mesh):
+            #                 return self.values[i][j:j+mesh.shape[0]]
         raise RuntimeError, 'The given mesh is not in the cache.'
         
 class CovarianceWithCovariates(object):
@@ -217,7 +235,7 @@ class CovarianceWithCovariates(object):
         self.m = len(cv)
         self.means = dict([(k,np.mean(v)) for k,v in cv.iteritems()])
         self.stds = dict([(k,np.std(v)) for k,v in cv.iteritems()])
-        self.evaluators = dict([(k,CachingCovariateEvaluator(mesh, v)) for k,v in cv.iteritems()])
+        self.evaluators = dict([(k,CachingCovariateEvaluator(mesh, v, self.means[k], self.stds[k])) for k,v in cv.iteritems()])
         self.cov_fun = cov_fun
         self.fac = fac
         self.privar = np.ones(len(self.labels))*self.fac
@@ -229,20 +247,11 @@ class CovarianceWithCovariates(object):
             Cbase = self.cov_fun.diag_call(x,*args,**kwds)
         else:
             Cbase = self.cov_fun(x,y=None,*args,**kwds)
-        # FIXME: This probably needs to be optimized too.
-        # FIXME: And there is another bottleneck somewhere other than the ones
-        # FIXME: on this page.
-        print 'Now 2'
         C = Cbase + np.sum(self.privar * x_evals**2, axis=0) + self.fac*self.m
-        print 'Done 2'
         return C
         
     def eval_covariates(self, x):
-        # FIXME: This is a bottleneck, lot of time in single-threading. Use iaaxpy.
-        # FIXME: Might need to optimize the stacking also. 
-        print 'Now 1'
-        out = np.asarray([(self.evaluators[k](x)-self.means[k])/self.stds[k] for k in self.labels], order='F')
-        print 'Done 1'
+        out = np.asarray([self.evaluators[k](x) for k in self.labels], order='F')
         return out
         # return np.asarray([np.ones(len(x)) for k in self.labels], order='F')
         
@@ -261,7 +270,8 @@ class CovarianceWithCovariates(object):
                 y_evals = x_evals
             else:
                 y_evals = self.eval_covariates(y)
-            C = crossmul_and_sum(Cbase, x_evals, self.privar, y_evals) + self.fac*self.m            
+            C = crossmul_and_sum(Cbase, x_evals, self.privar, y_evals)
+            C = fast_inplace_scalar_add(C, self.fac*self.m)
         else:
             C = Cbase
         return C
