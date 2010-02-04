@@ -35,12 +35,7 @@ cf2py intent(in) arr, ci
       end do    
       
       RETURN
-
-! elif m.shape > mesh.shape:
-!     for j,row in enumerate(m):
-!         if np.all(row == mesh[0]):
-!             if np.all(m[j:j+mesh.shape[0]]==mesh):
-!                 return self.values[i][j:j+mesh.shape[0]]
+      END
 
 
       SUBROUTINE subset_eq(m1,m2,start,stopp,n1,n2,nd)

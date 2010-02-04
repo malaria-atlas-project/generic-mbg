@@ -96,7 +96,7 @@ def create_model(mod,db,input=None):
     lon = maybe_convert(input, 'lon', 'float')
     lat = maybe_convert(input, 'lat', 'float')
     mod_inputs = (lon,lat)
-    if hasattr(input, 't'):
+    if 't' in input.dtype.names:
         t = maybe_convert(input, 't', 'float')
         x = combine_st_inputs(lon,lat,t)
         mod_inputs = mod_inputs + (t,)
