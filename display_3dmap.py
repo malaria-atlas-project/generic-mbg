@@ -130,10 +130,11 @@ def add_datapoints(color=(0,.9,.3), mode='sphere', scale_factor=1, clip=True):
 if __name__ == '__main__':
     # Examples.
     mlab.figure(bgcolor=(1,1,1))
-    add_cloud(vmax=.1,colormap='haha')
+    add_cloud(vmax=.1)
     add_mean(color=(.3,0,.9), opacity=.3)
     add_quantiles([.5])
-    add_cutplane(vmax=.1)
+    add_cutplane(vmax=.1,plane_orientation='x_axes')
+    add_cutplane(vmax=.1,plane_orientation='y_axes')
     add_map(opacity=.3)
     add_datapoints(scale_factor=1)
     lon,lat,z = get_datapoints()
