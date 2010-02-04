@@ -1,3 +1,6 @@
+# MayaVI's mlab documentation is at
+# http://code.enthought.com/projects/mayavi/docs/development/html/mayavi/mlab.html#simple-scripting-with-mlab
+
 from enthought.mayavi import mlab
 import tables as tb
 import numpy as np
