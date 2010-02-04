@@ -142,8 +142,8 @@ def finalize(prod, n):
     for i in xrange(o.n_bins):
         density_field[:,:,i][unmasked] = prod[hsr][:,i]/n_
     
-    from IPython.Debugger import Pdb
-    Pdb(color_scheme='LightBG').set_trace() 
+    # from IPython.Debugger import Pdb
+    # Pdb(color_scheme='LightBG').set_trace() 
     
     return {'density_field': density_field, 'mean': mean}
 
