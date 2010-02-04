@@ -24,9 +24,9 @@ def add_map(colormap='Accent', opacity=1):
     # The maximum x and y values are equal to the number of rows and columns,
     # respectively, in the mask raster. This is done to make the map line up with
     # the scalar density field.
-    mlab.imshow(d.root.unmasked[:].astype('float'),
-                extent=[0,d.root.unmasked.shape[0],0,d.root.unmasked.shape[1],0,1], 
-                colormap='Accent',
+    mlab.surf(d.root.unmasked[:].astype('float'),
+                extent=[0,d.root.unmasked.shape[0],0,d.root.unmasked.shape[1],0,1],
+                colormap=colormap,
                 opacity=opacity)
 
 def add_cutplane(colormap='hot', plane_orientation='x_axes', vmin=0, vmax=1):
@@ -44,8 +44,7 @@ def add_cutplane(colormap='hot', plane_orientation='x_axes', vmin=0, vmax=1):
                                 
 def add_cloud(colormap='hot',vmin=0,vmax=.01):
     "Visualizes the density as a cloud. This feature of mayaVI seems a little buggy."
-    mlab.pipeline.volume(mlab.pipeline.scalar_field(d.root.density_field[:]*.999+.001), 
-                            colormap=colormap,
+    mlab.pipeline.volume(mlab.pipeline.scalar_field(d.root.density_field[:]*.999+.001),
                             vmin=vmin, 
                             vmax=vmax)
 
@@ -130,12 +129,12 @@ def add_datapoints(color=(0,.9,.3), mode='sphere', scale_factor=1, clip=True):
 if __name__ == '__main__':
     # Examples.
     mlab.figure(bgcolor=(1,1,1))
-    add_cloud(vmax=.1)
+    #add_cloud(vmax=.1)
     add_mean(color=(.3,0,.9), opacity=.3)
     add_quantiles([.5])
     add_cutplane(vmax=.1,plane_orientation='x_axes')
-    add_cutplane(vmax=.1,plane_orientation='y_axes')
-    add_map(opacity=.3)
+    #add_cutplane(vmax=.1,plane_orientation='y_axes')
+    #add_map(opacity=.3)
     add_datapoints(scale_factor=1)
     lon,lat,z = get_datapoints()
 
