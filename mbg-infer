@@ -147,7 +147,7 @@ except OSError:
     pass
 os.chdir(plot_dir)
 for s in M._variables_to_tally:
-    if np.prod(np.shape(s.value)) == 1 and M.trace(s.__name__)[0].dtype != np.dtype('object'):
+    if np.prod(np.shape(s.value)) == 1 and np.asarray(M.trace(s.__name__)[0]).dtype != np.dtype('object'):
         print 'Plotting %s'%s.__name__
         pl.clf()
         pl.plot(all_chain_trace(M.db._h5file, s.__name__))
