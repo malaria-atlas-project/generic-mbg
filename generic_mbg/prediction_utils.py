@@ -20,7 +20,7 @@ import inspect
 import pymc as pm
 import tables as tb
 import numpy as np
-from map_utils import asc_to_ndarray, get_header, exportAscii
+from map_utils import import_raster, export_raster
 from scipy import ndimage, mgrid
 from histogram_utils import *
 from inference_utils import invlogit, fast_inplace_mul, fast_inplace_square, crossmul_and_sum, CovarianceWithCovariates
@@ -28,10 +28,6 @@ import time
 import os
 import copy
 
-# __all__ = ['grid_convert','mean_reduce','var_reduce','invlogit','hdf5_to_samps','vec_to_asc','asc_to_locs',
-#             'display_asc','display_datapoints','histogram_reduce','histogram_finalize','maybe_convert','sample_reduce',
-#             'sample_finalize','asc_to_vals','restore_model','all_chain_len','all_chain']
-            
 memmax = 2.5e8
 
 def chains(hf):
@@ -139,9 +135,9 @@ def buffer(arr, n=5):
         out = arr.copy('F')
     return out.astype('bool')
 
-def asc_to_locs(fname, path='', thin=1, bufsize=1):
-    """Converts an ascii grid to a list of locations where prediction is desired."""
-    lon,lat,data = asc_to_ndarray(fname,path)
+def raster_to_locs(name, path='.', thin=1, bufsize=1):
+    """Converts a raster grid to a list of locations where prediction is desired."""
+    lon,lat,data,type = import_raster(name,path)
     data = grid_convert(data,'y-x+','x+y+')
     unmasked = buffer(True-data[::thin,::thin].mask, n=bufsize)
     
@@ -150,15 +146,15 @@ def asc_to_locs(fname, path='', thin=1, bufsize=1):
     if np.any(np.abs(lon)>180.) or np.any(np.abs(lat)>90.):
         raise ValueError, 'Ascii file %s has incorrect header. Lower left corner is (%f,%f); upper right corner is (%f,%f).'%(fname,lat.min(),lon.min(),lat.max(),lon.max())
     # lon,lat = [dir.ravel() for dir in np.meshgrid(lon[::thin],lat[::thin])]
-    return np.vstack((lon,lat)).T*np.pi/180., unmasked
+    return np.vstack((lon,lat)).T*np.pi/180., unmasked, type
 
-def asc_to_vals(fname, path='', thin=1, unmasked=None):
+def raster_to_vals(name, path='.', thin=1, unmasked=None):
     """
-    Converts an ascii grid to a list of values where prediction is desired.
+    Converts a raster grid to a list of values where prediction is desired.
     If the unmasked argument is provided, the mask of the ascii grid is
     checked against that mask.
     """
-    lon,lat,data = asc_to_ndarray(fname, path)
+    lon,lat,data,type = import_raster(name, path)
     data = grid_convert(data,'y-x+','x+y+')    
     if unmasked is not None:
         input_unmasked = True-data[::thin,::thin].mask
@@ -175,16 +171,7 @@ def asc_to_vals(fname, path='', thin=1, unmasked=None):
             raise ValueError, msg
     
     return data.data[unmasked]
-    
-def display_asc(fname, path='', radians=True, *args, **kwargs):
-    """Displays an ascii file as a pylab image."""
-    from pylab import imshow
-    lon,lat,data = asc_to_ndarray(fname,path)
-    if radians:
-        lon *= np.pi/180.
-        lat *= np.pi/180.
-    imshow(grid_convert(data,'y-x+','y+x+'),extent=[lon.min(),lon.max(),lat.min(),lat.max()],*args,**kwargs)
-    
+        
 def display_datapoints(h5file, path='', cmap=None, *args, **kwargs):
     """Adds as hdf5 archive's logp-mesh to an image."""
     hf = tb.openFile(path+h5file)
@@ -372,7 +359,7 @@ def normalize_for_mapcoords(arr, max):
     arr /= arr.max()
     arr *= max
     
-def vec_to_asc(vec, fname, out_fname, unmasked, path=''):
+def vec_to_raster(vec, fname, out_name, unmasked, type, path=''):
     """
     Converts a vector of outputs on a thin, unmasked, ravelled subset of an
     ascii grid to an ascii file matching the original grid.
@@ -405,6 +392,6 @@ def vec_to_asc(vec, fname, out_fname, unmasked, path=''):
     out_conv = grid_convert(out,'x+y+','y-x+')
     
     header['NODATA_value'] = -9999
-    exportAscii(out_conv.data,out_fname,header,True-out_conv.mask)
+    export_raster(lon,lat,out_conv,out_name,'.',type)
     
     return out

@@ -189,15 +189,17 @@ class CachingCovariateEvaluator(object):
     def __init__(self, mesh, value, shift, scale):
         self.meshes = [mesh]
         self.values = [value]
+        if np.any(np.isnan(value)):
+            raise ValueError, 'NaN in covariate values'
         self.shift = shift
         self.scale = scale
     def add_value_to_cache(self, mesh, value):
+        if np.any(np.isnan(value)):
+            raise ValueError, 'NaN in covariate values'
         self.meshes.append(mesh)
         self.values.append((value-self.shift)/self.scale)
     def __call__(self, mesh):
         for i,m in enumerate(self.meshes):
-            # from IPython.Debugger import Pdb
-            # Pdb(color_scheme='LightBG').set_trace() 
             start,stop = subset_eq(m,mesh)
             if start>-1 and stop>-1:
                 if stop-start != mesh.shape[0]:
