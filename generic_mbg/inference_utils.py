@@ -123,7 +123,7 @@ def create_model(mod,db,input=None):
     # Create MCMC object, add metadata, and assign appropriate step method.
 
     if prev_db is None:
-        M = pm.MCMC(mod.make_model(*mod_inputs,**non_cov_columns),db='hdf5',dbname=hfname,complevel=1,complib='zlib')
+        M = pm.MCMC(mod.make_model(*mod_inputs,**non_cov_columns),db='hdf5',dbname=hfname,dbcomplevel=1,dbcomplib='zlib')
     else:
         M = pm.MCMC(mod.make_model(*mod_inputs,**non_cov_columns),db=prev_db)
         M.restore_sampler_state()
