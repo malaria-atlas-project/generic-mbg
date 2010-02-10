@@ -102,7 +102,7 @@ else:
 
 # Create predictive locations
 
-x, unmasked, output_type = raster_to_locs(o.mask_name, thin=o.raster_thin, bufsize=o.bufsize)
+x, unmasked, output_type = raster_to_locs(o.mask_name, thin=o.raster_thin, bufsize=o.bufsize, path=o.raster_path)
 if not o.year is None:
     x = np.vstack((x.T,o.year*np.ones(x.shape[0]))).T
 
