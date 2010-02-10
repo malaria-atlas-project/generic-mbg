@@ -181,12 +181,10 @@ for f in mp:
             out_name = k
         else:
             out_name = f.__name__ + '_' + k
-        asc_name = out_name + '.asc'
         pdf_name = out_name + '.pdf'
-        print 'Generating output file %s'%(asc_name)
-        q=vec_to_asc(v,'../'+o.mask_name,asc_name,unmasked)
-
-        lon, lat, data= raster_to_ndarray(asc_name) 
+        print 'Generating output file %s'%(out_name)
+        # FIXME: Output raster should match the type of the mask.
+        lon,lat,data=vec_to_raster(v,o.mask_name,o.raster_path,out_name,unmasked)
         pl.clf()
         pl.imshow(grid_convert(data,'y+x+','y-x+'), extent=[lon.min(), lon.max(), lat.min(), lat.max()], interpolation='nearest')
         # pl.imshow(data, extent=[lon.min(), lon.max(), lat.min(), lat.max()], interpolation='nearest')

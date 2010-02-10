@@ -359,7 +359,7 @@ def normalize_for_mapcoords(arr, max):
     arr /= arr.max()
     arr *= max
     
-def vec_to_raster(vec, fname, out_name, unmasked, type, path=''):
+def vec_to_raster(vec, fname, raster_path, out_name, unmasked, path='.'):
     """
     Converts a vector of outputs on a thin, unmasked, ravelled subset of an
     ascii grid to an ascii file matching the original grid.
@@ -368,11 +368,12 @@ def vec_to_raster(vec, fname, out_name, unmasked, type, path=''):
     # FXIME: Just resample in Fortran. Only draw from pixels that are inside the mask.
     # FIXME: Just do it bilinear, nothing fancy.
     
+    # FIXME: Make this work with arbitrary mask types.
+    
     if np.any(np.isnan(vec)):
         raise ValueError, 'NaN in vec'  
     
-    header, headlines = get_header(fname,path)
-    lon,lat,data = asc_to_ndarray(fname,path)
+    lon,lat,data,type = import_raster(fname, os.path.join('..',raster_path))
     data = grid_convert(data,'y-x+','x+y+')
     data_thin = np.zeros(unmasked.shape)
     data_thin[unmasked] = vec
@@ -391,7 +392,6 @@ def vec_to_raster(vec, fname, out_name, unmasked, type, path=''):
     
     out_conv = grid_convert(out,'x+y+','y-x+')
     
-    header['NODATA_value'] = -9999
-    export_raster(lon,lat,out_conv,out_name,'.',type)
+    export_raster(lon,lat,out_conv,out_name,path,type)
     
-    return out
+    return lon,lat,out_conv

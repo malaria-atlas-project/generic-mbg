@@ -196,6 +196,8 @@ class CachingCovariateEvaluator(object):
     def add_value_to_cache(self, mesh, value):
         if np.any(np.isnan(value)):
             raise ValueError, 'NaN in covariate values'
+        # elif len(set(value))==1:
+        #     raise ValueError, 'Only one value in covariate. Not going to learn much here.'
         self.meshes.append(mesh)
         self.values.append((value-self.shift)/self.scale)
     def __call__(self, mesh):
@@ -205,16 +207,6 @@ class CachingCovariateEvaluator(object):
                 if stop-start != mesh.shape[0]:
                     raise ValueError
                 return self.values[i][start:stop]
-            # if subset_eq(m,mesh):
-            #     
-            # if m.shape == mesh.shape:
-            #     if np.all(m==mesh):
-            #         return self.values[i]
-            # elif m.shape > mesh.shape:
-            #     for j,row in enumerate(m):
-            #         if np.all(row == mesh[0]):
-            #             if np.all(m[j:j+mesh.shape[0]]==mesh):
-            #                 return self.values[i][j:j+mesh.shape[0]]
         raise RuntimeError, 'The given mesh is not in the cache.'
         
 class CovarianceWithCovariates(object):
@@ -236,8 +228,8 @@ class CovarianceWithCovariates(object):
         self.labels = self.cv.keys()
         self.m = len(cv)
         self.means = dict([(k,np.mean(v)) for k,v in cv.iteritems()])
-        self.stds = dict([(k,np.std(v)) for k,v in cv.iteritems()])
-        self.evaluators = dict([(k,CachingCovariateEvaluator(mesh, v, self.means[k], self.stds[k])) for k,v in cv.iteritems()])
+        self.stds = dict([(k,np.std(v) or 1) for k,v in cv.iteritems()])
+        self.evaluators = dict([(k,CachingCovariateEvaluator(mesh[:,:2], v, self.means[k], self.stds[k])) for k,v in cv.iteritems()])
         self.cov_fun = cov_fun
         self.fac = fac
         self.privar = np.ones(len(self.labels))*self.fac
@@ -249,17 +241,20 @@ class CovarianceWithCovariates(object):
             Cbase = self.cov_fun.diag_call(x,*args,**kwds)
         else:
             Cbase = self.cov_fun(x,y=None,*args,**kwds)
-        C = Cbase + np.sum(self.privar * x_evals**2, axis=0) + self.fac*self.m
+        if len(self.labels)>0:
+            C = Cbase + np.sum(self.privar * x_evals.T**2, axis=1) + self.fac*self.m
+        else:
+            C = Cbase + self.fac*self.m
         return C
         
     def eval_covariates(self, x):
-        out = np.asarray([self.evaluators[k](x) for k in self.labels], order='F')
+        out = np.asarray([self.evaluators[k](x[:,:2]) for k in self.labels], order='F')
         return out
         # return np.asarray([np.ones(len(x)) for k in self.labels], order='F')
         
     def add_values_to_cache(self, mesh, new_cv):
         for k,v in self.evaluators.iteritems():
-            v.add_value_to_cache(mesh, new_cv[k])
+            v.add_value_to_cache(mesh[:,:2], new_cv[k])
 
     def __call__(self, x, y, *args, **kwds):
         
