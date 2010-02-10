@@ -118,7 +118,7 @@ mod.check_data(input)
 
 # Create model
 if prev_db is not None:
-    M = create_model(mod, prev_db, input)
+    M = create_model(mod, prev_db)
 else:
     M = create_model(mod, os.path.join(hf_path, hf_basename), input)
     add_standard_metadata(M, *mod.metadata_keys)
