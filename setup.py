@@ -36,6 +36,7 @@ if __name__ == '__main__':
             **(config.todict()))
             
     for ex_fname in ['mbg-map',
+                    'mbg-3dmap',
                     'mbg-validate',
                     'mbg-scalar-priors',
                     'mbg-realize-prior',
