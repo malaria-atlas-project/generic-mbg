@@ -1,0 +1,174 @@
+# Copyright (C) 2010 Anand Patil
+# 
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
+from optparse import OptionParser
+
+# Create option parser
+req_doc = """
+
+mbg-3dmap  Copyright (C) 2010 Anand Patil
+This program comes with ABSOLUTELY NO WARRANTY.
+This is free software, and you are welcome to redistribute it under certain conditions.
+See <http://www.gnu.org/licenses/> for the terms of the license.
+
+
+  module                The module from which maps are to be generated.
+  database-file         The name of the database file produced by the mcmc.
+  burn                  The number of initial MCMC iterations to discard. 
+                        You must provide this argument.
+  mask                  An ascii file with some pixels MISSING. Maps will 
+                        be generated in ascii files with identical masks.
+"""
+p = OptionParser('usage: %prog module database-file burn mask [options]' + req_doc)
+p.add_option('-n','--n-bins',help='The number of bins to use when density fields. Defaults to 100.',dest='n_bins',type='int')
+p.add_option('-b','--bufsize',help='The size of the buffer to use, in pixels. Use 0 if raster-thin=1. Defaults to 0.',dest='bufsize',type='int')
+p.add_option('-q','--quantiles',help="The quantile maps to generate. Should be in the form '0.25 0.5 0.75', and the inverted commas are important! Defaults to '0.05 0.25 0.5 0.75 0.95'",dest='quantile_list')
+p.add_option('-r','--raster-thin',help='The raster will be kriged at this level of degradation. Unlike mbg-map, this should be set so that there are ~10k pixels in the raster.',dest='raster_thin',type='int')
+p.add_option('-t','--thin',help='How much to thin the MCMC trace. Defaults to 10.',dest='thin',type='int')
+p.add_option('-i','--iter',help='The total number of samples to use in generating the map. Defaults to 20000',dest='total',type='int')
+p.add_option('-a','--ascii-path',help="The path to the covariate asciis. Defaults to the current working directory.",dest='ascii_path')
+p.add_option('-y','--year',help='The decimal year at which the map should be produced. Required for space-time models.',dest='year',type='float')
+
+p.set_defaults(n_bins=100)
+p.set_defaults(ascii_path='')
+p.set_defaults(raster_thin=100)
+p.set_defaults(thin=50)
+p.set_defaults(total=50000)
+p.set_defaults(bufsize=0)
+p.set_defaults(year=None)
+p.set_defaults(quantile_list='0.05 0.25 0.5 0.75 0.95')
+
+(o, args) = p.parse_args()
+if len(args) != 4:
+    raise ValueError, 'You must supply exactly four positional arguments. You supplied %i.'%len(args)
+
+o.module, o.hf_name, o.burn, o.mask_name = args
+o.burn = int(o.burn)
+
+from map_utils import *
+from generic_mbg import *
+import tables as tb
+import numpy as np
+import os, imp, sys, time
+
+# Load up given module and load its relevant contents
+mod_path, mod_name = os.path.split(o.module)
+mod_basename, mod_ext = os.path.splitext(mod_name)
+mod_search_path = [mod_path, os.getcwd()] + sys.path
+mod = imp.load_module(mod_basename, *imp.find_module(mod_basename, mod_search_path))
+
+for n in ['f_labels', 'nugget_labels', 'fs_have_nugget', 'x_labels', 'M_labels', 'C_labels']:
+    try:
+        exec("%s=getattr(mod,'%s')"%(n,n))
+    except:
+        cls,inst,tb = sys.exc_info()
+        new_inst = cls('Could not import %s from %s. Tell Anand. Original error message:\n\n\t%s'%(n,mod_name,inst.message))
+        raise cls,new_inst,tb
+    
+if hasattr(mod, 'extra_reduce_fns'):
+    extra_reduce_fns = mod.extra_reduce_fns
+    extra_finalize = mod.extra_finalize
+else:
+    extra_reduce_fns = []
+    extra_finalize = None
+# Parse quantiles
+if len(o.quantile_list) == 0:
+    q = []
+else:
+    q = map(float, o.quantile_list.split(' '))
+
+# Create predictive locations
+x, unmasked = asc_to_locs(o.mask_name,thin=o.raster_thin, bufsize=o.bufsize)
+if not o.year is None:
+    x = np.vstack((x.T,o.year*np.ones(x.shape[0]))).T
+
+# Open hdf5 archive
+hf = tb.openFile(o.hf_name)
+meta = hf.root.metadata
+bins = np.linspace(0,1,o.n_bins)
+
+# Load covariates
+
+all_covariate_keys = set()
+[all_covariate_keys.update(cd.keys()) for cd in meta.covariates[0].itervalues()]
+
+covariate_dict = {}
+for k in all_covariate_keys:
+    if k != 'm':
+        try:
+            covariate_dict[k] = asc_to_vals(k+'.asc', path=o.ascii_path, thin=o.raster_thin, unmasked=unmasked)
+        except IOError:
+            raise IOError, 'Covariate raster %s not found in path %s.'%(k+'.asc',o.ascii_path)
+
+covariate_dicts = {}            
+for fl in f_labels:
+    covariate_dicts[fl]={}
+    for k in meta.covariates[0][fl].keys():
+        if k != 'm':
+            covariate_dicts[fl][k] = covariate_dict[k]
+            
+# Create utility fns
+def binfn(arr,n_bins=o.n_bins):
+    return np.array(arr*n_bins,dtype=int)
+
+hsr = histogram_reduce(bins, binfn)
+
+def finalize(prod, n):
+    # Use unmasked here...
+    n_ = float(n)
+    mean = np.zeros(unmasked.shape)
+    mean[unmasked] = prod[mean_reduce] / n_
+    
+    density_field = np.zeros(unmasked.shape+(o.n_bins,))
+    for i in xrange(o.n_bins):
+        density_field[:,:,i][unmasked] = prod[hsr][:,i]/n_
+    
+    # from IPython.Debugger import Pdb
+    # Pdb(color_scheme='LightBG').set_trace() 
+    
+    return {'density_field': density_field, 'mean': mean}
+
+reduce_fns = [mean_reduce, hsr]
+
+# Create rasters
+t_start = time.time()
+# (hf, x, burn, thin, total, fns, f_labels, fs_have_nugget, x_label, nugget_labels, M_labels, C_labels, pred_cv_dicts, postproc, diags_safe, finalize=None, **non_cov_columns)
+if np.iterable(mod.map_postproc):
+    mp = mod.map_postproc
+else:
+    mp = [mod.map_postproc]
+products = hdf5_to_samps(hf,x,o.burn,o.thin,o.total,reduce_fns + extra_reduce_fns, f_labels, fs_have_nugget, x_labels, nugget_labels, M_labels, C_labels, covariate_dicts, mod.map_postproc, mod.diags_safe, finalize)
+print '\n3d maps produced in %f seconds\n'%(time.time() - t_start)
+
+# Write out
+hf_path, hf_basename  = os.path.split(o.hf_name)
+base_outname = os.path.splitext(hf_basename)[0]
+map_dir = os.path.join(hf_path, base_outname+'-3dmap')
+try:
+    os.mkdir(map_dir)
+except OSError:
+    pass
+os.chdir(map_dir)
+for f in mp:
+    output_hdf5 = tb.openFile('3dmap-%s-data.hdf5'%f.__name__,'w')
+    output_hdf5.createArray('/','mean',products[f]['mean'])
+    output_hdf5.createArray('/','bbox',bbox)
+    output_hdf5.createArray('/','data',np.vstack((hf.root.input_csv.cols.lon[:], hf.root.input_csv.cols.lat[:], hf.root.input_csv.cols.pos[:].astype('float')/(hf.root.input_csv.cols.pos[:]+hf.root.input_csv.cols.neg[:]))).T)
+    output_hdf5.createCArray('/','density_field',tb.FloatAtom(),unmasked.shape+(o.n_bins,),filters=tb.Filters(complevel=1, complib='zlib'))
+    output_hdf5.createArray('/','unmasked',unmasked)
+    output_hdf5.root.density_field[:] = products[k]['density_field'][:]
+
+
