@@ -188,7 +188,7 @@ class CachingCovariateEvaluator(object):
     """
     def __init__(self, mesh, value, shift, scale):
         self.meshes = [mesh]
-        self.values = [value]
+        self.values = [(value-shift)/scale]
         if np.any(np.isnan(value)):
             raise ValueError, 'NaN in covariate values'
         self.shift = shift
