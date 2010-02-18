@@ -231,8 +231,12 @@ class CovarianceWithCovariates(object):
         self.stds = dict([(k,np.std(v) or 1) for k,v in cv.iteritems()])
         self.evaluators = dict([(k,CachingCovariateEvaluator(mesh[:,:2], v, self.means[k], self.stds[k])) for k,v in cv.iteritems()])
         self.cov_fun = cov_fun
-        self.fac = fac
-        self.privar = np.ones(len(self.labels))*self.fac
+        if isinstance(fac, dict):
+            self.mfac = fac['m']
+            self.privar = np.array([fac[l] for l in self.labels])
+        else:
+            self.privar = np.ones(len(self.labels))*fac
+            self.mfac = fac
 
     def diag_call(self,x, *args, **kwds):
         # Evaluate with one argument:
@@ -242,9 +246,9 @@ class CovarianceWithCovariates(object):
         else:
             Cbase = self.cov_fun(x,y=None,*args,**kwds)
         if len(self.labels)>0:
-            C = Cbase + np.sum(self.privar * x_evals.T**2, axis=1) + self.fac*self.m
+            C = Cbase + np.sum(self.privar * x_evals.T**2, axis=1) + self.mfac*self.m
         else:
-            C = Cbase + self.fac*self.m
+            C = Cbase + self.mfac*self.m
         return C
         
     def eval_covariates(self, x):
@@ -268,7 +272,7 @@ class CovarianceWithCovariates(object):
             else:
                 y_evals = self.eval_covariates(y)
             C = crossmul_and_sum(Cbase, x_evals, self.privar, y_evals)
-            C = fast_inplace_scalar_add(C, self.fac*self.m)
+            C = fast_inplace_scalar_add(C, self.mfac*self.m)
         else:
             C = Cbase
         return C
