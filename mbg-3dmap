@@ -171,6 +171,6 @@ for f in mp:
     output_hdf5.createArray('/','data',np.vstack((hf.root.input_csv.cols.lon[:], hf.root.input_csv.cols.lat[:], hf.root.input_csv.cols.pos[:].astype('float')/(hf.root.input_csv.cols.pos[:]+hf.root.input_csv.cols.neg[:]))).T)
     output_hdf5.createCArray('/','density_field',tb.FloatAtom(),unmasked.shape+(o.n_bins,),filters=tb.Filters(complevel=1, complib='zlib'))
     output_hdf5.createArray('/','unmasked',unmasked)
-    output_hdf5.root.density_field[:] = products[k]['density_field'][:]
+    output_hdf5.root.density_field[:] = products[f]['density_field'][:]
 
 
