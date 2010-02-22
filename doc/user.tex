@@ -4,75 +4,21 @@
 This section is generated automatically from \texttt{README.rst}, the same file that produces the \href{github.com/malaria-atlas-project/generic-mbg}{GitHub documentation}. 
 
 
-
-
-The generic MBG package allows us to write PyMC probability models for each
-project that works with some kind of spatial GLM, then turn the model over
-to the project team for testing, fitting, mapping and experimentation using
-three easy shell commands:
-\begin{itemize}
-\item {} 
-\texttt{mbg-infer} runs the MCMC algorithm using the given model {\&} an input dataset,
-stored in a csv file, and stores the traces in an HDF5 archive.
-
-\item {} 
-\texttt{mbg-map} takes the HDF5 archive produced by mbg-infer, and an ASCII file with
-a MISSING entry in its header. Produces a set of bespoke summary maps on the grid
-expressed by the ASCII header. The missing pixels are missing in the output also.
-
-\item {} 
-\texttt{mbg-validate} takes the HDF5 archive produced by mbg-infer and a 'holdout'
-dataset, stored in a csv file, and creates a set of predictive samples at the
-holdout locations and some validation plots.
-
-\item {} 
-\texttt{mbg-decluster} partitions a CSV datafile into 'kept' and 'holdout' portions.
-
-\end{itemize}
-
-If the project's members are interested in changing the model or specifying a
-subjective prior, there are two additional shell commands available to help:
-\begin{itemize}
-\item {} 
-\texttt{mbg-scalar-priors} draws samples from the prior for all scalar parameters
-(including deterministics) and plots histograms for inspection.
-
-\item {} 
-\texttt{mbg-realize-prior} draws all scalar parameters from the prior, and realizes
-and plots the random field on grids matching a number of input ASCIIs.
-
-\item {} 
-\texttt{mbg-describe-tracefile} provides information about the circumstances under which
-traces were produced.
-
-\end{itemize}
-
-All shell commands can be run with only the \texttt{-h} option to print some help to the
-screen. However, if you're reading this document, you don't really need to do that.
-
-For documentation on how to install and administer the package {\&} write specializing
-modules, run \texttt{builddocs.py} in the \texttt{docs} directory and then see \texttt{manual.pdf}.
-
-
-%___________________________________________________________________________
-
-
-
-\section{Detailed usage instructions}
-\label{sec:detailed-usage-instructions}
+\section{Detailed usage instructions%
+}
 
 If you want to use the shell commands, this section is for you.
 
 
-%___________________________________________________________________________
 
 
-
-\subsection{\texttt{mbg-infer}}
-\label{sec:mbg-infer}
+\subsection{\texttt{mbg-infer}%
+}
+%
 \begin{quote}{\ttfamily \raggedright \noindent
 mbg-infer~module~database-file~input~{[}options{]}
-}\end{quote}
+}
+\end{quote}
 
 Produces the requested database file. Also produces plots of the dynamic traces of all
 scalar parameters as PDF's, and saves them in the folder \texttt{name-plots}, where \texttt{name}
@@ -83,80 +29,75 @@ If you determine that more MCMC samples are needed, simply run mbg-infer with th
 database file argument to pick up where you left off and keep sampling.
 
 
-%___________________________________________________________________________
 
 
-
-\subsubsection{Required arguments}
-\label{sec:required-arguments}
+\subsubsection{Required arguments%
+}
 \newcounter{listcnt0}
 \begin{list}{\arabic{listcnt0}.}
 {
 \usecounter{listcnt0}
 \setlength{\rightmargin}{\leftmargin}
 }
-\item {} 
-The name of the module containing the model specification.
 
-\item {} 
-The name of the database file to be produced. If you do not want it to go in the current
+\item The name of the module containing the model specification.
+
+\item The name of the database file to be produced. If you do not want it to go in the current
 directory, specify a path, eg \texttt{/home/anand/traces/run-01-04-2009}. If the database file
 already exists, you will be prompted about whether you want to continue sampling into it
 or remove it.
 
-\item {} 
-The name of a csv file containing the input data. If it is a different directory, specify
+\item The name of a csv file containing the input data. If it is a different directory, specify
 the path to it, eg \texttt{/home/anand/data/query-01-04-2009.csv}. This csv file must have the
 following columns:
+%
 \begin{itemize}
-\item {} 
-\texttt{lon}, \texttt{lat} : The coordinates of the observation in decimal degrees
 
-\item {} 
-\texttt{t} : Time in decimal years. This is only required for spatiotemporal models.
+\item \texttt{lon}, \texttt{lat} : The coordinates of the observation in decimal degrees
+
+\item \texttt{t} : Time in decimal years. This is only required for spatiotemporal models.
 
 \end{itemize}
 
 All other columns are interpreted as covariates, eg \texttt{ndvi} etc., UNLESS the module
-implements the \texttt{non{\_}cov{\_}columns} attribute. For example, MBGWorld expects
-lo{\_}age, up{\_}age columns, pos and neg columns, but does not interpret them as covariates.
-
+implements the \texttt{non\_cov\_columns} attribute. For example, MBGWorld expects
+lo\_age, up\_age columns, pos and neg columns, but does not interpret them as covariates.
 \end{list}
 
 
-%___________________________________________________________________________
 
 
-
-\subsubsection{Options}
-\label{sec:options}
+\subsubsection{Options%
+}
+%
 \begin{itemize}
-\item {} 
-\texttt{-t} or \texttt{-{}-thin} : If thin is 10, every 10th MCMC iteration will be stored in the
+
+\item \texttt{-t} or \texttt{-{}-thin} : If thin is 10, every 10th MCMC iteration will be stored in the
 database. Small values are good but slow. 1 is best.
 
-\item {} 
-\texttt{-i} or \texttt{-{}-iter} : The number of MCMC iterations to perform. Large values are good
+\item \texttt{-i} or \texttt{-{}-iter} : The number of MCMC iterations to perform. Large values are good
 but slow.
-
-\item {} 
-\texttt{-n} or \texttt{-ncpus} : The maximum number of CPU cores to make available to the MCMC
-algorithm. Should be less than or equal to the number of cores in your computer. The
-All the cores you make available may not be utilized. Use top or the Activity Monitor
-to monitor your actual CPU usage. Large values are good but tie up more of your computer.
 
 \end{itemize}
 
+% * ``-n`` or ``-ncpus`` : The maximum number of CPU cores to make available to the MCMC
 
-%___________________________________________________________________________
+% algorithm. Should be less than or equal to the number of cores in your computer. The
+
+% All the cores you make available may not be utilized. Use top or the Activity Monitor
+
+% to monitor your actual CPU usage. Large values are good but tie up more of your computer.
 
 
 
-\subsection{\texttt{mbg-describe-tracefile}}
-\label{sec:mbg-describe-tracefile}
+
+\subsection{\texttt{mbg-describe-tracefile}%
+}
+%
 \begin{quote}{\ttfamily \raggedright \noindent
 mbg-describe-tracefile~path
-}\end{quote}
+}
+\end{quote}
 
 If path is a database file, inspects the database file. Prints out the version of the
 generic package, the module that produced the file and the date the run was started.
@@ -167,250 +108,211 @@ If the path is a directory, walks the filesystem starting from the directory, in
 every database file it finds. Does not produce any csvs.
 
 
-%___________________________________________________________________________
 
 
-
-\subsubsection{Required arguments}
-\label{sec:id1}
+\subsubsection{Required arguments%
+}
 \setcounter{listcnt0}{0}
 \begin{list}{\arabic{listcnt0}.}
 {
 \usecounter{listcnt0}
 \setlength{\rightmargin}{\leftmargin}
 }
-\item {} 
-The name of the database file or path to be inspected.
 
+\item The name of the database file or path to be inspected.
 \end{list}
 
 
-%___________________________________________________________________________
 
 
-
-\subsection{\texttt{mbg-covariate-traces}}
-\label{sec:mbg-covariate-traces}
+\subsection{\texttt{mbg-covariate-traces}%
+}
+%
 \begin{quote}{\ttfamily \raggedright \noindent
 mbg-covariate-traces~module~database-file~{[}options{]}
-}\end{quote}
+}
+\end{quote}
 
 Postprocesses the given database file to produce MCMC traces for the covariate
 coefficients. Produces a directory called database-file-covariate-traces, and populates
 it with pdf images of the covariate coefficient traces and
 
 
-%___________________________________________________________________________
 
 
-
-\subsubsection{Required arguments}
-\label{sec:id2}
+\subsubsection{Required arguments%
+}
 \setcounter{listcnt0}{0}
 \begin{list}{\arabic{listcnt0}.}
 {
 \usecounter{listcnt0}
 \setlength{\rightmargin}{\leftmargin}
 }
-\item {} 
-The name of the module containing the model specification.
 
-\item {} 
-The name of the database file containing the MCMC trace.
+\item The name of the module containing the model specification.
 
+\item The name of the database file containing the MCMC trace.
 \end{list}
 
 
-%___________________________________________________________________________
 
 
-
-\subsubsection{Options}
-\label{sec:id3}
+\subsubsection{Options%
+}
+%
 \begin{itemize}
-\item {} 
-\texttt{-t} or \texttt{-{}-thin} : If thin is 10, samples of the covariate coefficients will be
+
+\item \texttt{-t} or \texttt{-{}-thin} : If thin is 10, samples of the covariate coefficients will be
 produced for every 10th MCMC sample. Defaults to 1, meaning no thinning.
 
-\item {} 
-\texttt{-b} or \texttt{-{}-burn} : Samples of the covariate coefficients will begin after this
+\item \texttt{-b} or \texttt{-{}-burn} : Samples of the covariate coefficients will begin after this
 many 'burnin' iterations are discarded. Defaults to 0, meaning no burnin.
 
 \end{itemize}
 
 
-%___________________________________________________________________________
 
 
-
-\subsection{\texttt{mbg-decluster}}
-\label{sec:mbg-decluster}
+\subsection{\texttt{mbg-decluster}%
+}
+%
 \begin{quote}{\ttfamily \raggedright \noindent
 mbg-decluster~input~prop~{[}options{]}
-}\end{quote}
+}
+\end{quote}
 
 A wrapper for the R function getdeclusteredsample that results in two new tables with
 suffix HOLDOUT and THINNED outut to same directory as tablepath
 
 
-%___________________________________________________________________________
 
 
-
-\subsubsection{Required arguments}
-\label{sec:id4}
+\subsubsection{Required arguments%
+}
 \setcounter{listcnt0}{0}
 \begin{list}{\arabic{listcnt0}.}
 {
 \usecounter{listcnt0}
 \setlength{\rightmargin}{\leftmargin}
 }
-\item {} 
-(string) path to input table. must include columns 'lon' and 'lat'. If
+
+\item (string) path to input table. must include columns 'lon' and 'lat'. If
 also 't' will treat as space-time. If only filename given (no path) assumes file
 in current working directory.
 
-\item {} 
-(float) what proportion of the full data set will be used for hold-out set.
-
+\item (float) what proportion of the full data set will be used for hold-out set.
 \end{list}
 
 
-%___________________________________________________________________________
 
 
-
-\subsubsection{Options}
-\label{sec:id5}
+\subsubsection{Options%
+}
+%
 \begin{itemize}
-\item {} 
-\texttt{-m} or \texttt{-{}-minsample} : (int) optional minimum sample size (supercedes prop.
+
+\item \texttt{-m} or \texttt{-{}-minsample} : (int) optional minimum sample size (supercedes prop.
 if larger)
 
-\item {} 
-\texttt{-d} or \texttt{-{}-decluster} : (logical) do we want to draw spatially declustered
+\item \texttt{-d} or \texttt{-{}-decluster} : (logical) do we want to draw spatially declustered
 sample (default) or just simple random.
 
-\item {} 
-\texttt{-p} or \texttt{-{}-makeplot} : (logical) do we want to export a pdf map showing
+\item \texttt{-p} or \texttt{-{}-makeplot} : (logical) do we want to export a pdf map showing
 location of data and selected points. This is exported to same directory as
 tablepathoptional minimum sample size (supercedes prop if larger).
 
 \end{itemize}
 
 
-%___________________________________________________________________________
 
 
-
-\subsection{\texttt{mbg-map}}
-\label{sec:mbg-map}
+\subsection{\texttt{mbg-map}%
+}
+%
 \begin{quote}{\ttfamily \raggedright \noindent
 mbg-map~module~database-file~burn~mask~{[}options{]}
-}\end{quote}
+}
+\end{quote}
 
 Produces a folder called \texttt{name-maps} where \texttt{name} is the name of the database file.
-Puts the requested maps in the folder in ascii format. Also produces PDF images of all
-the requested maps for quick viewing.
-
-
-%___________________________________________________________________________
+Puts the requested maps in the folder in format matching the mask. Also produces PDF
+images of all the requested maps for quick viewing.
 
 
 
-\subsubsection{Required arguments}
-\label{sec:id6}
+
+\subsubsection{Required arguments%
+}
 \setcounter{listcnt0}{0}
 \begin{list}{\arabic{listcnt0}.}
 {
 \usecounter{listcnt0}
 \setlength{\rightmargin}{\leftmargin}
 }
-\item {} 
-The name of the module containing the model specification.
 
-\item {} 
-The name of the database file (produced by mbg-infer) to be used to generate the
+\item The name of the module containing the model specification.
+
+\item The name of the database file (produced by mbg-infer) to be used to generate the
 maps. If you do not want it to go in the current directory, specify a path.
 
-\item {} 
-The number of burnin iterations to discard from the trace before making the maps.
+\item The number of burnin iterations to discard from the trace before making the maps.
 You will need to figure this out by inspecting the traces produced by \texttt{mbg-infer}.
 
-\item {} 
-The name of an ASCII file. The maps will be produced in ASCII files with identical
-headers and identical MISSING pixels. If the file is in a different directory, specify
-the path to it.
-
+\item The name of a raster, without extension. The maps will be produced in raster files
+in the same format, on identical grids, with identical missing pixels. If the file
+is in a different directory, specify the path to it.
 \end{list}
 
 
-%___________________________________________________________________________
 
 
-
-\subsubsection{Options}
-\label{sec:id7}
+\subsubsection{Options%
+}
+%
 \begin{itemize}
-\item {} 
-\texttt{-n} or \texttt{-{}-n-bins} : The number of bins to use in the histogram from which quantiles
+
+\item \texttt{-n} or \texttt{-{}-n-bins} : The number of bins to use in the histogram from which quantiles
 are computed. Large values are good, but use up more system memory. Decrease this if you
 see memory errors.
 
-\item {} 
-\texttt{-b} or \texttt{-{}-bufsize} : The number of buffer pixels to render around the edges of the
+\item \texttt{-b} or \texttt{-{}-bufsize} : The number of buffer pixels to render around the edges of the
 continents. Set to zero unless the \texttt{raster-thin} option is greater than 1. The buffer
 will not be very good. In general, if you want a buffer you're better off making your
 own in ArcView rather than using this option.
 
-\item {} 
-\texttt{-q} or \texttt{-{}-quantiles} : A string containing the quantiles you want. For example,
+\item \texttt{-q} or \texttt{-{}-quantiles} : A string containing the quantiles you want. For example,
 \texttt{'0.25 0.5 0.75'} would map the lower and upper quartiles and the medial. Default is
 \texttt{'0.05 0.25 0.5 0.75 0.95'}.
 
-\item {} 
-\texttt{-r} or \texttt{-{}-raster-thin} : If you just want a quick preview, you can use this option to
-render the maps on a degraded grid, then interpolate back to the original grid using splines.
-For instance, if your input ASCII is on a 5km grid, and you use \texttt{-r 5}, the maps will be
-rendered on a 25km grid, then interpolated back to a 5km grid when it is time to produce
-the output ASCIIs. Small values are good but slow. 1 is best.
-
-WARNING: The \texttt{raster{\_}thin} argument has been implicated in some odd-looking results and
-should only be used for quick previews.
-
-\item {} 
-\texttt{-t} or \texttt{-{}-thin} : The factor by which to thin the MCMC trace stored in the database.
+\item \texttt{-t} or \texttt{-{}-thin} : The factor by which to thin the MCMC trace stored in the database.
 If you use \texttt{-t 10}, only every 10th stored MCMC iteration will be used to produce the maps.
 Small values are good but slow. 1 is best.
 
-\item {} 
-\texttt{-i} or \texttt{-{}-iter} : The total number of predictive samples to use in generating the maps.
+\item \texttt{-i} or \texttt{-{}-iter} : The total number of predictive samples to use in generating the maps.
 Large values are good but slow. Defaults to 20000.
 
-\item {} 
-\texttt{-a} or \texttt{-{}-ascii-path} : The path to the ASCII files containing the covariate rasters.
-These files' headers must match those of the input raster, and their missing pixels must match
+\item \texttt{-p} or \texttt{-{}-raster-path} : The path to the files containing the covariate rasters. These
+files' headers must match those of the input raster, and their missing pixels must match
 those of the input raster also. There must be a file corresponding to every covariate column
 in input 3 of mbg-infer. For example, if you used \texttt{rain} and \texttt{ndvi} as your column headers,
-files \texttt{rain.asc} and \texttt{ndvi.asc} in the ascii path should be present in the ascii path.
+files \texttt{rain.asc} and \texttt{ndvi.flt} and \texttt{temp.hdf5} should be present in the raster path.
 Defaults to the current working directory.
 
-\item {} 
-\texttt{-y} or \texttt{-{}-year} : If your model is spatiotemporal, you must provide the decimal year at
+\item \texttt{-y} or \texttt{-{}-year} : If your model is spatiotemporal, you must provide the decimal year at
 which you want your map produced. For example, Jan 1 2008 would be \texttt{-y 2008}.
 
 \end{itemize}
 
 
-%___________________________________________________________________________
 
 
-
-\subsection{\texttt{mbg-validate}}
-\label{sec:mbg-validate}
+\subsection{\texttt{mbg-validate}%
+}
+%
 \begin{quote}{\ttfamily \raggedright \noindent
 mbg-validate~module~database-file~burn~pred-pts~{[}options{]}
-}\end{quote}
+}
+\end{quote}
 
 mbg-validate produces a folder called \texttt{name-validation}, \texttt{name} being the name of the database file.
 It populates this folder with two csv files called \texttt{p-samps} and \texttt{n-samps} containing posterior
@@ -420,106 +322,94 @@ prediction location.
 It also writes three of the four MBG world validation panels into the folder as PDF's.
 
 
-%___________________________________________________________________________
 
 
-
-\subsubsection{Required arguments}
-\label{sec:id8}
+\subsubsection{Required arguments%
+}
 \setcounter{listcnt0}{0}
 \begin{list}{\arabic{listcnt0}.}
 {
 \usecounter{listcnt0}
 \setlength{\rightmargin}{\leftmargin}
 }
-\item {} 
-The name of the module containing the model specification.
 
-\item {} 
-The name of the database file (produced by mbg-infer) to be used to generate the
+\item The name of the module containing the model specification.
+
+\item The name of the database file (produced by mbg-infer) to be used to generate the
 maps. If you do not want it to go in the current directory, specify a path.
 
-\item {} 
-The number of burnin iterations to discard from the trace before making the maps.
+\item The number of burnin iterations to discard from the trace before making the maps.
 You will need to figure this out by inspecting the traces produced by \texttt{mbg-infer}.
 
-\item {} 
-A csv file containing the 'holdout' dataset. It should be in exactly the same format
+\item A csv file containing the 'holdout' dataset. It should be in exactly the same format
 as the third required input to \texttt{mbg-infer}.
-
 \end{list}
 
 
-%___________________________________________________________________________
 
 
-
-\subsubsection{Options}
-\label{sec:id9}
+\subsubsection{Options%
+}
+%
 \begin{itemize}
-\item {} 
-\texttt{-t} or \texttt{-{}-thin} : The factor by which to thin the MCMC trace stored in the database.
+
+\item \texttt{-t} or \texttt{-{}-thin} : The factor by which to thin the MCMC trace stored in the database.
 Small values are good but slow. 1 is best.
 
-\item {} 
-\texttt{-i} or \texttt{-{}-iter} : The total number of predictive samples you want to generate. Large
+\item \texttt{-i} or \texttt{-{}-iter} : The total number of predictive samples you want to generate. Large
 values are good but slow. Defaults to 20000.
 
 \end{itemize}
 
 
-%___________________________________________________________________________
 
 
-
-\subsection{\texttt{mbg-scalar-priors}}
-\label{sec:mbg-scalar-priors}
+\subsection{\texttt{mbg-scalar-priors}%
+}
+%
 \begin{quote}{\ttfamily \raggedright \noindent
 mbg-scalar-priors~module~{[}options{]}
-}\end{quote}
+}
+\end{quote}
 
 
-%___________________________________________________________________________
 
 
-
-\subsubsection{Required arguments}
-\label{sec:id10}
+\subsubsection{Required arguments%
+}
 \setcounter{listcnt0}{0}
 \begin{list}{\arabic{listcnt0}.}
 {
 \usecounter{listcnt0}
 \setlength{\rightmargin}{\leftmargin}
 }
-\item {} 
-The name of the module containing the model specification.
 
+\item The name of the module containing the model specification.
 \end{list}
 
 
-%___________________________________________________________________________
 
 
-
-\subsubsection{Options}
-\label{sec:id11}
+\subsubsection{Options%
+}
+%
 \begin{itemize}
-\item {} 
-\texttt{-i} or \texttt{-{}-iter} : The total number of predictive samples you want to generate. Large
+
+\item \texttt{-i} or \texttt{-{}-iter} : The total number of predictive samples you want to generate. Large
 values are good but slow. Defaults to 20000.
 
 \end{itemize}
 
 
-%___________________________________________________________________________
 
 
-
-\subsection{\texttt{mbg-realize-prior}}
-\label{sec:mbg-realize-prior}
+\subsection{\texttt{mbg-realize-prior}%
+}
+%
 \begin{quote}{\ttfamily \raggedright \noindent
 mbg-realize-prior~module~ascii0.asc~ascii1.asc~...~{[}options{]}
-}\end{quote}
+}
+\end{quote}
 
 mbg-realize-prior produces a number of prior realizations of the target surface (eg parasite
 rate, gene frequency, etc). on several different asciis. Joint or 'conditional' simulations
@@ -541,44 +431,36 @@ NOTE: All the parameters of the model will be drawn from the prior before genera
 realization. If you want to fix a variable, you must set its \texttt{observed} flag.
 
 
-%___________________________________________________________________________
 
 
-
-\subsubsection{Required arguments}
-\label{sec:id12}
+\subsubsection{Required arguments%
+}
 \setcounter{listcnt0}{0}
 \begin{list}{\arabic{listcnt0}.}
 {
 \usecounter{listcnt0}
 \setlength{\rightmargin}{\leftmargin}
 }
-\item {} 
-The name of the module containing the model specification.
 
-\item {} 
-Several ascii files. Realizations will be evaluated on the union of the unmasked regions
+\item The name of the module containing the model specification.
+
+\item Several ascii files. Realizations will be evaluated on the union of the unmasked regions
 of these files.
-
 \end{list}
 
 
-%___________________________________________________________________________
 
 
-
-\subsubsection{Options}
-\label{sec:id13}
+\subsubsection{Options%
+}
+%
 \begin{itemize}
-\item {} 
-\texttt{-n} or \texttt{-{}-n-realizations} : The number of realizations to generate. Defaults to 5.
 
-\item {} 
-\texttt{-m} or \texttt{-{}-mean} : The value of the global mean to use. Defaults to 0.
+\item \texttt{-n} or \texttt{-{}-n-realizations} : The number of realizations to generate. Defaults to 5.
 
-\item {} 
-\texttt{-y} or \texttt{-year} : If your model is spatiotemporal, you must provide the decimal year at
+\item \texttt{-m} or \texttt{-{}-mean} : The value of the global mean to use. Defaults to 0.
+
+\item \texttt{-y} or \texttt{-year} : If your model is spatiotemporal, you must provide the decimal year at
 which you want your realizations produced. For example, Jan 1 2008 would be \texttt{-y 2008}.
 
 \end{itemize}
-

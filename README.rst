@@ -8,20 +8,31 @@
 The generic MBG package allows us to write PyMC probability models for each 
 project that works with some kind of spatial GLM, then turn the model over 
 to the project team for testing, fitting, mapping and experimentation using 
-three easy shell commands:
+a few easy shell commands:
 
 * ``mbg-infer`` runs the MCMC algorithm using the given model & an input dataset,
   stored in a csv file, and stores the traces in an HDF5 archive.
 
-* ``mbg-map`` takes the HDF5 archive produced by mbg-infer, and an ASCII file with
-  a MISSING entry in its header. Produces a set of bespoke summary maps on the grid
-  expressed by the ASCII header. The missing pixels are missing in the output also.
+* ``mbg-map`` takes the HDF5 archive produced by mbg-infer, and a raster with
+  some pixels missing. Produces a set of bespoke summary maps of each predicted
+  quantity that match the raster in terms of grid, missingness pattern and file 
+  format. 
+  
+* ``mbg-3dmap`` takes the HDF5 archive produced by mbg-infer, and a raster with
+  some pixels missing. Outputs the full probability density function of each
+  predicted quantity over a thinned version of the raster, and stores it under 
+  compression in HDF5 format. This file can be opened and examined graphically 
+  using MayaVI.
   
 * ``mbg-validate`` takes the HDF5 archive produced by mbg-infer and a 'holdout'
   dataset, stored in a csv file, and creates a set of predictive samples at the
   holdout locations and some validation plots.
   
 * ``mbg-decluster`` partitions a CSV datafile into 'kept' and 'holdout' portions.
+
+* ``mbg-describe-tracefile`` examines an HDF5 archive produced by mbg-infer, and
+  tells you when it was produced, which versions of the code were used, how many
+  iterations it contains and what the input data were.
   
 If the project's members are interested in changing the model or specifying a
 subjective prior, there are two additional shell commands available to help:
@@ -95,10 +106,10 @@ Options
 * ``-i`` or ``--iter`` : The number of MCMC iterations to perform. Large values are good
   but slow.
 
-* ``-n`` or ``-ncpus`` : The maximum number of CPU cores to make available to the MCMC 
-  algorithm. Should be less than or equal to the number of cores in your computer. The 
-  All the cores you make available may not be utilized. Use top or the Activity Monitor
-  to monitor your actual CPU usage. Large values are good but tie up more of your computer.
+.. * ``-n`` or ``-ncpus`` : The maximum number of CPU cores to make available to the MCMC 
+..   algorithm. Should be less than or equal to the number of cores in your computer. The 
+..   All the cores you make available may not be utilized. Use top or the Activity Monitor
+..   to monitor your actual CPU usage. Large values are good but tie up more of your computer.
 
 ``mbg-describe-tracefile``
 ==========================
@@ -191,8 +202,8 @@ Options
     mbg-map module database-file burn mask [options]
 
 Produces a folder called ``name-maps`` where ``name`` is the name of the database file.
-Puts the requested maps in the folder in ascii format. Also produces PDF images of all
-the requested maps for quick viewing.
+Puts the requested maps in the folder in format matching the mask. Also produces PDF 
+images of all the requested maps for quick viewing.
 
 Required arguments
 ------------------
@@ -205,9 +216,9 @@ Required arguments
 3. The number of burnin iterations to discard from the trace before making the maps.
    You will need to figure this out by inspecting the traces produced by ``mbg-infer``.
    
-4. The name of an ASCII file. The maps will be produced in ASCII files with identical
-   headers and identical MISSING pixels. If the file is in a different directory, specify
-   the path to it.
+4. The name of a raster, without extension. The maps will be produced in raster files
+   in the same format, on identical grids, with identical missing pixels. If the file 
+   is in a different directory, specify the path to it.
 
 Options
 -------
@@ -225,15 +236,6 @@ Options
   ``'0.25 0.5 0.75'`` would map the lower and upper quartiles and the medial. Default is 
   ``'0.05 0.25 0.5 0.75 0.95'``.
 
-* ``-r`` or ``--raster-thin`` : If you just want a quick preview, you can use this option to 
-  render the maps on a degraded grid, then interpolate back to the original grid using splines. 
-  For instance, if your input ASCII is on a 5km grid, and you use ``-r 5``, the maps will be 
-  rendered on a 25km grid, then interpolated back to a 5km grid when it is time to produce 
-  the output ASCIIs. Small values are good but slow. 1 is best.
-  
-  WARNING: The ``raster_thin`` argument has been implicated in some odd-looking results and 
-  should only be used for quick previews.
-
 * ``-t`` or ``--thin`` : The factor by which to thin the MCMC trace stored in the database.
   If you use ``-t 10``, only every 10th stored MCMC iteration will be used to produce the maps.
   Small values are good but slow. 1 is best.
@@ -241,16 +243,80 @@ Options
 * ``-i`` or ``--iter`` : The total number of predictive samples to use in generating the maps.
   Large values are good but slow. Defaults to 20000.
 
-* ``-a`` or ``--ascii-path`` : The path to the ASCII files containing the covariate rasters.
-  These files' headers must match those of the input raster, and their missing pixels must match
+* ``-p`` or ``--raster-path`` : The path to the files containing the covariate rasters. These 
+  files' headers must match those of the input raster, and their missing pixels must match
   those of the input raster also. There must be a file corresponding to every covariate column
   in input 3 of mbg-infer. For example, if you used ``rain`` and ``ndvi`` as your column headers,
-  files ``rain.asc`` and ``ndvi.asc`` in the ascii path should be present in the ascii path.
+  files ``rain.asc`` and ``ndvi.flt`` and ``temp.hdf5`` should be present in the raster path. 
   Defaults to the current working directory.
 
 * ``-y`` or ``--year`` : If your model is spatiotemporal, you must provide the decimal year at 
   which you want your map produced. For example, Jan 1 2008 would be ``-y 2008``.
 
+
+``mbg-3dmap``
+===========
+::
+
+    mbg-3dmap module database-file burn mask [options]
+
+Produces a folder called ``name-3dmaps`` where ``name`` is the name of the database file.
+Puts a HDF5 file- containing the probability density field of the output of each function
+in the specializing module's ``map_postproc`` list in the folder. This data can be examined 
+interactively using MayaVI. File ``display_3dmap.py``, included with the package, provides 
+a template for scene generation.
+
+Required arguments
+------------------
+
+1. The name of the module containing the model specification.
+
+2. The name of the database file (produced by mbg-infer) to be used to generate the 
+   maps. If you do not want it to go in the current directory, specify a path.
+
+3. The number of burnin iterations to discard from the trace before making the maps.
+   You will need to figure this out by inspecting the traces produced by ``mbg-infer``.
+
+4. The name of a raster, without extension. The maps will be produced in raster files
+   in the same format, on identical grids, with identical missing pixels. If the file 
+   is in a different directory, specify the path to it.
+
+Options
+-------
+
+* ``-n`` or ``--n-bins`` : The number of bins to use in the histogram from which quantiles
+  are computed. Large values are good, but use up more system memory. Decrease this if you
+  see memory errors.
+
+* ``-b`` or ``--bufsize`` : The number of buffer pixels to render around the edges of the
+  continents. Set to zero unless the ``raster-thin`` option is greater than 1. The buffer
+  will not be very good. In general, if you want a buffer you're better off making your 
+  own in ArcView rather than using this option.
+
+* ``-q`` or ``--quantiles`` : A string containing the quantiles you want. For example,
+  ``'0.25 0.5 0.75'`` would map the lower and upper quartiles and the medial. Default is 
+  ``'0.05 0.25 0.5 0.75 0.95'``.
+
+* ``-t`` or ``--thin`` : The factor by which to thin the MCMC trace stored in the database.
+  If you use ``-t 10``, only every 10th stored MCMC iteration will be used to produce the maps.
+  Small values are good but slow. 1 is best.
+  
+* ``-r`` or ``--raster-thin``: The 3d data cube takes up much more disk space and memory than
+  the scalar maps. You might need to degrade the input raster to lower resolution. A value of
+  10 means that the 3d maps will have 1/10 the spatial resolution of the input raster.
+
+* ``-i`` or ``--iter`` : The total number of predictive samples to use in generating the maps.
+  Large values are good but slow. Defaults to 20000.
+
+* ``-p`` or ``--raster-path`` : The path to the files containing the covariate rasters. These 
+  files' headers must match those of the input raster, and their missing pixels must match
+  those of the input raster also. There must be a file corresponding to every covariate column
+  in input 3 of mbg-infer. For example, if you used ``rain`` and ``ndvi`` as your column headers,
+  files ``rain.asc`` and ``ndvi.flt`` and ``temp.hdf5`` should be present in the raster path. 
+  Defaults to the current working directory.
+
+* ``-y`` or ``--year`` : If your model is spatiotemporal, you must provide the decimal year at 
+  which you want your map produced. For example, Jan 1 2008 would be ``-y 2008``.
 
 ``mbg-validate``
 ================
