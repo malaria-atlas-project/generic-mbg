@@ -306,6 +306,92 @@ which you want your map produced. For example, Jan 1 2008 would be \texttt{-y 20
 
 
 
+\subsection{\texttt{mbg-3dmap}%
+}
+%
+\begin{quote}{\ttfamily \raggedright \noindent
+mbg-3dmap~module~database-file~burn~mask~{[}options{]}
+}
+\end{quote}
+
+Produces a folder called \texttt{name-3dmaps} where \texttt{name} is the name of the database file.
+Puts a HDF5 file- containing the probability density field of the output of each function
+in the specializing module's \texttt{map\_postproc} list in the folder. This data can be examined
+interactively using MayaVI. File \texttt{display\_3dmap.py}, included with the package, provides
+a template for scene generation.
+
+
+
+
+\subsubsection{Required arguments%
+}
+\setcounter{listcnt0}{0}
+\begin{list}{\arabic{listcnt0}.}
+{
+\usecounter{listcnt0}
+\setlength{\rightmargin}{\leftmargin}
+}
+
+\item The name of the module containing the model specification.
+
+\item The name of the database file (produced by mbg-infer) to be used to generate the
+maps. If you do not want it to go in the current directory, specify a path.
+
+\item The number of burnin iterations to discard from the trace before making the maps.
+You will need to figure this out by inspecting the traces produced by \texttt{mbg-infer}.
+
+\item The name of a raster, without extension. The maps will be produced in raster files
+in the same format, on identical grids, with identical missing pixels. If the file
+is in a different directory, specify the path to it.
+\end{list}
+
+
+
+
+\subsubsection{Options%
+}
+%
+\begin{itemize}
+
+\item \texttt{-n} or \texttt{-{}-n-bins} : The number of bins to use in the histogram from which quantiles
+are computed. Large values are good, but use up more system memory. Decrease this if you
+see memory errors.
+
+\item \texttt{-b} or \texttt{-{}-bufsize} : The number of buffer pixels to render around the edges of the
+continents. Set to zero unless the \texttt{raster-thin} option is greater than 1. The buffer
+will not be very good. In general, if you want a buffer you're better off making your
+own in ArcView rather than using this option.
+
+\item \texttt{-q} or \texttt{-{}-quantiles} : A string containing the quantiles you want. For example,
+\texttt{'0.25 0.5 0.75'} would map the lower and upper quartiles and the medial. Default is
+\texttt{'0.05 0.25 0.5 0.75 0.95'}.
+
+\item \texttt{-t} or \texttt{-{}-thin} : The factor by which to thin the MCMC trace stored in the database.
+If you use \texttt{-t 10}, only every 10th stored MCMC iteration will be used to produce the maps.
+Small values are good but slow. 1 is best.
+
+\item \texttt{-r} or \texttt{-{}-raster-thin}: The 3d data cube takes up much more disk space and memory than
+the scalar maps. You might need to degrade the input raster to lower resolution. A value of
+10 means that the 3d maps will have 1/10 the spatial resolution of the input raster.
+
+\item \texttt{-i} or \texttt{-{}-iter} : The total number of predictive samples to use in generating the maps.
+Large values are good but slow. Defaults to 20000.
+
+\item \texttt{-p} or \texttt{-{}-raster-path} : The path to the files containing the covariate rasters. These
+files' headers must match those of the input raster, and their missing pixels must match
+those of the input raster also. There must be a file corresponding to every covariate column
+in input 3 of mbg-infer. For example, if you used \texttt{rain} and \texttt{ndvi} as your column headers,
+files \texttt{rain.asc} and \texttt{ndvi.flt} and \texttt{temp.hdf5} should be present in the raster path.
+Defaults to the current working directory.
+
+\item \texttt{-y} or \texttt{-{}-year} : If your model is spatiotemporal, you must provide the decimal year at
+which you want your map produced. For example, Jan 1 2008 would be \texttt{-y 2008}.
+
+\end{itemize}
+
+
+
+
 \subsection{\texttt{mbg-validate}%
 }
 %

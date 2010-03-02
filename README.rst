@@ -255,7 +255,7 @@ Options
 
 
 ``mbg-3dmap``
-===========
+=============
 ::
 
     mbg-3dmap module database-file burn mask [options]
