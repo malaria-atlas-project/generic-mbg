@@ -206,19 +206,11 @@ The map postprocessing function can take additional arguments corresponding to t
 Note that the GP submodel arguments are understood to be per-pixel realizations on the prediction grid with nugget variance incorporated.
 
 \subsubsection{Postprocessing for validation} 
-When validating, the postprocessing function may need to take into account some aspects of the held-out dataset. For that reason, the functions in \texttt{validate\_postproc} must take keyword arguments corresponding to the non-covariate columns. They should return functions with the same calling conventions as those in \texttt{map\_postproc}: they should take the GP submodels, and optionally some variables in the model, as arguments. The shell command \texttt{mbg-validate} will read the non-covariate columns from the held-out datasheet, pass them into \texttt{validate\_postproc}, and use the returned function to convert the Gaussian field realizations to predictions. 
+The \texttt{generic-mbg} validation schema is to choose one or more summaries of the data that can be considered the results of binomial trials, and to compare the model's prediction of the outcomes of these trials given a subset of the data to the observed outcomes in the rest of the data. The specialization package must expose a list of functions called \texttt{validate\_postproc} that define these summaries. 
 
-Each function in mbg-validate should return two arrays: predicted values and observed values on the held-out locations. For example:
-\begin{verbatim}
-    def prevalence_comparison(pos, neg):
-        return f_(S, a1, a2):
-            predicted = generic_mbg.stukel_invlogit(S, a1, a2)
-            observed = pos.astype('float')/(pos+neg)
-            return predicted, observed
-        return f_
-    validate_postproc = [prevalence_comparison]
-\end{verbatim}
-As with \texttt{map\_postproc}, the GP submodel arguments received will be per-pixel realizations on the held-out locations with nugget variance incorporated.
+The validation trials may depend on some aspects of the held-out dataset, for example the ages of the survey participants. For that reason, each of the functions in \texttt{validate\_postproc} must take a single argument, which is the held-out dataset represented as a record array. Each should return three values: the `number successful', the `number of attempts', and a function. The function should have the same calling conventions as those in \texttt{map\_postproc}: it should take the GP submodels, and optionally some variables in the model, as arguments. It should return a predictive sample for the `number successful' given the values of the model variables. 
+
+The shell command \texttt{mbg-validate} will read the non-covariate columns from the held-out datasheet, pass them into \texttt{validate\_postproc}, and use the returned function to convert the Gaussian field realizations to predictions. As with \texttt{map\_postproc}, the GP submodel arguments received will be per-pixel realizations on the held-out locations with nugget variance incorporated.
 
 \subsection{Initializing the MCMC object}
 \label{sub:mcmc-init} 
