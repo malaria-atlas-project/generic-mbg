@@ -214,7 +214,7 @@ def sample_reduce(sofar, next):
         
 def sample_finalize(prod, n):
     """Converts accumulated samples to an array for output."""
-    return np.array(prod[sample_reduce])
+    return {'samples': np.array(prod[sample_reduce])}
 
 def histogram_reduce(bins, binfn):
     """Produces an accumulator to be used with hdf5_to_samps"""

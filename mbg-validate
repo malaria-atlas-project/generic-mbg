@@ -16,8 +16,6 @@
 
 from optparse import OptionParser
 
-raise NotImplementedError, 'This has not been ported to the PyMC 2.1 branch yet.'
-
 # Create option parser
 
 req_doc = """
@@ -51,10 +49,8 @@ p.set_defaults(total=20000)
 if len(args) != 4:
     raise ValueError, 'You must supply exactly four positional arguments. You supplied %i.'%len(args)
 
-o.module, o.hf_name, o.burn, o.pred_input = args
+o.module, o.hf_name, o.burn, o.input_name = args
 o.burn = int(o.burn)
-
-
 
 import matplotlib
 matplotlib.use('PDF')
@@ -77,25 +73,11 @@ mod_basename, mod_ext = os.path.splitext(mod_name)
 mod_search_path = [mod_path, os.getcwd()] + sys.path
 mod = imp.load_module(mod_basename, *imp.find_module(mod_basename, mod_search_path))
 
-for n in ['f_name', 'nugget_name', 'f_has_nugget','x_name']:
-    try:
-        exec("%s=getattr(mod,'%s')"%(n,n))
-    except:
-        cls,inst,tb = sys.exc_info()
-        new_inst = cls('Could not import %s from %s. Tell Anand. Original error message:\n\n\t%s'%(n,mod_name,inst.message))
-        raise cls,new_inst,tb
-        
-if hasattr(mod, 'validate_postproc'):
-    postproc = mod.validate_postproc
-elif hasattr(mod, 'postproc'):
-    postproc = mod.postproc
-else:
-    raise ValueError, 'Module %s lacks the postproc attribute. Tell Anand.'%mod
-
 
 # Parse input file
+input = csv2rec(file(o.input_name,'U'))
+mod.check_data(input)
 
-input = csv2rec(file(o.pred_input,'U'))
 from numpy.ma import mrecords
 if isinstance(input, np.ma.mrecords.MaskedRecords):
     msg = 'Error, could not parse input at following rows:\n'
@@ -121,37 +103,40 @@ non_cov_colnames = non_cov_coltypes.keys()
 
 covariate_dict = {}
 for n in input.dtype.names:
-    if n not in ['lon','lat','t','pos','neg']:
+    if n not in ['lon','lat','t']:
         if n in non_cov_colnames:
             non_cov_columns[n] = maybe_convert(input, n, non_cov_coltypes[n])
         else:
             covariate_dict[n]=maybe_convert(input, n, 'float')
 
 
-# Create predictive locations and open hdf5 archive
+# Initialize model using preexisting DB
+M = create_model(mod, pm.database.hdf5.load(o.hf_name))
+hf = M.db._h5file
+nuggets = dict([(getattr(M,k),getattr(M,v)) for k,v in mod.nugget_labels.iteritems()])
 
-hf = tb.openFile(o.hf_name)
 
+# Sort out the observed values and the postprocessing functions
+if np.iterable(mod.validate_postproc):
+    postproc_fns = mod.validate_postproc
+else:
+    postproc_fns = [mod.validate_postproc]
 
-# Create predictive samples
-
-# FIXME: Make this more generic, so that it works with non-binomial likelihoods.
-pos = maybe_convert(input, 'pos', 'float')
-neg = maybe_convert(input, 'neg', 'float')
-n_sampled = pos+neg
-if np.any(n_sampled==0):
-    where_zero = np.where(n_sampled==0)[0]
-    raise ValueError, 'Pos+neg = 0 in the rows (starting from zero):\n %s'%where_zero
+vp = []
+obs = []
+n = []
+for postproc_fn in postproc_fns:
+    obs_, n_, vp_ = postproc_fn(input)
+    obs.append(obs_)
+    n.append(n_)
+    vp_.__name__ = postproc_fn.__name__
+    vp.append(vp_)
 
 t1 = time.time()
-# (hf, x, burn, thin, total, fns, f_labels, fs_have_nugget, x_label, nugget_labels, M_labels, C_labels, pred_cv_dicts, postproc, diags_safe, finalize=None, **non_cov_columns)
-p_samples = hdf5_to_samps(hf,x,o.burn,o.thin,o.total,[sample_reduce],f_name,f_has_nugget,x_name,covariate_dict,nugget_name,postproc,sample_finalize,**non_cov_columns).T
-n_samples = np.array([pm.rbinomial(n_sampled[i], p_samples[:,i]) for i in xrange(len(n_sampled))])
+products = hdf5_to_samps(M,x,nuggets,o.burn,o.thin,o.total,[sample_reduce], vp, covariate_dict, sample_finalize)
 print '\nPredictive samples drawn in %f seconds\n'%(time.time() - t1)
 
-
 # Write out
-
 hf_path, hf_basename  = os.path.split(o.hf_name)
 base_outname = os.path.splitext(hf_basename)[0]
 val_dir = os.path.join(hf_path, base_outname+'-validation')
@@ -160,38 +145,35 @@ try:
 except OSError:
     pass
 os.chdir(val_dir)
+samps_h5file = tb.openFile(base_outname+'-validation-samples.hdf5', 'w')
 
-# Mean errors
-errors = np.rec.fromarrays([np.empty(len(input)) for i in (0,1,2)], names='mean error,mean abs error,RMS error')
-for i in xrange(len(input)):
-
-    p_obs = pos[i]/float(neg[i])
-    dev = n_samples[i]/float(n_sampled[i]) - p_obs
-
-    pl.clf()
-    pdf, bins, patches = pl.hist(p_samples[i], 50, normed=True,facecolor='.3')
-    yext = pdf.max()
-    pl.plot([p_obs,p_obs],[0,yext],'k-.',label='Observed frequency')
-    pl.legend(loc=0)
-    pl.xlabel('Frequency')
-    pl.ylabel('Predictive density')
-    pl.savefig('%i.pdf'%i)    
+# Record observed values
+samps_h5file.createTable('/','observed',np.rec.fromarrays(obs, names=','.join([f.__name__ for f in vp])))
+samps_h5file.createGroup('/','predicted')
+for f, obs_, n_ in zip(vp, obs, n):
     
-    errors['mean error'][i] = np.mean(dev)
-    errors['mean abs error'][i] = np.mean(np.abs(dev))
-    errors['RMS error'][i] = np.sqrt(np.mean(dev**2))
-
-for k,v in [('p_samples',p_samples),('n_samples',n_samples)]:
-    tb.openFile(k,'w').createCArray('/','samples',
-                        tb.Float32Atom(), 
-                        shape = v.shape, 
-                        filters=tb.Filters(complevel=1))[:] = v[:]
+    # Record raw predicted samples
+    samps = products[f]['samples']
+    samps_h5file.createCArray('/predicted',f.__name__,tb.FloatAtom(),samps.shape,filters=tb.Filters(complevel=1,complib='zlib'))[:]=samps
     
-pl.rec2csv(errors,'mean-errors.csv')
+    n_ = np.asarray(n_).astype('float')
+    
+    errors = np.rec.fromarrays([np.empty(len(input)) for i in (0,1,2)], names='mean error,mean abs error,RMS error')
 
-for f in validation_fns:
-    print 'Generating plot of %s'%f.__name__
-    pl.clf()
-    res=f(p_samples.T, n_samples.T, pos, neg)
-    pl.savefig(f.__name__ + '.pdf', transparent=True)
-    pl.rec2csv(res,f.__name__+'.csv')
+    for i in xrange(len(input)):
+        
+        obs_frequency = obs_[i] / n_[i]
+        frequency_dev = samps[i] / n_[i] - obs_frequency
+
+        errors['mean error'][i] = np.mean(frequency_dev)
+        errors['mean abs error'][i] = np.mean(np.abs(frequency_dev))
+        errors['RMS error'][i] = np.sqrt(np.mean(frequency_dev**2))
+    
+    pl.rec2csv(errors,'mean-errors.csv')
+
+    for vf in validation_fns:
+        print 'Generating plot of %s'%f.__name__
+        pl.clf()
+        res=vf((samps/n_), samps, obs_, n_-obs_)
+        pl.savefig(f.__name__+'-'+vf.__name__ + '.pdf', transparent=True)
+        pl.rec2csv(res,f.__name__+'-'+vf.__name__+'.csv')

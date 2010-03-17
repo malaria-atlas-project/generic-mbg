@@ -168,7 +168,7 @@ if np.iterable(mod.map_postproc):
     mp = mod.map_postproc
 else:
     mp = [mod.map_postproc]
-products = hdf5_to_samps(M,x,nuggets,o.burn,o.thin,o.total,reduce_fns + extra_reduce_fns, mod.map_postproc, covariate_dict, finalize)
+products = hdf5_to_samps(M,x,nuggets,o.burn,o.thin,o.total,reduce_fns + extra_reduce_fns, mp, covariate_dict, finalize)
 print '\nMaps produced in %f seconds\n'%(time.time() - t_start)
 
 

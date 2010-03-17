@@ -77,8 +77,8 @@ def scatter(p_samps, n_samps, pos, neg):
     urc = max(p_obs.max(),p_pred.max())*1.1
     
     pl.plot([0,urc],[0,urc],'k-.')
-    pl.xlabel('Observed fraction positive')
-    pl.ylabel('Expected fraction positive')
+    pl.xlabel('Observed frequency')
+    pl.ylabel('Expected freuency')
     pl.axis([0,urc,0,urc])
     
     return np.rec.fromarrays((p_pred,p_obs),names='predicted-pos-frac,observed-pos-frac')
