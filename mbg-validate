@@ -172,7 +172,7 @@ for f, obs_, n_ in zip(vp, obs, n):
     pl.rec2csv(errors,'mean-errors.csv')
 
     for vf in validation_fns:
-        print 'Generating plot of %s'%f.__name__
+        print 'Generating plot of %s for %s'%(vf.__name__, f.__name__)
         pl.clf()
         res=vf((samps/n_), samps, obs_, n_-obs_)
         pl.savefig(f.__name__+'-'+vf.__name__ + '.pdf', transparent=True)

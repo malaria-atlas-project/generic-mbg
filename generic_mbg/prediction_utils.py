@@ -282,7 +282,11 @@ def hdf5_to_samps(M, x, nuggets, burn, thin, total, fns, postprocs, pred_covaria
     for postproc in postprocs:
         products[postproc] = dict(zip(fns, [None]*len(fns)))
         # Inspect postprocs for extra arguments
-        postproc_args[postproc] = inspect.getargspec(postproc)[0]
+        argspec = inspect.getargspec(postproc)
+        args = argspec.args
+        if argspec.defaults is not None:
+            args = args[:-len(argspec.defaults)]
+        postproc_args[postproc] = argspec.args[:-len]
         extra_postproc_args[postproc] = set(postproc_args[postproc]) - set(f_labels)
         
     iter = np.arange(burn,all_chain_len(hf),thin)
