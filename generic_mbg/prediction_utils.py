@@ -287,8 +287,8 @@ def hdf5_to_samps(M, x, nuggets, burn, thin, total, fns, postprocs, pred_covaria
         if argspec.defaults is None:
             postproc_args[postproc] = args
         else:
-            required_args = args[:-len(defaults)]
-            optional_args = filter(lambda k, M=M: hasattr(M,k), args[-len(defaults):])
+            required_args = args[:-len(argspec.defaults)]
+            optional_args = filter(lambda k, M=M: hasattr(M,k), args[-len(argspec.defaults):])
             postproc_args[postproc] = required_args+optional_args
         extra_postproc_args[postproc] = set(postproc_args[postproc]) - set(f_labels)
         
