@@ -164,7 +164,7 @@ def raster_to_vals(name, path='.', thin=1, unmasked=None):
             pl.clf()
             pl.plot(lon[where_mismatch[0]],lat[where_mismatch[1]],'k.',markersize=2)
             pl.savefig('mismatch.pdf')
-            msg = '%s: mask does not match input mask at the following pixels (in decimal degrees):\n'%fname
+            msg = '%s: mask does not match input mask at the following pixels (in decimal degrees):\n'%name
             for i,j in zip(*where_mismatch):
                 msg += "\t%f, %f\n"%(lon[i],lat[j])
             msg += 'Image of mismatched points saved as mismatch.pdf'
