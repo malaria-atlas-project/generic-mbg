@@ -176,6 +176,6 @@ for f, obs_, n_ in zip(vp, obs, n):
     for vf in validation_fns:
         print 'Generating plot of %s for %s'%(vf.__name__, f.__name__)
         pl.clf()
-        res=vf((samps/n_), samps, obs_, n_-obs_)
+        res=vf((samps.T/n_).T, samps, obs_, n_-obs_)
         pl.savefig(f.__name__+'-'+vf.__name__ + '.pdf', transparent=True)
         pl.rec2csv(res,f.__name__+'-'+vf.__name__+'.csv')
