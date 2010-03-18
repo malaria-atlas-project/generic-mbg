@@ -153,7 +153,9 @@ samps_h5file.createGroup('/','predicted')
 for f, obs_, n_ in zip(vp, obs, n):
     
     # Record raw predicted samples
-    samps = products[f]['samples']
+    samps = products[f]['samples'].T
+    if samps.shape[0] != (len(n_)):
+        raise ValueError, 'Samps is wrong shape'
     samps_h5file.createCArray('/predicted',f.__name__,tb.FloatAtom(),samps.shape,filters=tb.Filters(complevel=1,complib='zlib'))[:]=samps
     
     n_ = np.asarray(n_).astype('float')
