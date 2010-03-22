@@ -277,86 +277,33 @@ class CovarianceWithCovariates(object):
             C = Cbase
         return C
 
-def sample_covariates(covariate_dict, C_eval, d):
+def sample_covariate_values(s):
     """
-    Samples covariates back in when they have been marginalized away.
-        - covariate_dict : {name : value-on-input, prior-variance}
-        - M_eval : array. Probably zeros, unless you did something fancy in the mean.
-        - C_eval : covariance of d | covariates, m
-        - d : current deviation from mean of covariates' immediate child.
+    Draws a sample from the full conditional distribution of the covariate 
+    coefficients integrated out into a CovarianceWithCovariates instance.
     """
-    raise NotImplementedError, 'This has not been ported to PyMC 2.1 yet.'
+    f = s.f_eval.value
+    M = s.M_eval.value
+    C = s.C.value
+    C_eval = s.C_eval.value
+    mesh = s.mesh
     
-    # Extract keys to list to preserve order.
-    n = covariate_dict.keys()
+    if not isinstance(C.eval_fun, CovarianceWithCovariates):
+        raise TypeError, 'Argument C must be a CovarianceWithCovariates instance.'
+    delta = f-M
+    privar = C.eval_fun.privar
+    m = C.eval_fun.m
+    vars = C.eval_fun.evaluators.keys()
+    x = np.array([C.eval_fun.evaluators[k](mesh[:,:2]) for k in vars])
+    xV = x.T*privar
+    xVxT = np.dot(x.T,xV.T)
     
-    cvv = [covariate_dict[k] for k in n]
-    x = np.asarray([v[0] for v in cvv])
-    prior_var = np.diag([v[1] for v in cvv])
+    delta_S = np.linalg.cholesky(np.asarray(C_eval) + xVxT)
+    offdiag = pm.gp.trisolve(delta_S, xV, uplo='L', transa='N')
+    delta_S_delta = pm.gp.trisolve(delta_S, delta, uplo='L', transa='N')
     
-    prior_offdiag = np.dot(prior_var,x).T
-    prior_S = np.linalg.cholesky(np.asarray(C_eval) + np.dot(prior_offdiag, x))
-    pm.gp.trisolve(prior_S, prior_offdiag, uplo='L', transa='N', inplace=True)
-    post_C = prior_var - np.dot(prior_offdiag.T, prior_offdiag)
-    post_mean = np.dot(prior_offdiag.T, pm.gp.trisolve(prior_S, d, uplo='L', transa='N'))
+    post_M = np.dot(offdiag.T, delta_S_delta)
+    post_C = np.diag(privar)-np.dot(offdiag.T,offdiag)
+    val = pm.rmv_normal_cov(post_M, post_C)
     
-    new_val = pm.rmv_normal_cov(post_mean, post_C).squeeze()
-
-    return dict(zip(n, new_val))
-
-def get_d_C_eval(hf, f_label, nugget_label, i, mesh):
-    """Utility fn"""
-    if type(f_label) == type('str'):
-        d = all_chain_getitem(hf, f_label, i, vl=False)
-    else:
-        d = f_label
-
-    C = all_chain_getitem(hf, 'C', i, vl=True)
-    if nugget_label is not None:
-        nug = all_chain_getitem(hf, nugget_label, i, vl=False)
-
-    C_eval = C(mesh, mesh) + nug*np.eye(np.sum(mesh.shape[:-1]))
-    return d, C_eval
-
-def covariate_trace(hf, f_label, nugget_label=None, burn=0, thin=1):
-    """
-    Produces a covariate trace from an existing hdf5 chain.
-        - chain : hdf5 group
-        - meta : hdf5 group
-        - f_label : string or array
-        - nugget_label : string
-    """
-    meta = hf.root.metadata
-    
-    covariate_dict = meta.covariates[0]
-
-    out = dict.fromkeys(covariate_dict)
-    for k in out.keys():
-        out[k] = []
-        
-    if nugget_label is None:
-        mesh = meta.logp_mesh[:]
-    else:
-        mesh = meta.data_mesh[:]
-
-    n = all_chain_len(hf)
-    time_count = -np.inf
-    time_start = time.time()
-        
-    for i in xrange(burn,n,thin):
-
-        if time.time() - time_count > 10:
-            print ((i*100)/n), '% complete',
-            time_count = time.time()     
-            if i > 0:       
-                print 'expect results '+time.ctime((time_count-time_start)*n/float(i)+time_start)        
-            else:
-                print
-
-        d, C_eval = get_d_C_eval(hf, f_label, nugget_label, i, mesh)
-        cur_vals = sample_covariates(covariate_dict, C_eval, d)
-
-        for k, v in cur_vals.iteritems():
-            out[k].append(v)
-
-    return dict([(k,np.array(v)) for k,v in out.iteritems()])
+    return dict(zip(vars, val))
