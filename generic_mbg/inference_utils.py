@@ -188,7 +188,7 @@ class CachingCovariateEvaluator(object):
     """
     def __init__(self, mesh, value, shift, scale):
         self.meshes = [mesh]
-        self.values = [(value-shift)/scale]
+        self.values = [((value-shift)/scale).astype('float')]
         if np.any(np.isnan(value)):
             raise ValueError, 'NaN in covariate values'
         self.shift = shift
@@ -199,7 +199,7 @@ class CachingCovariateEvaluator(object):
         # elif len(set(value))==1:
         #     raise ValueError, 'Only one value in covariate. Not going to learn much here.'
         self.meshes.append(mesh)
-        self.values.append((value-self.shift)/self.scale)
+        self.values.append(((value-self.shift)/self.scale).astype('float'))
     def __call__(self, mesh):
         for i,m in enumerate(self.meshes):
             start,stop = subset_eq(m,mesh)
