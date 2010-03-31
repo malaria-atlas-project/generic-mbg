@@ -26,6 +26,7 @@ from histogram_utils import *
 from inference_utils import invlogit, fast_inplace_mul, fast_inplace_square, crossmul_and_sum, CovarianceWithCovariates
 import time
 import os
+import warnings
 import copy
 
 memmax = 2.5e8
@@ -395,7 +396,7 @@ def vec_to_raster(vec, fname, raster_path, out_name, unmasked, path='.'):
         out = np.ma.masked_array(ndimage.map_coordinates(data_thin, mapgrid), mask=data.mask)
         
     if np.any(np.isnan(out)):
-        raise ValueError, 'NaN in output'
+        warnings.warn('NaN in output')
     
     out_conv = grid_convert(out,'x+y+','y-x+')
     
