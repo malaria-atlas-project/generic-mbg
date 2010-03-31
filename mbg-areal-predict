@@ -1,0 +1,56 @@
+# Copyright (C) 2009 Anand Patil
+# 
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
+from optparse import OptionParser
+
+# Create option parser
+req_doc = """
+
+mbg-areal-predict  Copyright (C) 2010 Anand Patil
+This program comes with ABSOLUTELY NO WARRANTY.
+This is free software, and you are welcome to redistribute it under certain conditions.
+See <http://www.gnu.org/licenses/> for the terms of the license.
+
+Samples from the posterior predictive distribution of quantities of the form
+\[
+g(\int_{a_1 \times \tau_1} f_1(s_1\ldots s_n, x, t)\ldots \int_{a_m \times \tau_m} f_m(s_1\ldots s_n, x, t))
+\]
+where the $s$'s are spatial or spatiotemporal random fields, the $a$'s are areas 
+(represented as Shapely geometries), the $\tau$'s are time intervals and the $f$'s 
+are functions. $g$ is also a function. A list of lists of samples from the posterior
+predictive distribution of g is produced.
+
+*NOTE* this won't work for total burden. You would need 
+g(\int_{x \in a_1} f_1(\int_{t \in \tau} h_1(s_1\ldots s_n, x, t)))
+and computing the time interval means the points need to be colocated, varying only 
+in time... not randomly distributed throughout the space-time cube.
+
+
+  module                The module from which maps are to be generated.
+  database-file         The name of the database file produced by the mcmc.
+  burn                  The number of initial MCMC iterations to discard. 
+                        You must provide this argument.
+  parameter_mod         The path to a Python script that contains the f's, a's (as Shapely 
+                        geometries), tau's and g.
+"""
+p = OptionParser('usage: %prog module database-file burn mask [options]' + req_doc)
+p.add_option('-r','--n-reps',help='The number of repetitions to do, for purposes of computing Monte Carlo standard error. Defaults to 5.',dest='n_reps',type='int')
+p.add_option('-p','--n-points',help='The number of spatial points to use for estimating areal integrals. Defaults to 100.',dest='n_points',type='int')
+p.add_option('-s','--n-samples',help="The number of posterior predictive draws to take for each repetition. defaults to 1000.",dest='n_samples',type='int')
+
+p.set_defaults(n_reps=5)
+p.set_defaults(n_points=100)
+p.set_defaults(n_samples=1000)
