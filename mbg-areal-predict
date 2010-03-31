@@ -1,4 +1,4 @@
-# Copyright (C) 2009 Anand Patil
+# Copyright (C) 2010 Anand Patil
 # 
 # This program is free software: you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -33,24 +33,53 @@ where the $s$'s are spatial or spatiotemporal random fields, the $a$'s are areas
 are functions. $g$ is also a function. A list of lists of samples from the posterior
 predictive distribution of g is produced.
 
-*NOTE* this won't work for total burden. You would need 
-g(\int_{x \in a_1} f_1(\int_{t \in \tau} h_1(s_1\ldots s_n, x, t)))
-and computing the time interval means the points need to be colocated, varying only 
-in time... not randomly distributed throughout the space-time cube.
-
 
   module                The module from which maps are to be generated.
   database-file         The name of the database file produced by the mcmc.
   burn                  The number of initial MCMC iterations to discard. 
                         You must provide this argument.
-  parameter_mod         The path to a Python script that contains the f's, a's (as Shapely 
-                        geometries), tau's and g.
 """
 p = OptionParser('usage: %prog module database-file burn mask [options]' + req_doc)
-p.add_option('-r','--n-reps',help='The number of repetitions to do, for purposes of computing Monte Carlo standard error. Defaults to 5.',dest='n_reps',type='int')
-p.add_option('-p','--n-points',help='The number of spatial points to use for estimating areal integrals. Defaults to 100.',dest='n_points',type='int')
-p.add_option('-s','--n-samples',help="The number of posterior predictive draws to take for each repetition. defaults to 1000.",dest='n_samples',type='int')
+p.add_option('-r','--reps',help='The number of repetitions to do, for purposes of computing Monte Carlo standard error. Defaults to 5.',dest='reps',type='int')
+p.add_option('-p','--points',help='The number of spatial points to use for estimating areal integrals. Defaults to 100.',dest='points',type='int')
+p.add_option('-i','--iter',help="The number of posterior predictive draws to take for each repetition. defaults to 1000.",dest='iter',type='int')
+p.add_option('-t','--thin',help='How much to thin the MCMC trace. Defaults to 10.',dest='thin',type='int')
+p.add_option('-w','--weight-raster',help="An optional raster giving relative weights. This can be used if weighted samples will give a better approximation to the integral than multiplying the integrand by the weight.",dest='weight_raster')
+p.add_option('-c','--coordinate-time',help="If 'f', (x,t) samples are distributed randomly in the admin unit X the time interval. If 't', then to each 'x' sample there correspond multiple 't' samples and vice versa. Set this to true if your f's need to take an integral in time (or space), apply a nonlinear transformation, and then take an integral in space (or time).",dest='coordinate_time')
 
-p.set_defaults(n_reps=5)
-p.set_defaults(n_points=100)
-p.set_defaults(n_samples=1000)
+p.set_defaults(reps=5)
+p.set_defaults(points=100)
+p.set_defaults(iter=1000)
+p.set_defaults(weight_raster=None)
+p.set_defaults(coordinate_time='f')
+p.set_defaults(thin=10)
+
+(o, args) = p.parse_args()
+if len(args) != 3:
+    raise ValueError, 'You must supply exactly four positional arguments. You supplied %i.'%len(args)
+
+if o.coordinate_time=='f':
+    o.coordinate_time=False
+elif o.coordinate_time=='t':
+    o.coordinate_time=True
+else:
+    raise ValueError, 'Option --coordinate-time must be True or False.'
+    
+o.module, o.hf_name, o.burn = args
+o.burn = int(o.burn)
+
+import matplotlib
+matplotlib.use('PDF')
+matplotlib.interactive(False)
+
+from map_utils import *
+from generic_mbg import *
+import tables as tb
+import numpy as np
+import os, imp, sys, time
+
+mod_path, mod_name = os.path.split(o.module)
+mod_basename, mod_ext = os.path.splitext(mod_name)
+mod_search_path = [mod_path, os.getcwd()] + sys.path
+mod = imp.load_module(mod_basename, *imp.find_module(mod_basename, mod_search_path))
+
