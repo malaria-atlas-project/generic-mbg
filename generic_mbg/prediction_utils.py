@@ -157,14 +157,9 @@ def raster_to_vals(name, path='.', thin=1, unmasked=None):
     """
     lon,lat,data,type = import_raster(name, path)
     data = grid_convert(data,'y-x+','x+y+')    
-    if unmasked != input_unmasked:
-        if unmasked:
-            raise ValueError, '%s: has missing pixels, but the input raster doesn\'t.'%name
-        else:
-            raise ValueError, '%s: input raster has missing pixels, but this covariate raster doesn\'t.'%name
     if unmasked is not None:
         input_unmasked = True-data[::thin,::thin].mask
-        if not (unmasked == input_unmasked).all():
+        if not np.all(unmasked == input_unmasked):
             where_mismatch = np.where(input_unmasked != unmasked)
             import pylab as pl
             pl.clf()
