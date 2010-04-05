@@ -149,6 +149,75 @@ def st_mean_comp(x, m_const, t_coef):
     lat = x[:,1]
     t = x[:,2]
     return m_const + t_coef * t
+    
+def uniquify_tol(disttol, ttol, *cols):
+    locs = [np.array([col[0] for col in cols])]
+    fi = [0]
+    ui = [0]
+    dx = np.empty(1)
+    for i in xrange(1,len(cols[0])):
+
+        # If repeat location, add observation
+        loc = np.array([col[i] for col in cols])
+        for j in xrange(len(locs)):
+            pm.gp.geo_rad(dx, np.atleast_2d(loc[:2]*np.pi/180.), np.atleast_2d(locs[j][:2]*np.pi/180.))
+            if len(cols)>2:
+                dt = np.abs(loc[2]-locs[j][2])
+            else:
+                dt = 0
+            if dx[0]<=disttol and dt<=ttol:
+                fi.append(j)
+                break
+
+        # Otherwise, new obs
+        else:
+            locs.append(loc)
+            fi.append(max(fi)+1)
+            ui.append(i)
+    fi = np.array(fi)
+    ti = [np.where(fi == i)[0] for i in xrange(max(fi)+1)]
+    ui = np.asarray(ui)
+
+    locs = np.array(locs)
+    if len(cols)==3:
+        data_mesh = combine_st_inputs(*cols)
+        logp_mesh = combine_st_inputs(locs[:,0], locs[:,1], locs[:,2])
+    else:
+        data_mesh = combine_spatial_inputs(*cols)
+        logp_mesh = combine_spatial_inputs(locs[:,0], locs[:,1])
+
+    return data_mesh, logp_mesh, fi, ui, ti
+    
+def uniquify(*cols):
+
+    locs = [tuple([col[0] for col in cols])]
+    fi = [0]
+    ui = [0]
+    for i in xrange(1,len(cols[0])):
+
+        # If repeat location, add observation
+        loc = tuple([col[i] for col in cols])
+        if loc in locs:
+            fi.append(locs.index(loc))
+
+        # Otherwise, new obs
+        else:
+            locs.append(loc)
+            fi.append(max(fi)+1)
+            ui.append(i)
+    fi = np.array(fi)
+    ti = [np.where(fi == i)[0] for i in xrange(max(fi)+1)]
+    ui = np.asarray(ui)
+
+    locs = np.array(locs)
+    if len(cols)==3:
+        data_mesh = combine_st_inputs(*cols)
+        logp_mesh = combine_st_inputs(locs[:,0], locs[:,1], locs[:,2])
+    else:
+        data_mesh = combine_spatial_inputs(*cols)
+        logp_mesh = combine_spatial_inputs(locs[:,0], locs[:,1])
+
+    return data_mesh, logp_mesh, fi, ui, ti
 
 def combine_spatial_inputs(lon,lat):
     # Convert latitude and longitude from degrees to radians.

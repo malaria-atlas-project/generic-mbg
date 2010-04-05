@@ -25,13 +25,12 @@ This is free software, and you are welcome to redistribute it under certain cond
 See <http://www.gnu.org/licenses/> for the terms of the license.
 
 Samples from the posterior predictive distribution of quantities of the form
-\[
-g(\int_{a_1 \times \tau_1} f_1(s_1\ldots s_n, x, t)\ldots \int_{a_m \times \tau_m} f_m(s_1\ldots s_n, x, t))
-\]
+\int_{a_1 \times \tau_1} f(s_1\ldots s_n, x, t)\ldots \int_{a_m \times \tau_m} f(s_1\ldots s_n, x, t)
+
 where the $s$'s are spatial or spatiotemporal random fields, the $a$'s are areas 
-(represented as Shapely geometries), the $\tau$'s are time intervals and the $f$'s 
-are functions. $g$ is also a function. A list of lists of samples from the posterior
-predictive distribution of g is produced.
+(represented as Shapely geometries), the $\tau$'s are time intervals and $f$ is one
+of the functions in map_postproc. A list of lists of samples from the posterior 
+predictive distributions of $f$ is produced for each area/ time interval..
 
 
   module                The module from which maps are to be generated.
