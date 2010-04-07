@@ -245,7 +245,7 @@ def histogram_finalize(bins, q, hr):
         return out
     return fin    
 
-def hdf5_to_samps(M, x, nuggets, burn, thin, total, fns, postprocs, pred_covariate_dict, finalize=None):
+def hdf5_to_samps(M, x, nuggets, burn, thin, total, fns, postprocs, pred_covariate_dict, finalize=None, continue_past_npd=False):
     """
     Parameters:
         M : MCMC object
@@ -329,9 +329,27 @@ def hdf5_to_samps(M, x, nuggets, burn, thin, total, fns, postprocs, pred_covaria
             else:
                 print
         
-        for s in gp_submods:
-            # FIXME: long time in a single thread here. L168 of FullRankCovariance.py
-            M_preds[s], V_pred = pm.gp.point_eval(pm.utils.value(s.M_obs), pm.utils.value(s.C_obs), x)            
+        try:
+            for s in gp_submods:
+                # FIXME: long time in a single thread here. L168 of FullRankCovariance.py
+                M_preds[s], V_pred = pm.gp.point_eval(pm.utils.value(s.M_obs), pm.utils.value(s.C_obs), x)
+                if np.any(V_pred<0):
+                    xbad = x[np.where(V_pred<0)]
+                    xaug = np.vstack(s.mesh, xbad)
+                    try:
+                        np.linalg.cholesky(s.C.value(xaug))
+                        raise ValueError, 'Some elements of V_pred were negative. This problem cannot be attributed to non-positive definiteness.'
+                    except np.linalg.LinAlgError:
+                        if continue_past_npd:
+                            warnings.warn('Some elements of V_pred were negative due to non-positive definiteness.')
+                            raise np.linalg.LinAlgError
+                        else:
+                            raise ValueError, 'Some elements of V_pred were negative due to non-positive definiteness.'
+            except np.linalg.LinAlgError:
+                # This iteration is non-positive definite, _and_ the user has asked to continue past such iterations.
+                actual_total -= n_per
+                continue
+                
             S_preds[s] = np.sqrt(V_pred + pm.utils.value(nuggets[s]))
             
         cmin, cmax = pm.thread_partition_array(M_preds[s])

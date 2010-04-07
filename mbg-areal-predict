@@ -45,12 +45,14 @@ p.add_option('-i','--iter',help="The number of posterior predictive draws to tak
 p.add_option('-t','--thin',help='How much to thin the MCMC trace. Defaults to 10.',dest='thin',type='int')
 p.add_option('-w','--weight-raster',help="An optional raster giving relative weights. This can be used if weighted samples will give a better approximation to the integral than multiplying the integrand by the weight.",dest='weight_raster')
 p.add_option('-c','--coordinate-time',help="If 'f', (x,t) samples are distributed randomly in the admin unit X the time interval. If 't', then to each 'x' sample there correspond multiple 't' samples and vice versa. Set this to true if your f's need to take an integral in time (or space), apply a nonlinear transformation, and then take an integral in space (or time).",dest='coordinate_time')
+p.add_option('-d','--ignore-npd',help='Whether to discard and continue past non-positive-definite iterations.',dest='continue_past_npd',type='int')
 
 p.set_defaults(reps=5)
 p.set_defaults(points=100)
 p.set_defaults(iter=1000)
 p.set_defaults(weight_raster=None)
 p.set_defaults(coordinate_time='f')
+p.set_defaults(continue_past_npd=0)
 p.set_defaults(thin=10)
 
 (o, args) = p.parse_args()

@@ -41,6 +41,7 @@ p.add_option('-t','--thin',help='How much to thin the MCMC trace. Defaults to 10
 p.add_option('-i','--iter',help='The total number of samples to use in generating the map. Defaults to 20000',dest='total',type='int')
 p.add_option('-p','--raster-path',help="The path to the covariate rasters. Defaults to the current working directory.",dest='raster_path')
 p.add_option('-y','--year',help='The decimal year at which the map should be produced. Required for space-time models.',dest='year',type='float')
+p.add_option('-d','--ignore-npd',help='Whether to discard and continue past non-positive-definite iterations.',dest='continue_past_npd',type='int')
 
 p.set_defaults(n_bins=100)
 p.set_defaults(raster_path='.')
@@ -49,6 +50,7 @@ p.set_defaults(thin=50)
 p.set_defaults(total=50000)
 p.set_defaults(bufsize=0)
 p.set_defaults(year=None)
+p.set_defaults(continue_past_npd=0)
 p.set_defaults(quantile_list='0.05 0.25 0.5 0.75 0.95')
 
 (o, args) = p.parse_args()
@@ -168,7 +170,7 @@ if np.iterable(mod.map_postproc):
     mp = mod.map_postproc
 else:
     mp = [mod.map_postproc]
-products = hdf5_to_samps(M,x,nuggets,o.burn,o.thin,o.total,reduce_fns + extra_reduce_fns, mp, covariate_dict, finalize)
+products = hdf5_to_samps(M,x,nuggets,o.burn,o.thin,o.total,reduce_fns + extra_reduce_fns, mp, covariate_dict, finalize, o.continue_past_npd)
 print '\nMaps produced in %f seconds\n'%(time.time() - t_start)
 
 
