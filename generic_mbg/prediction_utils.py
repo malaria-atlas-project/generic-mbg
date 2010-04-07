@@ -160,15 +160,18 @@ def raster_to_vals(name, path='.', thin=1, unmasked=None):
     if unmasked is not None:
         input_unmasked = True-data[::thin,::thin].mask
         if not np.all(unmasked == input_unmasked):
-            where_mismatch = np.where(input_unmasked != unmasked)
-            import pylab as pl
-            pl.clf()
-            pl.plot(lon[where_mismatch[0]],lat[where_mismatch[1]],'k.',markersize=2)
-            pl.savefig('mismatch.pdf')
-            msg = '%s: mask does not match input mask at the following pixels (in decimal degrees):\n'%name
-            for i,j in zip(*where_mismatch):
-                msg += "\t%f, %f\n"%(lon[i],lat[j])
-            msg += 'Image of mismatched points saved as mismatch.pdf'
+            if unmasked.shape == input_unmasked.shape:
+                where_mismatch = np.where(input_unmasked != unmasked)
+                import pylab as pl
+                pl.clf()
+                pl.plot(lon[where_mismatch[0]],lat[where_mismatch[1]],'k.',markersize=2)
+                pl.savefig('mismatch.pdf')
+                msg = '%s: covariate raster\'s mask does not match input mask at the following pixels (in decimal degrees):\n'%name
+                for i,j in zip(*where_mismatch):
+                    msg += "\t%f, %f\n"%(lon[i],lat[j])
+                msg += 'Image of mismatched points saved as mismatch.pdf'
+            else:
+                msg = '%s: covariate raster is not same shape as input.'
             raise ValueError, msg
     
     return data.data[unmasked]
