@@ -345,10 +345,10 @@ def hdf5_to_samps(M, x, nuggets, burn, thin, total, fns, postprocs, pred_covaria
                             raise np.linalg.LinAlgError
                         else:
                             raise ValueError, 'Some elements of V_pred were negative due to non-positive definiteness.'
-            except np.linalg.LinAlgError:
-                # This iteration is non-positive definite, _and_ the user has asked to continue past such iterations.
-                actual_total -= n_per
-                continue
+        except np.linalg.LinAlgError:
+            # This iteration is non-positive definite, _and_ the user has asked to continue past such iterations.
+            actual_total -= n_per
+            continue
                 
             S_preds[s] = np.sqrt(V_pred + pm.utils.value(nuggets[s]))
             
