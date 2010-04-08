@@ -276,7 +276,47 @@ class CachingCovariateEvaluator(object):
                 if stop-start != mesh.shape[0]:
                     raise ValueError
                 return self.values[i][start:stop]
-        raise RuntimeError, 'The given mesh is not in the cache.'
+        else:
+            print( "The given mesh is not present as contiguous block in cache, checking if present in non-contiguous blocks")
+
+            # initialise vector for extracted values
+            tempvals = np.repeat(np.nan,len(mesh[:,0]))
+            
+            # create single vector of unique values from new xy coords mesh
+            meshvec = (mesh[:,0]*1e7) + mesh[:,1]
+
+            # loop through different meshes stored in cache
+            for ii,m in enumerate(self.meshes):
+
+                # create single vector of uncique values from cached mesh ii         
+                mvec = (m[:,0]*1e7) + m[:,1]
+                
+                # loop through elements of new mesh and attempt to find them in cached mesh ii
+                for jj in xrange(0,len(meshvec)):
+                    matchid = mvec==meshvec[jj]
+
+                    if(sum(matchid)>1):
+                        raise ValueError, 'more than one matching location in cache'
+
+         
+                    # if we have a single match in cached mesh ii..
+                    if(sum(matchid)==1):
+
+                        # check this match has not been made already in a different chached mesh
+                        if(not(np.isnan(tempvals[jj]))):
+                            raise ValueError, 'more than one matching location in cache'
+
+                        # otherwise extract bvalue for this mesh location from cache
+                        tempvals[jj] = self.values[ii][np.where(matchid)]                    
+            
+            # check all mesh locations have been identified in cache
+            notfound = sum(np.isnan(tempvals)) 
+            
+            if(notfound>0):
+                raise RuntimeError, str(notfound)+' of '+str(len(meshvec))+' elements of given mesh not present in the cache'           
+
+            return tempvals
+
         
 class CovarianceWithCovariates(object):
     """
