@@ -282,27 +282,26 @@ class CachingCovariateEvaluator(object):
             # initialise vector for extracted values
             tempvals = np.repeat(np.nan,len(mesh[:,0]))
             
-            # loop through different meshes stored in cache
-            for ii,m in enumerate(self.meshes):
-                
-                # loop through elements of new mesh and attempt to find them in cached mesh ii
-                for jj in xrange(0,len(mesh[:,0])):
-                
+            # loop through elements of new mesh and attempt to find them in cached mesh ii
+            found = False 
+            for jj in xrange(0,len(mesh[:,0])):
+                if(found == True):
+                    found = False
+                    continue
+
+                # loop through different meshes stored in cache
+                for ii,m in enumerate(self.meshes):
+
                     matchid=((m==mesh[jj,:]).sum(axis=1)==2)
 
-                    #if(sum(matchid)>1):
-                    #    raise ValueError, 'more than one matching location in cache'
-         
-                    # if we have a single match in cached mesh ii..
-                    if(sum(matchid)==1):
+                    # if we have a match in cached mesh ii..
+                    if(sum(matchid)>0):
 
-                        # check this match has not been made already in a different chached mesh
-                        #if(not(np.isnan(tempvals[jj]))):
-                        #    raise ValueError, 'more than one matching location in cache'
+                        # extract value for this mesh location from cache
+                        tempvals[jj] = self.values[ii][np.where(matchid)[0][0]]
+                        found=True 
+                        break
 
-                        # otherwise extract value for this mesh location from cache
-                        tempvals[jj] = self.values[ii][np.where(matchid)]                    
-            
             # check all mesh locations have been identified in cache
             notfound = sum(np.isnan(tempvals)) 
             
