@@ -286,7 +286,7 @@ class CachingCovariateEvaluator(object):
             for ii,m in enumerate(self.meshes):
                 
                 # loop through elements of new mesh and attempt to find them in cached mesh ii
-                for jj in xrange(0,len(meshvec)):
+                for jj in xrange(0,len(mesh[:,0]):
                 
                     matchid=((m==mesh[jj,:]).sum(axis=1)==2)
 
@@ -307,7 +307,7 @@ class CachingCovariateEvaluator(object):
             notfound = sum(np.isnan(tempvals)) 
             
             if(notfound>0):
-                raise RuntimeError, str(notfound)+' of '+str(len(meshvec))+' elements of given mesh not present in the cache'           
+                raise RuntimeError, str(notfound)+' of '+str(len(mesh[:,0])+' elements of given mesh not present in the cache'           
 
             return tempvals
 
