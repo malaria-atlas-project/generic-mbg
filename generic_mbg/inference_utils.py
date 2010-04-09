@@ -282,31 +282,25 @@ class CachingCovariateEvaluator(object):
             # initialise vector for extracted values
             tempvals = np.repeat(np.nan,len(mesh[:,0]))
             
-            # create single vector of unique values from new xy coords mesh
-            meshvec = (mesh[:,0]*1e7) + mesh[:,1]
-
             # loop through different meshes stored in cache
             for ii,m in enumerate(self.meshes):
-
-                # create single vector of uncique values from cached mesh ii         
-                mvec = (m[:,0]*1e7) + m[:,1]
                 
                 # loop through elements of new mesh and attempt to find them in cached mesh ii
                 for jj in xrange(0,len(meshvec)):
-                    matchid = mvec==meshvec[jj]
+                
+                    matchid=((m==mesh[jj,:]).sum(axis=1)==2)
 
                     if(sum(matchid)>1):
                         raise ValueError, 'more than one matching location in cache'
-
          
                     # if we have a single match in cached mesh ii..
                     if(sum(matchid)==1):
 
                         # check this match has not been made already in a different chached mesh
-                        if(not(np.isnan(tempvals[jj]))):
-                            raise ValueError, 'more than one matching location in cache'
+                        #if(not(np.isnan(tempvals[jj]))):
+                        #    raise ValueError, 'more than one matching location in cache'
 
-                        # otherwise extract bvalue for this mesh location from cache
+                        # otherwise extract value for this mesh location from cache
                         tempvals[jj] = self.values[ii][np.where(matchid)]                    
             
             # check all mesh locations have been identified in cache
