@@ -290,8 +290,8 @@ class CachingCovariateEvaluator(object):
                 
                     matchid=((m==mesh[jj,:]).sum(axis=1)==2)
 
-                    if(sum(matchid)>1):
-                        raise ValueError, 'more than one matching location in cache'
+                    #if(sum(matchid)>1):
+                    #    raise ValueError, 'more than one matching location in cache'
          
                     # if we have a single match in cached mesh ii..
                     if(sum(matchid)==1):
