@@ -276,39 +276,42 @@ class CachingCovariateEvaluator(object):
                 if stop-start != mesh.shape[0]:
                     raise ValueError
                 return self.values[i][start:stop]
-        else:
-            print( "The given mesh is not present as contiguous block in cache, checking if present in non-contiguous blocks")
 
-            # initialise vector for extracted values
-            tempvals = np.repeat(np.nan,len(mesh[:,0]))
+        print( "The given mesh is not present as contiguous block in cache, checking if present in non-contiguous blocks")
+
+        # initialise vector for extracted values
+        tempvals = np.repeat(np.nan,len(mesh[:,0]))
             
-            # loop through elements of new mesh and attempt to find them in cached mesh ii
-            found = False 
-            for jj in xrange(0,len(mesh[:,0])):
-                if(found == True):
-                    found = False
-                    continue
+        # loop through elements of new mesh and attempt to find them in cached mesh ii
+        found = False 
+        for jj in xrange(0,len(mesh[:,0])):
+        
+            print("On element "+str(jj)+" of "+str(len(mesh[:,0])))
+        
+            if(found == True):
+                found = False
+                continue
 
-                # loop through different meshes stored in cache
-                for ii,m in enumerate(self.meshes):
+            # loop through different meshes stored in cache
+            for ii,m in enumerate(self.meshes):
 
-                    matchid=((m==mesh[jj,:]).sum(axis=1)==2)
+                matchid=((m==mesh[jj,:]).sum(axis=1)==2)
 
-                    # if we have a match in cached mesh ii..
-                    if(sum(matchid)>0):
+                # if we have a match in cached mesh ii..
+                if(sum(matchid)>0):
 
-                        # extract value for this mesh location from cache
-                        tempvals[jj] = self.values[ii][np.where(matchid)[0][0]]
-                        found=True 
-                        break
+                    # extract value for this mesh location from cache
+                    tempvals[jj] = self.values[ii][np.where(matchid)[0][0]]
+                    found=True 
+                    break
 
-            # check all mesh locations have been identified in cache
-            notfound = sum(np.isnan(tempvals)) 
+        # check all mesh locations have been identified in cache
+        notfound = sum(np.isnan(tempvals)) 
             
-            if(notfound>0):
-                raise RuntimeError, str(notfound)+' of '+str(len(mesh[:,0]))+' elements of given mesh not present in the cache'           
+        if(notfound>0):
+            raise RuntimeError, str(notfound)+' of '+str(len(mesh[:,0]))+' elements of given mesh not present in the cache'           
 
-            return tempvals
+        return tempvals
 
         
 class CovarianceWithCovariates(object):
