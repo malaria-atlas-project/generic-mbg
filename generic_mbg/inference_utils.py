@@ -283,15 +283,10 @@ class CachingCovariateEvaluator(object):
         tempvals = np.repeat(np.nan,len(mesh[:,0]))
             
         # loop through elements of new mesh and attempt to find them in cached mesh ii
-        found = False 
         for jj in xrange(0,len(mesh[:,0])):
         
             print("On element "+str(jj)+" of "+str(len(mesh[:,0])))
         
-            if(found == True):
-                found = False
-                continue
-
             # loop through different meshes stored in cache
             for ii,m in enumerate(self.meshes):
 
@@ -302,7 +297,6 @@ class CachingCovariateEvaluator(object):
 
                     # extract value for this mesh location from cache
                     tempvals[jj] = self.values[ii][np.where(matchid)[0][0]]
-                    found=True 
                     break
 
         # check all mesh locations have been identified in cache
