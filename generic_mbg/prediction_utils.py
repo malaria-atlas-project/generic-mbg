@@ -334,10 +334,10 @@ def hdf5_to_samps(M, x, nuggets, burn, thin, total, fns, postprocs, pred_covaria
                 # FIXME: long time in a single thread here. L168 of FullRankCovariance.py
                 M_preds[s], V_pred = pm.gp.point_eval(pm.utils.value(s.M_obs), pm.utils.value(s.C_obs), x)
                 if np.any(V_pred<0):
-                    xbad = x[np.where(V_pred<0)]
+                    xbad = x[np.where(V_pred<0)][0]
                     xaug = np.vstack((s.mesh, xbad))
                     try:
-                        np.linalg.cholesky(s.C.value(xaug))
+                        np.linalg.cholesky(s.C.value(xaug,xaug))
                         raise ValueError, 'Some elements of V_pred were negative. This problem cannot be attributed to non-positive definiteness.'
                     except np.linalg.LinAlgError:
                         if continue_past_npd:
