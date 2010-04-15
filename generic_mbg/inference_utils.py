@@ -408,11 +408,12 @@ def sample_covariate_values(s):
     if not isinstance(C.eval_fun, CovarianceWithCovariates):
         raise TypeError, 'Argument C must be a CovarianceWithCovariates instance.'
     delta = f-M
+    
     privar = C.eval_fun.privar
     m = C.eval_fun.m
     vars = C.eval_fun.evaluators.keys()
-    x = np.array([C.eval_fun.evaluators[k](mesh[:,:2]) for k in vars])
-    xV = x.T*privar
+    x = np.vstack((np.array([C.eval_fun.evaluators[k](mesh[:,:2]) for k in vars]), np.ones(mesh.shape[0])*m))
+    xV = x.T*np.hstack((privar, [C.eval_fun.mfac]))
     xVxT = np.dot(x.T,xV.T)
     
     delta_S = np.linalg.cholesky(np.asarray(C_eval) + xVxT)
