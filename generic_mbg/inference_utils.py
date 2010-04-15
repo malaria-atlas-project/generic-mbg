@@ -285,7 +285,7 @@ class CachingCovariateEvaluator(object):
         # loop through elements of new mesh and attempt to find them in cached mesh ii
         for jj in xrange(0,len(mesh[:,0])):
         
-            print("On element "+str(jj)+" of "+str(len(mesh[:,0])))
+            #print("On element "+str(jj)+" of "+str(len(mesh[:,0])))
         
             # loop through different meshes stored in cache
             for ii,m in enumerate(self.meshes):
