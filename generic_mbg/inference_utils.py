@@ -285,7 +285,7 @@ class CachingCovariateEvaluator(object):
         # loop through elements of new mesh and attempt to find them in cached mesh ii
         for jj in xrange(0,len(mesh[:,0])):
         
-            #print("On element "+str(jj)+" of "+str(len(mesh[:,0])))
+            print("On element "+str(jj)+" of "+str(len(mesh[:,0])))
         
             # loop through different meshes stored in cache
             for ii,m in enumerate(self.meshes):
@@ -408,15 +408,14 @@ def sample_covariate_values(s):
     if not isinstance(C.eval_fun, CovarianceWithCovariates):
         raise TypeError, 'Argument C must be a CovarianceWithCovariates instance.'
     delta = f-M
-    
     privar = C.eval_fun.privar
     m = C.eval_fun.m
     vars = C.eval_fun.evaluators.keys()
-    x = np.vstack((np.array([C.eval_fun.evaluators[k](mesh[:,:2]) for k in vars]), np.ones(mesh.shape[0])*m))
-    xV = x.T*np.hstack((privar, [C.eval_fun.mfac]))
+    x = np.array([C.eval_fun.evaluators[k](mesh[:,:2]) for k in vars])
+    xV = x.T*privar
     xVxT = np.dot(x.T,xV.T)
     
-    delta_S = np.linalg.cholesky(np.asarray(C_eval) + xVxT)
+    delta_S = np.linalg.cholesky(np.asarray(C_eval))
     offdiag = pm.gp.trisolve(delta_S, xV, uplo='L', transa='N')
     delta_S_delta = pm.gp.trisolve(delta_S, delta, uplo='L', transa='N')
     
