@@ -337,18 +337,27 @@ class CovarianceWithCovariates(object):
             self.privar = np.ones(len(self.labels))*fac
             self.mfac = fac
 
-    def diag_call(self,x, *args, **kwds):
+    def diag_base_call(self, x, *args, **kwds):
+        if hasattr(self.cov_fun, 'diag_call'):
+            return self.cov_fun.diag_call(x,*args,**kwds)
+        else:
+            return self.cov_fun(x,y=None,*args,**kwds)
+
+    def diag_covariate_call(self, x, Vbase=None):
+        if Vbase is None:
+            Vbase = np.zeros(x.shape[0])
         # Evaluate with one argument:
         x_evals = self.eval_covariates(x)        
-        if hasattr(self.cov_fun, 'diag_call'):
-            Cbase = self.cov_fun.diag_call(x,*args,**kwds)
-        else:
-            Cbase = self.cov_fun(x,y=None,*args,**kwds)
         if len(self.labels)>0:
-            C = Cbase + np.sum(self.privar * x_evals.T**2, axis=1) + self.mfac*self.m
+            return Vbase + np.sum(self.privar * x_evals.T**2, axis=1) + self.mfac*self.m
         else:
-            C = Cbase + self.mfac*self.m
+            return Cbase + self.mfac*self.m
         return C
+
+
+    def diag_call(self, x, *args, **kwds):
+        Vbase = self.diag_base_call(x,*args,**kwds)
+        return diag_covariate_call(self, x, Vbase)
         
     def eval_covariates(self, x):
         out = np.asarray([self.evaluators[k](x[:,:2]) for k in self.labels], order='F')
@@ -359,11 +368,12 @@ class CovarianceWithCovariates(object):
         for k,v in self.evaluators.iteritems():
             v.add_value_to_cache(mesh[:,:2], new_cv[k])
 
-    def __call__(self, x, y, *args, **kwds):
+    def base_call(self, x, y, *args, **kwds):
+        return self.cov_fun(x,y,*args,**kwds)
         
-        # Evaluate with both arguments:
-        Cbase = self.cov_fun(x,y,*args,**kwds)
-        
+    def covariate_call(self, x, y, Cbase=None):
+        if Cbase is None:
+            Cbase = np.zeros((x.shape[0],y.shape[0]))
         if len(self.evaluators) > 0:
             x_evals = self.eval_covariates(x)
             if x is y:
@@ -374,8 +384,16 @@ class CovarianceWithCovariates(object):
             C = fast_inplace_scalar_add(C, self.mfac*self.m)
         else:
             C = Cbase
+            
         return C
 
+
+    def __call__(self, x, y, *args, **kwds):
+        
+        # Evaluate with both arguments:
+        Cbase = self.cov_fun(x,y,*args,**kwds)
+        return self.covariate_call(x,y,Cbase)
+        
 def sample_covariate_values(s):
     """
     Draws a sample from the full conditional distribution of the covariate 
