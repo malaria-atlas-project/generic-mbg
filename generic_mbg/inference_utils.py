@@ -357,7 +357,7 @@ class CovarianceWithCovariates(object):
 
     def diag_call(self, x, *args, **kwds):
         Vbase = self.diag_base_call(x,*args,**kwds)
-        return diag_covariate_call(self, x, Vbase)
+        return self.diag_covariate_call(self, x, Vbase)
         
     def eval_covariates(self, x):
         out = np.asarray([self.evaluators[k](x[:,:2]) for k in self.labels], order='F')
