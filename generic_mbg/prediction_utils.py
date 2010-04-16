@@ -174,7 +174,7 @@ def raster_to_vals(name, path='.', thin=1, unmasked=None):
                 msg = '%s: covariate raster is not same shape as mask.'%name
             raise ValueError, msg
     
-    return data.data[unmasked]
+    return data.data[::thin,::thin][unmasked]
         
 def display_datapoints(h5file, path='', cmap=None, *args, **kwargs):
     """Adds as hdf5 archive's logp-mesh to an image."""
