@@ -86,7 +86,7 @@ for s in submods:
     names[s] = s.C.value.eval_fun.evaluators.keys()
     unique_names = unique_names+ map(lambda x: s.name + '_' + x, names[s])
 
-cov_trace = np.rec.fromarrays([np.empty((n-burn)/thin) for k in unique_names], names=','.join(unique_names))
+cov_trace = np.rec.fromarrays([np.empty((n-o.burn)/o.thin) for k in unique_names], names=','.join(unique_names))
 
 time_count = -np.inf
 time_start = time.time()
@@ -110,7 +110,7 @@ for i in xrange(o.burn,n,o.thin):
     for s in submods:
         samp = sample_covariate_values(s)
     for k in samp.iterkeys():
-        cov_trace[s.name+'_'+k][(i-burn)/thin] = samp[k]
+        cov_trace[s.name+'_'+k][(i-o.burn)/o.thin] = samp[k]
 
 print 'Covariate traces produced in %f seconds.'%(time.time()-time_start)
 
