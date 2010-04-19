@@ -351,8 +351,7 @@ class CovarianceWithCovariates(object):
         if len(self.labels)>0:
             return Vbase + np.sum(self.privar * x_evals.T**2, axis=1) + self.mfac*self.m
         else:
-            return Cbase + self.mfac*self.m
-        return C
+            return Vbase + self.mfac*self.m
 
 
     def diag_call(self, x, *args, **kwds):
