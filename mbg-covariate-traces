@@ -92,7 +92,7 @@ time_count = -np.inf
 time_start = time.time()
     
 last_pct = -1    
-for i in xrange(n):
+for i in xrange(o.burn,n,o.thin):
     
     if time.time() - time_count > 10:
         cur_pct = (i*100)/n
