@@ -326,9 +326,9 @@ class CovarianceWithCovariates(object):
         self.cv = cv
         self.labels = self.cv.keys()
         self.m = len(cv)
-        self.means = dict([(k,np.mean(v)) for k,v in cv.iteritems()])
-        self.stds = dict([(k,np.std(v) or 1) for k,v in cv.iteritems()])
-        self.evaluators = dict([(k,CachingCovariateEvaluator(mesh[:,:2], v, self.means[k], self.stds[k])) for k,v in cv.iteritems()])
+        self.shifts = dict([(k,(v.max()+v.min())/2.) for k,v in cv.iteritems()])
+        self.scales = dict([(k,(v.max()-v.min())/2. or 1) for k,v in cv.iteritems()])
+        self.evaluators = dict([(k,CachingCovariateEvaluator(mesh[:,:2], v, self.shifts[k], self.scales[k])) for k,v in cv.iteritems()])
         self.cov_fun = cov_fun
         if isinstance(fac, dict):
             self.mfac = fac['m']
@@ -336,6 +336,7 @@ class CovarianceWithCovariates(object):
         else:
             self.privar = np.ones(len(self.labels))*fac
             self.mfac = fac
+        self.mfac *= (self.m+1)
 
     def diag_base_call(self, x, *args, **kwds):
         if hasattr(self.cov_fun, 'diag_call'):
@@ -349,9 +350,9 @@ class CovarianceWithCovariates(object):
         # Evaluate with one argument:
         x_evals = self.eval_covariates(x)        
         if len(self.labels)>0:
-            return Vbase + np.sum(self.privar * x_evals.T**2, axis=1) + self.mfac*self.m
+            return Vbase + np.sum(self.privar * x_evals.T**2, axis=1) + self.mfac
         else:
-            return Vbase + self.mfac*self.m
+            return Vbase + self.mfac
 
 
     def diag_call(self, x, *args, **kwds):
@@ -380,7 +381,7 @@ class CovarianceWithCovariates(object):
             else:
                 y_evals = self.eval_covariates(y)
             C = crossmul_and_sum(Cbase, x_evals, self.privar, y_evals)
-            C = fast_inplace_scalar_add(C, self.mfac*self.m)
+            C = fast_inplace_scalar_add(C, self.mfac)
         else:
             C = Cbase
             
