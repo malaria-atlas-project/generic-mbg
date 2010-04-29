@@ -269,7 +269,6 @@ class CachingCovariateEvaluator(object):
 
     def __init__(self, mesh, value):
         self.meshes = [mesh]
-        self.file = file
         shift = (value.max()+value.min())/2.
         scale = (value.max()-value.min())/2.
         self.values = [((value-shift)/scale).astype('float')]
@@ -277,6 +276,7 @@ class CachingCovariateEvaluator(object):
             raise ValueError, 'NaN in covariate values'
         self.shift = shift
         self.scale = scale
+
     def add_value_to_cache(self, mesh, value):
         if np.any(np.isnan(value)):
             raise ValueError, 'NaN in covariate values'
@@ -284,6 +284,7 @@ class CachingCovariateEvaluator(object):
         #     raise ValueError, 'Only one value in covariate. Not going to learn much here.'
         self.meshes.append(mesh)
         self.values.append(((value-self.shift)/self.scale).astype('float'))
+
     def __call__(self, mesh):
         for i,m in enumerate(self.meshes):
             start,stop = subset_eq(m,mesh)
@@ -340,9 +341,10 @@ class CovarianceWithCovariates(object):
     def __setstate__(self, state):
         self.__init__(*state)
                         
-    def __init__(self, cov_fun, file, keys, ui, fac=1e6, ampsq_is_diag=False):
+    def __init__(self, cov_fun, file, keys, ui, fac=1e6, ampsq_is_diag=False, ra=None):
 
-        ra = csv2rec(file)
+        if ra is None:
+            ra = csv2rec(file)
         mesh = np.vstack((ra.lon[ui], ra.lat[ui]))*np.pi/180.
         # if 't' in ra.dtype.names:
         #     mesh = np.vstack((mesh, ra.t[ui]))
