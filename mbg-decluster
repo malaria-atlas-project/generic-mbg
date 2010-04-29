@@ -44,7 +44,7 @@ if len(args) != 2:
 o.input = args[0]
 o.prop = float(args[1])
 
-from rpy import *
-r.source('/usr/local/bin/get_declustered_sample.R')
+from rpy2.robjects import r
+r('source')('/usr/local/bin/get_declustered_sample.R')
 
-r.getdeclusteredsample(o.input,o.prop,o.minsample,o.decluster,o.makeplot)
+r('getdeclusteredsample')(o.input,o.prop,o.minsample,o.decluster,o.makeplot)

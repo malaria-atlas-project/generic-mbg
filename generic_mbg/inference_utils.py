@@ -19,7 +19,15 @@ import time
 import tables as tb
 from st_cov_fun import my_st
 from histogram_utils import iinvlogit, iamul, iasq, icsum, subset_eq, iasadd
-from pylab import csv2rec
+from pylab import csv2rec,rec2csv
+
+class close(object):
+    def __init__(self, f, **kwds):
+        self.f = f
+        self.kwds = kwds
+    def __call__(self, *args, **new_kwds): 
+        new_kwds.update(self.kwds)
+        return self.f(*args, **new_kwds)
 
 def maybe_convert(ra, field, dtype):
     """
@@ -87,11 +95,14 @@ def create_model(mod,db,input=None):
             raise ValueError, 'Input provided with preexisting db.'
         input = db._h5file.root.input_csv[:]
         prev_db = db
+        hfname = db._h5file.filename
     else:
         if input is None:
             raise ValueError, 'No input or preexisting db provided.'
         prev_db=None
         hfname = db
+    
+    rec2csv(input,'%s-input-data.csv'%hfname)
         
     lon = maybe_convert(input, 'lon', 'float')
     lat = maybe_convert(input, 'lat', 'float')
@@ -110,15 +121,15 @@ def create_model(mod,db,input=None):
         non_cov_coltypes = {}
     non_cov_colnames = non_cov_coltypes.keys()
 
-    covariate_dict = {}
+    covariate_keys = []
     for n in input.dtype.names:
         if n not in ['lon','lat','t']:
             if n in non_cov_colnames:
                 non_cov_columns[n] = maybe_convert(input, n, non_cov_coltypes[n])
             else:
-                covariate_dict[n]=maybe_convert(input, n, 'float')
+                covariate_keys.append(n)
 
-    mod_inputs = mod_inputs + (covariate_dict,)
+    mod_inputs = mod_inputs + ('%s-input-data.csv'%hfname,covariate_keys,)
 
     # Create MCMC object, add metadata, and assign appropriate step method.
 
@@ -255,8 +266,12 @@ class CachingCovariateEvaluator(object):
     told what its value on the array is, it will return that value.
     Otherwise, it will throw an error.
     """
-    def __init__(self, mesh, value, shift, scale):
+
+    def __init__(self, mesh, value):
         self.meshes = [mesh]
+        self.file = file
+        shift = (value.max()+value.min())/2.
+        scale = (value.max()-value.min())/2.
         self.values = [((value-shift)/scale).astype('float')]
         if np.any(np.isnan(value)):
             raise ValueError, 'NaN in covariate values'
@@ -320,16 +335,27 @@ class CovarianceWithCovariates(object):
     ~cov[n](x) is (cov[n](x)-mu[n])/sig[n], where mu[n] and sig[n] are the mean and
     standard deviation of the values passed into the init method.
     """
-    
+    def __getstate__(self):
+        return (self.cov_fun, self.file, self.keys, self.ui, self.fac, self.ampsq_is_diag)
+    def __setstate__(self, state):
+        self.__init__(*state)
                         
-    def __init__(self, cov_fun, mesh, cv, fac=1e6, ampsq_is_diag=False):
-        self.cv = cv
-        self.labels = self.cv.keys()
-        self.m = len(cv)
-        self.shifts = dict([(k,(v.max()+v.min())/2.) for k,v in cv.iteritems()])
-        self.scales = dict([(k,(v.max()-v.min())/2. or 1) for k,v in cv.iteritems()])
-        self.evaluators = dict([(k,CachingCovariateEvaluator(mesh[:,:2], v, self.shifts[k], self.scales[k])) for k,v in cv.iteritems()])
+    def __init__(self, cov_fun, file, keys, ui, fac=1e6, ampsq_is_diag=False):
+
+        ra = csv2rec(file)
+        mesh = np.vstack((ra.lon[ui], ra.lat[ui]))*np.pi/180.
+        # if 't' in ra.dtype.names:
+        #     mesh = np.vstack((mesh, ra.t[ui]))
+        mesh = mesh.T
+        self.m = len(keys)
+        self.labels = keys
+        self.file = file
+        self.keys = keys
+        self.ui = ui
+        self.evaluators = dict([(k,CachingCovariateEvaluator(mesh[:,:2], ra[k][ui])) for k in self.labels])
         self.cov_fun = cov_fun
+        self.fac = fac
+        self.ampsq_is_diag = ampsq_is_diag
         if isinstance(fac, dict):
             self.mfac = fac['m']
             self.privar = np.array([fac[l] for l in self.labels])

@@ -245,7 +245,7 @@ def histogram_finalize(bins, q, hr):
         return out
     return fin    
 
-def hdf5_to_samps(M, x, nuggets, burn, thin, total, fns, postprocs, pred_covariate_dict, finalize=None, continue_past_npd=False):
+def hdf5_to_samps(M, x, nuggets, burn, thin, total, fns, postprocs, pred_covariate_dict, finalize=None, continue_past_npd=False, joint=False):
     """
     Parameters:
         M : MCMC object
@@ -286,7 +286,11 @@ def hdf5_to_samps(M, x, nuggets, burn, thin, total, fns, postprocs, pred_covaria
     for postproc in postprocs:
         products[postproc] = dict(zip(fns, [None]*len(fns)))
         # Inspect postprocs for extra arguments
-        argspec = inspect.getargspec(postproc)
+        try:
+            argspec = inspect.getargspec(postproc)
+        except:
+            argspec = inspect.getargspec(postproc.__call__)
+            argspec.args.remove('self')
         args = argspec.args
         if argspec.defaults is None:
             postproc_args[postproc] = args
@@ -331,21 +335,34 @@ def hdf5_to_samps(M, x, nuggets, burn, thin, total, fns, postprocs, pred_covaria
         
         try:
             for s in gp_submods:
-                # FIXME: long time in a single thread here. L168 of FullRankCovariance.py
-                M_preds[s], V_pred = pm.gp.point_eval(pm.utils.value(s.M_obs), pm.utils.value(s.C_obs), x)
-                if np.any(V_pred<0):
-                    xbad = x[np.where(V_pred<0)][0]
-                    xaug = np.vstack((s.mesh, xbad))
+                if joint:
+                    M_preds[s] = pm.utils.value(s.M_obs)(x)
+                    C_pred = pm.utils.value(s.C_obs)(x,x)
+                    C_pred += pm.utils.value(nuggets[s])*np.eye(x.shape[0])
                     try:
-                        np.linalg.cholesky(s.C.value(xaug,xaug))
-                        raise ValueError, 'Some elements of V_pred were negative. This problem cannot be attributed to non-positive definiteness.'
+                        S_preds[s] = np.linalg.cholesky(C_pred)
                     except np.linalg.LinAlgError:
                         if continue_past_npd:
-                            warnings.warn('Some elements of V_pred were negative due to non-positive definiteness.')
+                            warnings.warn('The observed covariance was not positive definite at the prediction locations.')
                             raise np.linalg.LinAlgError
                         else:
-                            raise ValueError, 'Some elements of V_pred were negative due to non-positive definiteness.'                
-                S_preds[s] = np.sqrt(V_pred + pm.utils.value(nuggets[s]))
+                            raise ValueError, 'The observed covariance was not positive definite at the prediction locations.'
+                else:
+                    # FIXME: long time in a single thread here. L168 of FullRankCovariance.py
+                    M_preds[s], V_pred = pm.gp.point_eval(pm.utils.value(s.M_obs), pm.utils.value(s.C_obs), x)
+                    if np.any(V_pred<0):
+                        xbad = x[np.where(V_pred<0)][0]
+                        xaug = np.vstack((s.mesh, xbad))
+                        try:
+                            np.linalg.cholesky(s.C.value(xaug,xaug))
+                            raise ValueError, 'Some elements of V_pred were negative. This problem cannot be attributed to non-positive definiteness.'
+                        except np.linalg.LinAlgError:
+                            if continue_past_npd:
+                                warnings.warn('Some elements of V_pred were negative due to non-positive definiteness.')
+                                raise np.linalg.LinAlgError
+                            else:
+                                raise ValueError, 'Some elements of V_pred were negative due to non-positive definiteness.'                
+                    S_preds[s] = np.sqrt(V_pred + pm.utils.value(nuggets[s]))
                 
         except np.linalg.LinAlgError:
             # This iteration is non-positive definite, _and_ the user has asked to continue past such iterations.
@@ -354,27 +371,30 @@ def hdf5_to_samps(M, x, nuggets, burn, thin, total, fns, postprocs, pred_covaria
         
             
         cmin, cmax = pm.thread_partition_array(M_preds[s])
-    
+
         # Postprocess if necessary: logit, etc.
         norms = np.random.normal(size=n_per)
-        
+    
         for j in xrange(n_per):
-            
+        
             postproc_kwds = {}
             # Evaluate fields, and store them in argument dict for postproc
             for s in gp_submods:
-                postproc_kwds[s.name] = M_preds[s].copy('F')
-                pm.map_noreturn(iaaxpy, [(norms[j], S_preds[s], postproc_kwds[s.name], cmin[l], cmax[l]) for l in xrange(len(cmax))])
-            
+                if joint:
+                    postproc_kwds[s.name] = pm.rmv_normal_chol(M_preds[s], S_preds[s])
+                else:
+                    postproc_kwds[s.name] = M_preds[s].copy('F')
+                    pm.map_noreturn(iaaxpy, [(norms[j], S_preds[s], postproc_kwds[s.name], cmin[l], cmax[l]) for l in xrange(len(cmax))])
+        
             for postproc in postprocs:    
                 postproc_kwds_ = copy.copy(postproc_kwds)
                 # Pull any extra variables needed for postprocessing out of trace
                 for extra_arg in extra_postproc_args[postproc]:
                     postproc_kwds_[extra_arg] = pm.utils.value(getattr(M, extra_arg))
-        
+    
                 # Evaluate postprocessing function to get a surface
                 surf = postproc(**postproc_kwds_)
-            
+        
                 # Reduce surface into products needed
                 for f in fns:
                     products[postproc][f] = f(products[postproc][f], surf)
