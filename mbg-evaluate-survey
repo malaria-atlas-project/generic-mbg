@@ -1,0 +1,247 @@
+# Copyright (C) 2009 Anand Patil
+# 
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
+from optparse import OptionParser
+
+# Create option parser
+req_doc = """
+
+mbg-map  Copyright (C) 2009 Anand Patil
+This program comes with ABSOLUTELY NO WARRANTY.
+This is free software, and you are welcome to redistribute it under certain conditions.
+See <http://www.gnu.org/licenses/> for the terms of the license.
+
+
+  module                The module from which maps are to be generated.
+  database-file         The name of the database file produced by the mcmc.
+  burn                  The number of initial MCMC iterations to discard. 
+                        You must provide this argument.
+  survey                A CSV file containing the planned survey. Should have 
+                        the same columns as the original input datafile that
+                        can be measured or planned in advance of the survey.
+  mask                  A raster file with some pixels missing. Maps will 
+                        be generated in raster files with identical masks.
+"""
+p = OptionParser('usage: %prog module database-file burn mask [options]' + req_doc)
+p.add_option('-n','--n-bins',help='The number of bins to use when creating histograms. Defaults to 100.',dest='n_bins',type='int')
+p.add_option('-b','--bufsize',help='The size of the buffer to use, in pixels. Use 0 if raster-thin=1. Defaults to 0.',dest='bufsize',type='int')
+p.add_option('-c','--credible-intervals',help="The centered credible interval posteriors to generate. Should be in the form '0.5 0.9', and the inverted commas are important! Defaults to '0.5 0.9'",dest='credible_intervals')
+p.add_option('-q','--quantiles',help="The quantile maps to generate. Should be in the form '0.05 0.25 0.5 0.75 0.95', and the inverted commas are important! Defaults to '0.05 0.25 0.5 0.75 0.95'",dest='quantile_list')
+p.add_option('-r','--raster-thin',help='The raster will be kriged at this level of degradation, then regridded. Set to 1 for final maps, ~10 for mild curiosity. Defaults to 1.',dest='raster_thin',type='int')
+p.add_option('-t','--thin',help='How much to thin the MCMC trace. Defaults to 10.',dest='thin',type='int')
+p.add_option('-i','--iter',help='The total number of samples to use in generating the map. Defaults to 20000',dest='total',type='int')
+p.add_option('-p','--raster-path',help="The path to the covariate rasters. Defaults to the current working directory.",dest='raster_path')
+p.add_option('-y','--year',help='The decimal year at which the map should be produced. Required for space-time models.',dest='year',type='float')
+p.add_option('-d','--ignore-npd',help='Whether to discard and continue past non-positive-definite iterations.',dest='continue_past_npd',type='int')
+
+p.set_defaults(n_bins=100)
+p.set_defaults(raster_path='.')
+p.set_defaults(raster_thin=1)
+p.set_defaults(thin=50)
+p.set_defaults(total=50000)
+p.set_defaults(bufsize=0)
+p.set_defaults(year=None)
+p.set_defaults(continue_past_npd=0)
+p.set_defaults(credible_intervals='.5 .9')
+p.set_defaults(quantile_list='.05 .25 .5 .75 .95')
+
+(o, args) = p.parse_args()
+if len(args) != 5:
+    raise ValueError, 'You must supply exactly four positional arguments. You supplied %i.'%len(args)
+
+if o.raster_thin>1:
+    raise NotImplementedError, """The raster_thin argument has caused too many problems 
+    and is disabled until it can be implemented properly. For the time being, 
+    please thin your rasters manually, and reconcile the outputs to the desired 
+    rasterusing a GIS program."""
+
+o.module, o.hf_name, o.burn, o.survey, o.mask_name = args
+o.burn = int(o.burn)
+
+import matplotlib
+matplotlib.use('PDF')
+matplotlib.interactive(False)
+
+from map_utils import *
+from generic_mbg import *
+import tables as tb
+import numpy as np
+import os, imp, sys, time
+
+import pylab as pl
+# Load up given module and load its relevant contents
+
+survey_plan = pl.csv2rec(o.survey)
+
+mod_path, mod_name = os.path.split(o.module)
+mod_basename, mod_ext = os.path.splitext(mod_name)
+mod_search_path = [mod_path, os.getcwd()] + sys.path
+mod = imp.load_module(mod_basename, *imp.find_module(mod_basename, mod_search_path))
+
+for n in ['nugget_labels', 'obs_labels']:
+    try:
+        exec("%s=getattr(mod,'%s')"%(n,n))
+    except:
+        cls,inst,tb = sys.exc_info()
+        new_inst = cls('Could not import %s from %s. Tell Anand. Original error message:\n\n\t%s'%(n,mod_name,inst.message))
+        raise cls,new_inst,tb
+
+if hasattr(mod, 'extra_reduce_fns'):
+    extra_reduce_fns = mod.extra_reduce_fns
+    extra_finalize = mod.extra_finalize
+else:
+    extra_reduce_fns = []
+    extra_finalize = None
+
+
+# Parse quantiles and CI's.
+if len(o.credible_intervals) == 0:
+    ci = []
+else:
+    ci = map(float, o.credible_intervals.split(' '))
+
+if len(o.quantile_list) == 0:
+    q = []
+else:
+    q = map(float, o.quantile_list.split(' '))
+
+# Create predictive locations
+x, unmasked, output_type = raster_to_locs(o.mask_name, thin=o.raster_thin, bufsize=o.bufsize, path=o.raster_path)
+if not o.year is None:
+    x = np.vstack((x.T,o.year*np.ones(x.shape[0]))).T
+
+
+# Restore model
+M = create_model(mod,pm.database.hdf5.load(o.hf_name))
+hf = M.db._h5file
+meta = hf.root.metadata
+nuggets = dict([(getattr(M,k),getattr(M,v)) for k,v in mod.nugget_labels.iteritems()])
+bins = np.linspace(0,1,o.n_bins)
+
+
+# Load covariates
+all_covariate_keys = M.covariate_keys
+covariate_dict = {}
+for k in all_covariate_keys:
+    if k != 'm':
+        try:
+            covariate_dict[k] = raster_to_vals(k, path=o.raster_path, thin=o.raster_thin, unmasked=unmasked)
+        except IOError:
+            raise IOError, 'Covariate raster %s not found in path %s.'%(k+'.asc',o.raster_path)
+
+
+# Generate simulated datasets
+postproc = [close(p,survey_plan=survey_plan) for p in mod.simdata_postproc]
+survey_x = np.vstack((survey_plan.lon, survey_plan.lat))
+if 't' in survey_plan.dtype.names:
+    survey_x = np.vstack((survey_x, survey_plan.t))
+survey_x = survey_x.T
+survey_covariate_dict = dict([(k,survey_plan[k]) for k in all_covariate_keys])
+print 'Simulating datasets at survey locations.'
+products = hdf5_to_samps(M,survey_x,nuggets,o.burn,o.thin,o.total,[sample_reduce], postproc, survey_covariate_dict, sample_finalize, o.continue_past_npd, joint=True)
+samples = products[postproc[0]]['samples']
+
+
+# Make output dir and temporary hdf5 file to hold intermediate results
+hf_path, hf_basename  = os.path.split(o.hf_name)
+base_outname = os.path.splitext(hf_basename)[0]
+eval_dir = os.path.join(hf_path, base_outname+'-survey-eval')
+try:
+    os.mkdir(eval_dir)
+except OSError:
+    pass
+eval_file = tb.openFile(os.path.join(eval_dir,eval_dir+'.hdf5'),'w')
+
+eval_file.createArray('/','unmasked',unmasked)
+
+for mp in mod.map_postproc:
+    for name in ['mean','meansq']:
+        eval_file.createCArray('/',mp.__name__+'_'+name,shape=(samples.shape[0], x.shape[0]),atom=tb.FloatAtom(),filters=tb.Filters(complevel=1,complib='zlib'))
+reduce_fns = [mean_reduce, var_reduce]
+n_arrays = 2
+
+if len(q)>0 or len(ci)>0:
+    n_arrays += n_bins
+    reduce_fns = reduce_fns + histogram_reduce(bins, binfn)
+    for mp in mod.map_postproc:
+        eval_file.createCArray('/',mp.__name__+'_histogram',shape=(samples.shape[0], x.shape[0], o.n_bins),atom=tb.Float32Atom(),filters=tb.Filters(complevel=1,complib='zlib'))
+
+upper_gb = samples.shape[0]*x.shape[0]*n_arrays*4*len(mod.map_postproc)/1.e9
+if upper_gb > 1:
+    warnings.warn('\n\nUpper-bound estimate of size of intermediate results file %s.hdf5 is %f gigabytes. You can decrease this by mapping on a smaller region, by setting the -r / --raster-thin argument to a larger value or by decreasing the number of things you want to map (map_postproc functions).\n\n'%(eval_dir, upper_gb))
+
+
+
+# Create utility fns
+# FIXME
+# if len(ci)>0:
+#     def binfn(arr,n_bins=o.n_bins):
+#         return np.array(arr*n_bins,dtype=int)
+# 
+#     hsr = histogram_reduce(bins, binfn)
+#     hsf = histogram_finalize(bins, q, hsr)
+
+# def finalize(prod, n, ci=ci, ef=extra_finalize):
+#     mean = prod[mean_reduce] / n
+#     var = prod[var_reduce] / n - mean**2
+#     std = np.sqrt(var)
+#     std_to_mean = std/mean
+#     out = {'var': var, 'std': std}
+#     # FIXME
+#     # if len(ci)>0:
+#     #     out.update(hsf(prod, n))
+#     # if ef is not None:
+#     #     out.update(ef(prod, n))
+#     return out
+# 
+# reduce_fns = [mean_reduce, var_reduce]
+# if len(q)>0:
+#     reduce_fns = reduce_fns + [hsr]
+# 
+# # Create rasters
+# t_start = time.time()
+# # (hf, x, burn, thin, total, fns, f_labels, fs_have_nugget, x_label, nugget_labels, M_labels, C_labels, pred_cv_dicts, postproc, diags_safe, finalize=None, **non_cov_columns)
+# if np.iterable(mod.map_postproc):
+#     mp = mod.map_postproc
+# else:
+#     mp = [mod.map_postproc]
+
+# First run through with a special reduce/finalize pair to get simulated data at the new survey locations.
+# products = hdf5_to_samps(M,x,nuggets,o.burn,o.thin,o.total,reduce_fns + extra_reduce_fns, mp, covariate_dict, finalize, o.continue_past_npd)
+# print '\nMaps produced in %f seconds\n'%(time.time() - t_start)
+#
+# Then run through with another special reduce/finalize pair, closed on the simulated data, to get the   
+#
+# Write out
+
+
+# FIXME
+# for f in mp:
+#     for k,v in products[f].iteritems():
+#         if f is mod.map_postproc:
+#             out_name = k
+#         else:
+#             out_name = f.__name__ + '_' + k
+#         pdf_name = out_name + '.pdf'
+#         print 'Generating output file %s'%(out_name)
+#         # FIXME: Output raster should match the type of the mask.
+#         lon,lat,data=vec_to_raster(v,o.mask_name,o.raster_path,out_name,unmasked)
+#         pl.clf()
+#         pl.imshow(grid_convert(data,'y+x+','y-x+'), extent=[lon.min(), lon.max(), lat.min(), lat.max()], interpolation='nearest')
+#         # pl.imshow(data, extent=[lon.min(), lon.max(), lat.min(), lat.max()], interpolation='nearest')
+#         pl.colorbar()
+#         # pl.plot(meta.data_mesh[:,0]*180./np.pi,meta.data_mesh[:,1]*180./np.pi,'r.',markersize=2)
+#         pl.savefig(pdf_name)

@@ -245,6 +245,31 @@ def histogram_finalize(bins, q, hr):
         return out
     return fin    
 
+
+def get_args(postproc, fns):
+    # Have a look at the postprocessing functions
+    products = {}
+    postproc_args = {}
+    extra_postproc_args = {}
+    for postproc in postprocs:
+        products[postproc] = dict(zip(fns, [None]*len(fns)))
+        # Inspect postprocs for extra arguments
+        try:
+            argspec = inspect.getargspec(postproc)
+        except:
+            argspec = inspect.getargspec(postproc.__call__)
+            argspec.args.remove('self')
+        args = argspec.args
+        if argspec.defaults is None:
+            postproc_args[postproc] = args
+        else:
+            required_args = args[:-len(argspec.defaults)]
+            optional_args = filter(lambda k, M=M: hasattr(M,k), args[-len(argspec.defaults):])
+            postproc_args[postproc] = required_args+optional_args
+        extra_postproc_args[postproc] = set(postproc_args[postproc]) - set(f_labels)
+    return products, postproc_args, extra_postproc_args
+    
+
 def hdf5_to_samps(M, x, nuggets, burn, thin, total, fns, postprocs, pred_covariate_dict, finalize=None, continue_past_npd=False, joint=False):
     """
     Parameters:
@@ -279,26 +304,7 @@ def hdf5_to_samps(M, x, nuggets, burn, thin, total, fns, postprocs, pred_covaria
     gp_submods = list(set(filter(lambda c: isinstance(c,pm.gp.GPSubmodel), M.containers)))
     f_labels = [gps.name for gps in gp_submods]
     
-    # Have a look at the postprocessing functions
-    products = {}
-    postproc_args = {}
-    extra_postproc_args = {}
-    for postproc in postprocs:
-        products[postproc] = dict(zip(fns, [None]*len(fns)))
-        # Inspect postprocs for extra arguments
-        try:
-            argspec = inspect.getargspec(postproc)
-        except:
-            argspec = inspect.getargspec(postproc.__call__)
-            argspec.args.remove('self')
-        args = argspec.args
-        if argspec.defaults is None:
-            postproc_args[postproc] = args
-        else:
-            required_args = args[:-len(argspec.defaults)]
-            optional_args = filter(lambda k, M=M: hasattr(M,k), args[-len(argspec.defaults):])
-            postproc_args[postproc] = required_args+optional_args
-        extra_postproc_args[postproc] = set(postproc_args[postproc]) - set(f_labels)
+    products, postproc_args, extra_postproc_args = get_args(postproc, fns)
         
     iter = np.arange(burn,all_chain_len(hf),thin)
 
@@ -386,7 +392,7 @@ def hdf5_to_samps(M, x, nuggets, burn, thin, total, fns, postprocs, pred_covaria
                     postproc_kwds[s.name] = M_preds[s].copy('F')
                     pm.map_noreturn(iaaxpy, [(norms[j], S_preds[s], postproc_kwds[s.name], cmin[l], cmax[l]) for l in xrange(len(cmax))])
         
-            for postproc in postprocs:    
+            for postproc in postprocs:
                 postproc_kwds_ = copy.copy(postproc_kwds)
                 # Pull any extra variables needed for postprocessing out of trace
                 for extra_arg in extra_postproc_args[postproc]:
@@ -401,7 +407,7 @@ def hdf5_to_samps(M, x, nuggets, burn, thin, total, fns, postprocs, pred_covaria
 
     if finalize is not None:
         return dict(zip(postprocs, [finalize(products[postproc], actual_total) for postproc in postprocs]))
-    else:          
+    else:
         return products
 
 def normalize_for_mapcoords(arr, max):

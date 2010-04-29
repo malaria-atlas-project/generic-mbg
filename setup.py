@@ -45,7 +45,9 @@ if __name__ == '__main__':
                     'mbg-infer',
                     'mbg-describe-tracefile',
                     'mbg-init-specializing-module',
-                    'mbg-init-user-account']:
+                    'mbg-init-user-account',
+                    'mbg-evaluate-survey',
+                    'mbg-joint-predict']:
 
         commit = get_syscall_output('git show --pretty=format:"%H" --quiet')
         pythonpath = get_syscall_output('which python')
