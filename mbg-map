@@ -126,7 +126,7 @@ bins = np.linspace(0,1,o.n_bins)
 
 
 # Load covariates
-all_covariate_keys = M.covariate_values.keys()
+all_covariate_keys = M.covariate_keys
 covariate_dict = {}
 for k in all_covariate_keys:
     if k != 'm':
