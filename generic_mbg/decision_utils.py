@@ -24,10 +24,45 @@ def find_approx_params(mu_pri, V_pri, likefn, norms):
 
     return p
     
-def find_joint_approx_params(mu_pri, C_pri, likefn):
-    # FIXME: implement this!
-    norms = None
-    return mu_pri, C_pri
+def obs_corrections(mu_pri, C_pri, like_m, like_v, i):
+    C_pri_scale = C_pri[i,:]/(C_pri[i,i]+like_v)
+    C_corr = - np.outer(C_pri[i,:], C_pri_scale)
+    mu_corr = (like_m-mu_pri[i])*C_pri_scale
+    return mu_corr, C_corr
+
+def find_joint_approx_params(mu_pri, C_pri, likefns, tol=1.e-3):
+    norms = np.random.normal(size=1000)
+
+    delta_m = np.ones_like(mu_pri)*np.inf
+    delta_v = np.ones_like(mu_pri)*np.inf
+
+    like_means = np.zeros_like(mu_pri)
+    like_vars = np.ones_like(mu_pri)*np.inf
+
+    mu = mu_pri.copy()
+    C = C_pri.copy()
+
+    mu_corrs = np.zeros(shape=(mu_pri.shape[0],)*2)
+    C_corrs = np.zeros(shape=(mu_pri.shape[0],)*3)
+
+    while np.any(np.abs(delta_m)>tol) or np.any(np.abs(delta_v)>tol):
+        for i in xrange(len(mu_pri)):
+            mu -= mu_corrs[i]
+            C -= C_corrs[i]
+
+            new_like_mean, new_like_var = find_approx_params(mu[i], C[i,i], likefns[i], norms)
+
+            delta_m[i] = new_like_mean-like_means[i]
+            delta_v[i] = new_like_var- like_vars[i]
+            like_means[i] = new_like_mean
+            like_vars[i] = new_like_var
+
+            mu_corrs[i], C_corrs[i] = obs_corrections(mu, C, like_means[i], like_vars[i], i)
+
+            mu += mu_corrs[i]
+            C += C_corrs[i]
+
+    return like_means, like_vars, mu, C
 
 def hdf5_to_survey_eval(M, x, nuggets, burn, thin, total, fns, postprocs, pred_covariate_dict, survey_x, survey_data, survey_covariate_dict, survey_likelihoods, finalize=None, continue_past_npd=False):
     hf=M.db._h5file
