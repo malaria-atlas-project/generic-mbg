@@ -25,6 +25,7 @@ class close(object):
     def __init__(self, f, **kwds):
         self.f = f
         self.kwds = kwds
+        self.__name__ = f.__name__
     def __call__(self, *args, **new_kwds): 
         new_kwds.update(self.kwds)
         return self.f(*args, **new_kwds)

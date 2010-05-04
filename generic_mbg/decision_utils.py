@@ -30,6 +30,42 @@ def obs_corrections(mu_pri, C_pri, like_m, like_v, i):
     mu_corr = (like_m-mu_pri[i])*C_pri_scale
     return mu_corr, C_corr
 
+def mean_reduce_with_hdf(hf):
+    def mean_reduce_(sofar, next, name, ind, hf=hf):
+        """A function to be used with hdf5_to_samps"""
+        hfa = getattr(hf.root, name+'_mean')
+        if sofar is None:
+            hfa[ind] = 0.
+        else:
+            hfa[ind] = hfa[ind] + next
+        return 1
+    return mean_reduce_
+
+def var_reduce_with_hdf(hf):
+    def var_reduce_(sofar, next, name, ind, hf=hf):
+        """A function to be used with hdf5_to_samps"""
+        hfa = getattr(hf.root, name+'_var')
+        if sofar is None:
+            hfa[ind] = 0.
+        else:
+            hfa[ind] = hfa[ind] + next**2
+        return 1
+    return var_reduce_
+        
+def histogram_reduce_with_hdf(bins, binfn, hf):
+    """Produces an accumulator to be used with hdf5_to_samps"""
+    def hr(sofar, next, name, ind, hf=hf):
+        hfa = getattr(hf.root, name+'_histogram')
+        if sofar is None:
+            hfa[ind] = 0.
+        # Call to Fortran function multiinc
+        hist_ind = binfn(next)
+        sofar = hfa[ind]
+        multiinc(sofar,hist_ind)
+        hfa[ind] = sofar
+        return 1
+    return hr
+
 def find_joint_approx_params(mu_pri, C_pri, likefns, tol=1.e-3):
     norms = np.random.normal(size=1000)
 
@@ -107,21 +143,26 @@ def hdf5_to_survey_eval(M, x, nuggets, burn, thin, total, fns, postprocs, pred_c
                 print 'expect results '+time.ctime((time_count-time_start)*len(iter)/float(k)+time_start)
             else:
                 print
-        
+
+        base_M_preds = {}
+        base_S_preds = {}
         for s in gp_submods:
             M_obs[s] = pm.utils.value(s.M_obs)
             C_obs[s] = pm.utils.value(s.C_obs)
             nugs[s] = pm.utils.value(nuggets[s])
+            base_M_preds[s], base_V_pred = pm.gp.point_eval(M_obs[s], C_obs[s], x)
+            base_S_preds[s] = np.sqrt(base_V_pred + nugs[s])
+            
+            apply_postprocs_and_reduce(n_per, base_M_preds, base_S_preds, postprocs, fns, products, postproc_args, extra_postproc_args, joint=False, ind=-1)
         
         try:
-            out={'m':[],'v':[]}
-            real_m, real_v = pm.gp.point_eval(M_obs[s], C_obs[s], x)
             for l in xrange(len(survey_data)):    
                 M_preds = {}
                 S_preds = {}
                 for s in gp_submods:
                     mu_pri = M_obs[s](survey_x)
                     C_pri = C_obs[s](survey_x, survey_x)+nugs[s]*np.eye(len(survey_x))
+                    
                     
                     # FIXME: This will only work for single fields currently.
                     like_means, like_vars, mu_post, C_post = find_joint_approx_params(mu_pri, C_pri, [close(survey_likelihood, **{'data': survey_data[l], 'survey_plan': survey_plan, 'i': ii}) for ii in xrange(survey_data.shape[1])])
@@ -138,44 +179,11 @@ def hdf5_to_survey_eval(M, x, nuggets, burn, thin, total, fns, postprocs, pred_c
                             warnings.warn('Some elements of V_pred were negative. Assuming non-positive definiteness but not checking yet.')
                             actual_total -= n_per
                             raise np.linalg.LinAlgError
-                    S_preds[s] = np.sqrt(V_pred + pm.utils.value(nuggets[s]))
+                    S_preds[s] = np.sqrt(V_pred + nugs[s])
                     
-                    out['m'].append(M_preds[s])
-                    out['v'].append(V_pred)
-            from IPython.Debugger import Pdb
-            Pdb(color_scheme='LightBG').set_trace() 
-                    
-                    # TODO: See if you can make it this far!
-                    
-                # for j in xrange(n_per):
-                #         
-                #     postproc_kwds = {}
-                #     # Evaluate fields, and store them in argument dict for postproc
-                #     for s in gp_submods:
-                #         if joint:
-                #             postproc_kwds[s.name] = pm.rmv_normal_chol(M_preds[s], S_preds[s])
-                #         else:
-                #             postproc_kwds[s.name] = M_preds[s].copy('F')
-                #             pm.map_noreturn(iaaxpy, [(norms[j], S_preds[s], postproc_kwds[s.name], cmin[l], cmax[l]) for l in xrange(len(cmax))])
-                #         
-                #     for postproc in postprocs:
-                #         postproc_kwds_ = copy.copy(postproc_kwds)
-                #         # Pull any extra variables needed for postprocessing out of trace
-                #         for extra_arg in extra_postproc_args[postproc]:
-                #             postproc_kwds_[extra_arg] = pm.utils.value(getattr(M, extra_arg))
-                #     
-                #         # Evaluate postprocessing function to get a surface
-                #         surf = postproc(**postproc_kwds_)
-                #         
-                #         # Reduce surface into products needed
-                #         for f in fns:
-                #             products[postproc][f] = f(products[postproc][f], surf)
+                    apply_postprocs_and_reduce(n_per, M_preds, S_preds, postprocs, fns, products, postproc_args, extra_postproc_args, joint=False, ind=l)
 
         except np.linalg.LinAlgError:
             continue
 
-    return None
-    # if finalize is not None:
-    #     return dict(zip(postprocs, [finalize(products[postproc], actual_total) for postproc in postprocs]))
-    # else:
-    #     return products
+    return actual_total

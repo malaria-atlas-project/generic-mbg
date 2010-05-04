@@ -80,10 +80,11 @@ from generic_mbg import *
 import tables as tb
 import numpy as np
 import os, imp, sys, time
-
+import decimal
 import pylab as pl
-# Load up given module and load its relevant contents
 
+
+# Load up given module and load its relevant contents
 survey_plan = pl.csv2rec(o.survey)
 
 mod_path, mod_name = os.path.split(o.module)
@@ -108,15 +109,19 @@ else:
 
 
 # Parse quantiles and CI's.
-if len(o.credible_intervals) == 0:
-    ci = []
-else:
-    ci = map(float, o.credible_intervals.split(' '))
-
+bins = np.linspace(0,1,o.n_bins)
+    
 if len(o.quantile_list) == 0:
     q = []
 else:
-    q = map(float, o.quantile_list.split(' '))
+    q = map(decimal.Decimal, o.quantile_list.split(' '))
+    
+if len(o.credible_intervals) == 0:
+    pass
+else:
+    ci = map(decimal.Decimal, o.credible_intervals.split(' '))
+    half = decimal.Decimal(1)/decimal.Decimal(2)
+    q = np.sort(list(set(q) | set(np.hstack([(half*(1+cii), half*(1-cii)) for cii in ci]))))
     
 
 # Create predictive locations
@@ -130,7 +135,6 @@ M = create_model(mod,pm.database.hdf5.load(o.hf_name))
 hf = M.db._h5file
 meta = hf.root.metadata
 nuggets = dict([(getattr(M,k),getattr(M,v)) for k,v in mod.nugget_labels.iteritems()])
-bins = np.linspace(0,1,o.n_bins)
 
 
 # Load covariates
@@ -152,7 +156,9 @@ if 't' in survey_plan.dtype.names:
 survey_x = survey_x.T
 survey_covariate_dict = dict([(k,survey_plan[k]) for k in all_covariate_keys])
 print 'Simulating datasets at survey locations.'
+t1 = time.time()
 products = hdf5_to_samps(M,survey_x,nuggets,o.burn,o.thin,o.total, [sample_reduce], postproc, survey_covariate_dict, sample_finalize, o.continue_past_npd, joint=True)
+print 'Simulated datasets generated in %s seconds.'%(time.time()-t1)
 samples = products[postproc[0]]['samples']
 
 
@@ -164,30 +170,98 @@ try:
     os.mkdir(eval_dir)
 except OSError:
     pass
-eval_file = tb.openFile(os.path.join(eval_dir,eval_dir+'.hdf5'),'w')
+workspace_file = tb.openFile(os.path.join(eval_dir,eval_dir+'.hdf5'),'w')
 
-eval_file.createArray('/','unmasked',unmasked)
+workspace_file.createArray('/','unmasked',unmasked)
 
 for mp in mod.map_postproc:
-    for name in ['mean','meansq']:
-        eval_file.createCArray('/',mp.__name__+'_'+name,shape=(samples.shape[0], x.shape[0]),atom=tb.FloatAtom(),filters=tb.Filters(complevel=1,complib='zlib'))
-reduce_fns = [mean_reduce, var_reduce]
+    for name in ['mean','var']:
+        workspace_file.createCArray('/',mp.__name__+'_'+name,shape=(samples.shape[0]+1, x.shape[0]),atom=tb.FloatAtom(),filters=tb.Filters(complevel=1,complib='zlib'))
+
+        
+# Prepare reducing functions
+reduce_fns = [mean_reduce_with_hdf(workspace_file), var_reduce_with_hdf(workspace_file)]
 n_arrays = 2
 
 if len(q)>0 or len(ci)>0:
     n_arrays += o.n_bins
     def binfn(arr,n_bins=o.n_bins):
         return np.array(arr*n_bins,dtype=int)
-    reduce_fns = reduce_fns + [histogram_reduce(bins, binfn)]
+    hsr = histogram_reduce_with_hdf(bins, binfn, workspace_file)
+    hsf = histogram_finalize(bins, q, hsr)
+    reduce_fns = reduce_fns + [hsr]
     for mp in mod.map_postproc:
-        eval_file.createCArray('/',mp.__name__+'_histogram',shape=(samples.shape[0], x.shape[0], o.n_bins),atom=tb.Float32Atom(),filters=tb.Filters(complevel=1,complib='zlib'))
+        workspace_file.createCArray('/',mp.__name__+'_histogram',shape=(samples.shape[0]+1, x.shape[0], o.n_bins),atom=tb.Float32Atom(),filters=tb.Filters(complevel=1,complib='zlib'))
 
 upper_gb = samples.shape[0]*x.shape[0]*n_arrays*4*len(mod.map_postproc)/1.e9
 if upper_gb > 1:
-    warnings.warn('\n\nUpper-bound estimate of size of intermediate results file %s.hdf5 is %f gigabytes. You can decrease this by mapping on a smaller region, by setting the -r / --raster-thin argument to a larger value or by decreasing the number of things you want to map (map_postproc functions).\n\n'%(eval_dir, upper_gb))
+    print '\n\nUpper-bound estimate of size of intermediate results file %s.hdf5 is %f gigabytes. You can decrease this by mapping on a smaller region, by setting the -r / --raster-thin argument to a larger value or by decreasing the number of things you want to map (map_postproc functions).\n\n'%(eval_dir, upper_gb)
 
 
-products = hdf5_to_survey_eval(M, x, nuggets, o.burn, o.thin, o.total, reduce_fns, mod.map_postproc, covariate_dict, survey_x, samples, survey_covariate_dict, mod.survey_likelihood, survey_plan, finalize=None, continue_past_npd=False)
+# Do the predictive simulation
+print 'Updating the posterior for each simulated dataset, and simulating on predictive raster.'
+t1 = time.time()
+actual_total = hdf5_to_survey_eval(M, x, nuggets, o.burn, o.thin, o.total, reduce_fns, mod.map_postproc, covariate_dict, survey_x, samples, survey_covariate_dict, mod.survey_likelihood, survey_plan, finalize=None, continue_past_npd=False)
+print 'Posterior predictive simulations done in %s seconds'%(time.time()-t1)
+
+
+# Finalize the reduced products for each of the simulated datasets
+print 'Finalizing.'
+t1 = time.time()
+for mp in mod.map_postproc:
+    
+    mean_arr = getattr(workspace_file.root, mp.__name__+'_mean')
+    var_arr = getattr(workspace_file.root, mp.__name__+'_var')
+        
+    std_arr = workspace_file.createCArray('/',mp.__name__ + '_std', shape=mean_arr.shape,atom=tb.FloatAtom(),filters=tb.Filters(complevel=1,complib='zlib'))
+    std_to_mean_arr = workspace_file.createCArray('/',mp.__name__ + '_std_to_mean', shape=mean_arr.shape,atom=tb.FloatAtom(),filters=tb.Filters(complevel=1,complib='zlib'))
+    
+    if len(q)>0:
+        hist_arr = getattr(workspace_file.root, mp.__name__+'_histogram')
+        quantile_arrs = dict([(qi, workspace_file.createCArray('/',(mp.__name__ + '_quantile_%s'%qi).replace('.','__'), shape=mean_arr.shape,atom=tb.FloatAtom(),filters=tb.Filters(complevel=1,complib='zlib'))) for qi in q])
+    
+    if len(ci)>0:
+        ci_arrs = dict([(cii, workspace_file.createCArray('/',(mp.__name__ + '_ci_%s'%cii).replace('.','__'), shape=mean_arr.shape,atom=tb.FloatAtom(),filters=tb.Filters(complevel=1,complib='zlib'))) for cii in ci])
+    
+    for i in xrange(mean_arr.shape[0]):
+        mean_arr[i] = mean_arr[i]/actual_total
+        var_arr[i] = var_arr[i]/actual_total - mean_arr[i]**2
+        std_arr[i] = np.sqrt(var_arr[i])
+        std_to_mean_arr[i] = std_arr[i] / mean_arr[i]
+        
+        if len(q)>0:
+            hist_info = hsf({hsr: hist_arr[i,:]}, actual_total)
+            for qi in q:
+                quantile_arrs[qi] = hist_info['quantile-%s'%qi]
+
+        if len(ci)>0:
+            for cii in ci:
+                ci_arrs[cii] = hist_info['quantile-%s'%(half*(1+cii))]-hist_info['quantile-%s'%(half*(1-cii))]
+print 'Finalizing done in %s seconds'%(time.time()-t1)
+            
+
+# Apply the reducing and postprocessing functions requested by the user to the maps for each of the simutlated datasets.
+
+# def finalize(prod, n, ci=ci):
+#     mean = prod[mean_reduce] / n
+#     var = prod[var_reduce] / n - mean**2
+#     std = np.sqrt(var)
+#     std_to_mean = std/mean
+#     out = {'var': var, 'std': std}
+#     if len(q)>0:
+#         out.update(hsf(prod, n))
+#     if len(ci)>0:
+#         for cii in ci:
+#             out['ci-%s'%cii] = out['quantile-%s'%.5*(1.+cii)]-out['quantile-%s'%.5*(1.-cii)]
+#     return out
+
+
+
+# if finalize is not None:
+#     return dict(zip(postprocs, [finalize(products[postproc], actual_total) for postproc in postprocs]))
+# else:
+#     return products
+
 
 # Create utility fns
 # FIXME
@@ -198,18 +272,7 @@ products = hdf5_to_survey_eval(M, x, nuggets, o.burn, o.thin, o.total, reduce_fn
 #     hsr = histogram_reduce(bins, binfn)
 #     hsf = histogram_finalize(bins, q, hsr)
 
-# def finalize(prod, n, ci=ci, ef=extra_finalize):
-#     mean = prod[mean_reduce] / n
-#     var = prod[var_reduce] / n - mean**2
-#     std = np.sqrt(var)
-#     std_to_mean = std/mean
-#     out = {'var': var, 'std': std}
-#     # FIXME
-#     # if len(ci)>0:
-#     #     out.update(hsf(prod, n))
-#     # if ef is not None:
-#     #     out.update(ef(prod, n))
-#     return out
+
 # 
 # reduce_fns = [mean_reduce, var_reduce]
 # if len(q)>0:

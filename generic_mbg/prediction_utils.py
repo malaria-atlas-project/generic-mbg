@@ -185,14 +185,14 @@ def display_datapoints(h5file, path='', cmap=None, *args, **kwargs):
     if cmap is None:
         plot(lpm[:,0],lpm[:,1],*args,**kwargs)
         
-def mean_reduce(sofar, next):
+def mean_reduce(sofar, next, name):
     """A function to be used with hdf5_to_samps"""
     if sofar is None:
         return next
     else:
         return sofar + next
         
-def var_reduce(sofar, next):
+def var_reduce(sofar, next, name):
     """A function to be used with hdf5_to_samps"""
     if sofar is None:
         return next**2
@@ -208,7 +208,7 @@ def moments_finalize(prod, n):
     out = {'mean': mean, 'var': var, 'std': std, 'std-to-mean':std_to_mean}
     return out
         
-def sample_reduce(sofar, next):
+def sample_reduce(sofar, next, name):
     """A function to be used with hdf5_to_samps. Keeps all samples with no data loss."""
     if sofar is None:
         return [next]
@@ -222,7 +222,7 @@ def sample_finalize(prod, n):
 
 def histogram_reduce(bins, binfn):
     """Produces an accumulator to be used with hdf5_to_samps"""
-    def hr(sofar, next):
+    def hr(sofar, next, name):
         if sofar is None:
             sofar = np.zeros(next.shape+(len(bins),), dtype=int, order='F')
         # Call to Fortran function multiinc
@@ -268,7 +268,38 @@ def get_args(postprocs, fns, f_labels, M):
             postproc_args[postproc] = required_args+optional_args
         extra_postproc_args[postproc] = set(postproc_args[postproc]) - set(f_labels)
     return products, postproc_args, extra_postproc_args
+
+def apply_postprocs_and_reduce(n_per, M_preds, S_preds, postprocs, fns, products, postproc_args, extra_postproc_args, joint, **kwds):
+    # Postprocess if necessary: logit, etc.
+    norms = np.random.normal(size=n_per)
+    gp_submods = M_preds.keys()
     
+    cmin, cmax = pm.thread_partition_array(M_preds[gp_submods[0]])
+
+    for j in xrange(n_per):
+    
+        postproc_kwds = {}
+        # Evaluate fields, and store them in argument dict for postproc
+        for s in gp_submods:
+            if joint:
+                postproc_kwds[s.name] = pm.rmv_normal_chol(M_preds[s], S_preds[s])
+            else:
+                postproc_kwds[s.name] = M_preds[s].copy('F')
+                pm.map_noreturn(iaaxpy, [(norms[j], S_preds[s], postproc_kwds[s.name], cmin[l], cmax[l]) for l in xrange(len(cmax))])
+    
+        for postproc in postprocs:
+            postproc_kwds_ = copy.copy(postproc_kwds)
+            # Pull any extra variables needed for postprocessing out of trace
+            for extra_arg in extra_postproc_args[postproc]:
+                postproc_kwds_[extra_arg] = pm.utils.value(getattr(M, extra_arg))
+
+            # Evaluate postprocessing function to get a surface
+            surf = postproc(**postproc_kwds_)
+    
+            # Reduce surface into products needed
+            for f in fns:
+                products[postproc][f] = f(products[postproc][f], surf, postproc.__name__, **kwds)
+        
 
 def hdf5_to_samps(M, x, nuggets, burn, thin, total, fns, postprocs, pred_covariate_dict, finalize=None, continue_past_npd=False, joint=False):
     """
@@ -375,35 +406,7 @@ def hdf5_to_samps(M, x, nuggets, burn, thin, total, fns, postprocs, pred_covaria
             actual_total -= n_per
             continue
         
-            
-        cmin, cmax = pm.thread_partition_array(M_preds[s])
-
-        # Postprocess if necessary: logit, etc.
-        norms = np.random.normal(size=n_per)
-    
-        for j in xrange(n_per):
-        
-            postproc_kwds = {}
-            # Evaluate fields, and store them in argument dict for postproc
-            for s in gp_submods:
-                if joint:
-                    postproc_kwds[s.name] = pm.rmv_normal_chol(M_preds[s], S_preds[s])
-                else:
-                    postproc_kwds[s.name] = M_preds[s].copy('F')
-                    pm.map_noreturn(iaaxpy, [(norms[j], S_preds[s], postproc_kwds[s.name], cmin[l], cmax[l]) for l in xrange(len(cmax))])
-        
-            for postproc in postprocs:
-                postproc_kwds_ = copy.copy(postproc_kwds)
-                # Pull any extra variables needed for postprocessing out of trace
-                for extra_arg in extra_postproc_args[postproc]:
-                    postproc_kwds_[extra_arg] = pm.utils.value(getattr(M, extra_arg))
-    
-                # Evaluate postprocessing function to get a surface
-                surf = postproc(**postproc_kwds_)
-        
-                # Reduce surface into products needed
-                for f in fns:
-                    products[postproc][f] = f(products[postproc][f], surf)
+        apply_postprocs_and_reduce(n_per, M_preds, S_preds, postprocs, fns, products, postproc_args, extra_postproc_args, joint)    
 
     if finalize is not None:
         return dict(zip(postprocs, [finalize(products[postproc], actual_total) for postproc in postprocs]))
