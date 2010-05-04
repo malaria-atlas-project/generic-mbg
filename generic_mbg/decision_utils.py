@@ -45,7 +45,7 @@ def find_joint_approx_params(mu_pri, C_pri, likefns, tol=1.e-3):
     mu_corrs = np.zeros(shape=(mu_pri.shape[0],)*2)
     C_corrs = np.zeros(shape=(mu_pri.shape[0],)*3)
 
-    while np.any(np.abs(delta_m)>tol) or np.any(np.abs(delta_v)>tol):
+    while np.any(np.abs(delta_m)>tol) or np.any(np.abs(delta_v/like_vars)>tol):
         for i in xrange(len(mu_pri)):
             mu -= mu_corrs[i]
             C -= C_corrs[i]
@@ -64,12 +64,13 @@ def find_joint_approx_params(mu_pri, C_pri, likefns, tol=1.e-3):
 
     return like_means, like_vars, mu, C
 
-def hdf5_to_survey_eval(M, x, nuggets, burn, thin, total, fns, postprocs, pred_covariate_dict, survey_x, survey_data, survey_covariate_dict, survey_likelihoods, finalize=None, continue_past_npd=False):
+def hdf5_to_survey_eval(M, x, nuggets, burn, thin, total, fns, postprocs, pred_covariate_dict, survey_x, survey_data, survey_covariate_dict, survey_likelihood, survey_plan, finalize=None, continue_past_npd=False):
+    
     hf=M.db._h5file
     gp_submods = list(set(filter(lambda c: isinstance(c,pm.gp.GPSubmodel), M.containers)))
     f_labels = [gps.name for gps in gp_submods]
 
-    products, postproc_args, extra_postproc_args = get_args(postproc, fns)
+    products, postproc_args, extra_postproc_args = get_args(postprocs, fns, f_labels, M)
         
     iter = np.arange(burn,all_chain_len(hf),thin)
 
@@ -96,6 +97,8 @@ def hdf5_to_survey_eval(M, x, nuggets, burn, thin, total, fns, postprocs, pred_c
             if isinstance(d.value, pm.gp.Covariance):
                 if isinstance(d.value.eval_fun,CovarianceWithCovariates):
                     d.value.eval_fun.add_values_to_cache(x,pred_covariate_dict)
+                    d.value.eval_fun.add_values_to_cache(survey_x,survey_covariate_dict)
+                    d.value.eval_fun.add_values_to_cache(np.vstack((d.value.eval_fun.meshes[0], survey_x[:,:2])), dict([(key, np.hstack((d.value.eval_fun.dicts[0][key], survey_covariate_dict[key]))) for key in survey_covariate_dict.iterkeys()])) 
         
         if time.time() - time_count > 10:
             print ((k*100)/len(iter)), '% complete',
@@ -111,20 +114,24 @@ def hdf5_to_survey_eval(M, x, nuggets, burn, thin, total, fns, postprocs, pred_c
             nugs[s] = pm.utils.value(nuggets[s])
         
         try:
-            for l in xrange(len(survey_data)[s]):    
+            out={'m':[],'v':[]}
+            real_m, real_v = pm.gp.point_eval(M_obs[s], C_obs[s], x)
+            for l in xrange(len(survey_data)):    
                 M_preds = {}
                 S_preds = {}
                 for s in gp_submods:
-                    mu_pri = M_obs[s](survey_x[s])
-                    C_pri = C_obs[s](survey_x[s], survey_x[s])+nugs[s]*np.eye(len(survey_x[s]))
+                    mu_pri = M_obs[s](survey_x)
+                    C_pri = C_obs[s](survey_x, survey_x)+nugs[s]*np.eye(len(survey_x))
+                    
+                    # FIXME: This will only work for single fields currently.
+                    like_means, like_vars, mu_post, C_post = find_joint_approx_params(mu_pri, C_pri, [close(survey_likelihood, **{'data': survey_data[l], 'survey_plan': survey_plan, 'i': ii}) for ii in xrange(survey_data.shape[1])])
                 
-                    like_means, like_vars = find_joint_approx_params(mu_pri, C_pri, close(survey_likelihoods[s], **{s.name: survey_data[s][l]}))
-                
-                    M_obs = copy.copy(M_obs[s])
-                    C_obs = copy.copy(C_obs[s])
-                    pm.gp.observe(M_preds[s], C_pred[s], obs_mesh=survey_x[s], obs_vals = like_means, obs_V = like_vars)
+                    M_obs_ = copy.copy(M_obs[s])
+                    C_obs_ = copy.copy(C_obs[s])
 
-                    M_preds[s], V_pred = pm.gp.point_eval(M_obs, C_obs, x)
+                    pm.gp.observe(M_obs_, C_obs_, obs_mesh=survey_x, obs_vals = like_means, obs_V = like_vars)
+
+                    M_preds[s], V_pred = pm.gp.point_eval(M_obs_, C_obs_, x)
 
                     if np.any(V_pred<0):
                         if continue_past_npd:
@@ -132,6 +139,11 @@ def hdf5_to_survey_eval(M, x, nuggets, burn, thin, total, fns, postprocs, pred_c
                             actual_total -= n_per
                             raise np.linalg.LinAlgError
                     S_preds[s] = np.sqrt(V_pred + pm.utils.value(nuggets[s]))
+                    
+                    out['m'].append(M_preds[s])
+                    out['v'].append(V_pred)
+            from IPython.Debugger import Pdb
+            Pdb(color_scheme='LightBG').set_trace() 
                     
                     # TODO: See if you can make it this far!
                     
@@ -162,7 +174,8 @@ def hdf5_to_survey_eval(M, x, nuggets, burn, thin, total, fns, postprocs, pred_c
         except np.linalg.LinAlgError:
             continue
 
-    if finalize is not None:
-        return dict(zip(postprocs, [finalize(products[postproc], actual_total) for postproc in postprocs]))
-    else:
-        return products
+    return None
+    # if finalize is not None:
+    #     return dict(zip(postprocs, [finalize(products[postproc], actual_total) for postproc in postprocs]))
+    # else:
+    #     return products

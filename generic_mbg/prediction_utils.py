@@ -246,7 +246,7 @@ def histogram_finalize(bins, q, hr):
     return fin    
 
 
-def get_args(postproc, fns):
+def get_args(postprocs, fns, f_labels, M):
     # Have a look at the postprocessing functions
     products = {}
     postproc_args = {}
@@ -304,7 +304,7 @@ def hdf5_to_samps(M, x, nuggets, burn, thin, total, fns, postprocs, pred_covaria
     gp_submods = list(set(filter(lambda c: isinstance(c,pm.gp.GPSubmodel), M.containers)))
     f_labels = [gps.name for gps in gp_submods]
     
-    products, postproc_args, extra_postproc_args = get_args(postproc, fns)
+    products, postproc_args, extra_postproc_args = get_args(postprocs, fns, f_labels, M)
         
     iter = np.arange(burn,all_chain_len(hf),thin)
 

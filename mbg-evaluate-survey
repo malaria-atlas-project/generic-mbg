@@ -117,6 +117,7 @@ if len(o.quantile_list) == 0:
     q = []
 else:
     q = map(float, o.quantile_list.split(' '))
+    
 
 # Create predictive locations
 x, unmasked, output_type = raster_to_locs(o.mask_name, thin=o.raster_thin, bufsize=o.bufsize, path=o.raster_path)
@@ -144,14 +145,14 @@ for k in all_covariate_keys:
 
 
 # Generate simulated datasets
-postproc = [close(p,survey_plan=survey_plan) for p in mod.simdata_postproc]
+postproc = [close(mod.simdata_postproc,survey_plan=survey_plan)]
 survey_x = np.vstack((survey_plan.lon, survey_plan.lat))
 if 't' in survey_plan.dtype.names:
     survey_x = np.vstack((survey_x, survey_plan.t))
 survey_x = survey_x.T
 survey_covariate_dict = dict([(k,survey_plan[k]) for k in all_covariate_keys])
 print 'Simulating datasets at survey locations.'
-products = hdf5_to_samps(M,survey_x,nuggets,o.burn,o.thin,o.total,[sample_reduce], postproc, survey_covariate_dict, sample_finalize, o.continue_past_npd, joint=True)
+products = hdf5_to_samps(M,survey_x,nuggets,o.burn,o.thin,o.total, [sample_reduce], postproc, survey_covariate_dict, sample_finalize, o.continue_past_npd, joint=True)
 samples = products[postproc[0]]['samples']
 
 
@@ -174,8 +175,10 @@ reduce_fns = [mean_reduce, var_reduce]
 n_arrays = 2
 
 if len(q)>0 or len(ci)>0:
-    n_arrays += n_bins
-    reduce_fns = reduce_fns + histogram_reduce(bins, binfn)
+    n_arrays += o.n_bins
+    def binfn(arr,n_bins=o.n_bins):
+        return np.array(arr*n_bins,dtype=int)
+    reduce_fns = reduce_fns + [histogram_reduce(bins, binfn)]
     for mp in mod.map_postproc:
         eval_file.createCArray('/',mp.__name__+'_histogram',shape=(samples.shape[0], x.shape[0], o.n_bins),atom=tb.Float32Atom(),filters=tb.Filters(complevel=1,complib='zlib'))
 
@@ -184,6 +187,7 @@ if upper_gb > 1:
     warnings.warn('\n\nUpper-bound estimate of size of intermediate results file %s.hdf5 is %f gigabytes. You can decrease this by mapping on a smaller region, by setting the -r / --raster-thin argument to a larger value or by decreasing the number of things you want to map (map_postproc functions).\n\n'%(eval_dir, upper_gb))
 
 
+products = hdf5_to_survey_eval(M, x, nuggets, o.burn, o.thin, o.total, reduce_fns, mod.map_postproc, covariate_dict, survey_x, samples, survey_covariate_dict, mod.survey_likelihood, survey_plan, finalize=None, continue_past_npd=False)
 
 # Create utility fns
 # FIXME

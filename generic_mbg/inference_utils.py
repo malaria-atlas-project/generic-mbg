@@ -286,6 +286,7 @@ class CachingCovariateEvaluator(object):
         self.values.append(((value-self.shift)/self.scale).astype('float'))
 
     def __call__(self, mesh):
+        # FIXME: This should be able to piece contiguous blocks together from the different meshes.
         for i,m in enumerate(self.meshes):
             start,stop = subset_eq(m,mesh)
             if start>-1 and stop>-1:
@@ -293,6 +294,7 @@ class CachingCovariateEvaluator(object):
                     raise ValueError
                 return self.values[i][start:stop]
 
+        raise RuntimeError
         print( "The given mesh is not present as contiguous block in cache, checking if present in non-contiguous blocks")
 
         # initialise vector for extracted values
@@ -354,6 +356,8 @@ class CovarianceWithCovariates(object):
         self.file = file
         self.keys = keys
         self.ui = ui
+        self.meshes = [mesh]
+        self.dicts = [dict([(k,ra[k][ui]) for k in self.labels])]
         self.evaluators = dict([(k,CachingCovariateEvaluator(mesh[:,:2], ra[k][ui])) for k in self.labels])
         self.cov_fun = cov_fun
         self.fac = fac
@@ -393,6 +397,8 @@ class CovarianceWithCovariates(object):
         # return np.asarray([np.ones(len(x)) for k in self.labels], order='F')
         
     def add_values_to_cache(self, mesh, new_cv):
+        self.meshes.append(mesh)
+        self.dicts.append(new_cv)
         for k,v in self.evaluators.iteritems():
             v.add_value_to_cache(mesh[:,:2], new_cv[k])
 
@@ -416,7 +422,10 @@ class CovarianceWithCovariates(object):
         return C
 
 
-    def __call__(self, x, y, *args, **kwds):
+    def __call__(self, x, y=None, *args, **kwds):
+        
+        if y is None:
+            return self.diag_call(x, *args, **kwds)
         
         # Evaluate with both arguments:
         Cbase = self.cov_fun(x,y,*args,**kwds)
