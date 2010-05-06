@@ -150,7 +150,7 @@ for k in all_covariate_keys:
 
 # Generate simulated datasets
 postproc = [close(mod.simdata_postproc,survey_plan=survey_plan)]
-survey_x = np.vstack((survey_plan.lon, survey_plan.lat))
+survey_x = np.vstack((survey_plan.lon, survey_plan.lat))*np.pi/180.
 if 't' in survey_plan.dtype.names:
     survey_x = np.vstack((survey_x, survey_plan.t))
 survey_x = survey_x.T

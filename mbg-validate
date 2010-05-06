@@ -173,7 +173,7 @@ for f, obs_, n_ in zip(vp, obs, n):
         errors['mean abs error'][i] = np.mean(np.abs(frequency_dev))
         errors['RMS error'][i] = np.sqrt(np.mean(frequency_dev**2))
     
-    pl.rec2csv(errors,'mean-errors.csv')
+    pl.rec2csv(errors,'%s-mean-errors.csv'%f.__name__)
 
     for vf in validation_fns:
         print 'Generating plot of %s for %s'%(vf.__name__, f.__name__)
