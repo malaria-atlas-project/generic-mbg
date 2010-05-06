@@ -236,17 +236,46 @@ map_keys = ['mean','var','std','std_to_mean']+[('quantile_%s'%qi).replace('.','_
 
 os.chdir(eval_dir)
 
+def make_pdf(v, out_name):
+    pdf_name = out_name + '.pdf'
+    print 'Generating output file %s'%(out_name.replace('__','.'))
+
+    lon,lat,data=vec_to_raster(v,o.mask_name,o.raster_path,out_name,unmasked)
+    pl.clf()
+    pl.imshow(grid_convert(data,'y+x+','y-x+'), extent=[lon.min(), lon.max(), lat.min(), lat.max()], interpolation='nearest')
+    pl.colorbar()
+    pl.savefig(pdf_name)
+
+map_reduce_fns = [mean_reduce, var_reduce]
+if len(q)>0:
+    hsr = histogram_reduce(bins, binfn)
+    hsf = histogram_finalize(bins,q,hsr)
+    map_reduce_fns.append(hsr)
+
+def map_finalize(prod, n, q=q):
+    mean = prod[mean_reduce] / n
+    var = prod[var_reduce] / n - mean**2
+    std = np.sqrt(var)
+    std[np.where(var<0)]=0    
+    std_to_mean = std/mean
+    std_to_mean[np.where(mean==0)]=np.inf
+    std_to_mean[np.where(std==0)]=0
+    out = {'mean': mean, 'var': var, 'std': std, 'std-to-mean':std_to_mean}
+    if len(q)>0:
+        out.update(hsf(prod, n))
+    return out
+
 for f in mod.map_postproc:
     for k in map_keys:
-        v = getattr(workspace_file.root, mp.__name__+'_'+k)[-1]
+        hfnode = getattr(workspace_file.root, mp.__name__+'_'+k)
+        v = hfnode[-1]
+        make_pdf(v, f.__name__ + '_cur_' + k)
         
-        out_name = f.__name__ + '_cur_' + k
-        
-        pdf_name = out_name + '.pdf'
-        print 'Generating output file %s'%(out_name)
-        
-        lon,lat,data=vec_to_raster(v,o.mask_name,o.raster_path,out_name,unmasked)
-        pl.clf()
-        pl.imshow(grid_convert(data,'y+x+','y-x+'), extent=[lon.min(), lon.max(), lat.min(), lat.max()], interpolation='nearest')
-        pl.colorbar()
-        pl.savefig(pdf_name)
+        products = dict([(rf, None) for rf in map_reduce_fns])
+        for i in xrange(hfnode.shape[0]-1):
+            for rf in map_reduce_fns:
+                products[rf] = rf(products[rf], hfnode[i], rf.__name__)
+                
+        mapmaps = map_finalize(products, hfnode.shape[0]-1)
+        for mk,v in mapmaps.iteritems():
+            make_pdf(v, f.__name__+'_'+mk+'_of_'+k)
