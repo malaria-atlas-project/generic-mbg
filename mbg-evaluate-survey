@@ -225,83 +225,30 @@ for mp in mod.map_postproc:
         if len(q)>0:
             hist_info = hsf({hsr: hist_arr[i,:]}, actual_total)
             for qi in q:
-                quantile_arrs[qi] = hist_info['quantile-%s'%qi]
+                quantile_arrs[qi][:] = hist_info['quantile-%s'%qi]
 
         if len(ci)>0:
             for cii in ci:
-                ci_arrs[cii] = hist_info['quantile-%s'%(half*(1+cii))]-hist_info['quantile-%s'%(half*(1-cii))]
+                ci_arrs[cii][:] = hist_info['quantile-%s'%(half*(1+cii))]-hist_info['quantile-%s'%(half*(1-cii))]
 print 'Finalizing done in %s seconds'%(time.time()-t1)
             
+map_keys = ['mean','var','std','std_to_mean']+[('quantile_%s'%qi).replace('.','__') for qi in q]+[('ci_%s'%cii).replace('.','__') for cii in ci]
 
-# Apply the reducing and postprocessing functions requested by the user to the maps for each of the simutlated datasets.
+os.chdir(eval_dir)
 
-# def finalize(prod, n, ci=ci):
-#     mean = prod[mean_reduce] / n
-#     var = prod[var_reduce] / n - mean**2
-#     std = np.sqrt(var)
-#     std_to_mean = std/mean
-#     out = {'var': var, 'std': std}
-#     if len(q)>0:
-#         out.update(hsf(prod, n))
-#     if len(ci)>0:
-#         for cii in ci:
-#             out['ci-%s'%cii] = out['quantile-%s'%.5*(1.+cii)]-out['quantile-%s'%.5*(1.-cii)]
-#     return out
-
-
-
-# if finalize is not None:
-#     return dict(zip(postprocs, [finalize(products[postproc], actual_total) for postproc in postprocs]))
-# else:
-#     return products
-
-
-# Create utility fns
-# FIXME
-# if len(ci)>0:
-#     def binfn(arr,n_bins=o.n_bins):
-#         return np.array(arr*n_bins,dtype=int)
-# 
-#     hsr = histogram_reduce(bins, binfn)
-#     hsf = histogram_finalize(bins, q, hsr)
-
-
-# 
-# reduce_fns = [mean_reduce, var_reduce]
-# if len(q)>0:
-#     reduce_fns = reduce_fns + [hsr]
-# 
-# # Create rasters
-# t_start = time.time()
-# # (hf, x, burn, thin, total, fns, f_labels, fs_have_nugget, x_label, nugget_labels, M_labels, C_labels, pred_cv_dicts, postproc, diags_safe, finalize=None, **non_cov_columns)
-# if np.iterable(mod.map_postproc):
-#     mp = mod.map_postproc
-# else:
-#     mp = [mod.map_postproc]
-
-# First run through with a special reduce/finalize pair to get simulated data at the new survey locations.
-# products = hdf5_to_samps(M,x,nuggets,o.burn,o.thin,o.total,reduce_fns + extra_reduce_fns, mp, covariate_dict, finalize, o.continue_past_npd)
-# print '\nMaps produced in %f seconds\n'%(time.time() - t_start)
-#
-# Then run through with another special reduce/finalize pair, closed on the simulated data, to get the   
-#
-# Write out
-
-
-# FIXME
-# for f in mp:
-#     for k,v in products[f].iteritems():
-#         if f is mod.map_postproc:
-#             out_name = k
-#         else:
-#             out_name = f.__name__ + '_' + k
-#         pdf_name = out_name + '.pdf'
-#         print 'Generating output file %s'%(out_name)
-#         # FIXME: Output raster should match the type of the mask.
-#         lon,lat,data=vec_to_raster(v,o.mask_name,o.raster_path,out_name,unmasked)
-#         pl.clf()
-#         pl.imshow(grid_convert(data,'y+x+','y-x+'), extent=[lon.min(), lon.max(), lat.min(), lat.max()], interpolation='nearest')
-#         # pl.imshow(data, extent=[lon.min(), lon.max(), lat.min(), lat.max()], interpolation='nearest')
-#         pl.colorbar()
-#         # pl.plot(meta.data_mesh[:,0]*180./np.pi,meta.data_mesh[:,1]*180./np.pi,'r.',markersize=2)
-#         pl.savefig(pdf_name)
+for f in mod.map_postproc:
+    for k in map_keys:
+        v = getattr(workspace_file.root, mp.__name__+'_'+k)[-1]
+        
+        out_name = f.__name__ + '_cur_' + k
+        
+        pdf_name = out_name + '.pdf'
+        print 'Generating output file %s'%(out_name)
+        # FIXME: Output raster should match the type of the mask.
+        lon,lat,data=vec_to_raster(v,o.mask_name,o.raster_path,out_name,unmasked)
+        pl.clf()
+        pl.imshow(grid_convert(data,'y+x+','y-x+'), extent=[lon.min(), lon.max(), lat.min(), lat.max()], interpolation='nearest')
+        # pl.imshow(data, extent=[lon.min(), lon.max(), lat.min(), lat.max()], interpolation='nearest')
+        pl.colorbar()
+        # pl.plot(meta.data_mesh[:,0]*180./np.pi,meta.data_mesh[:,1]*180./np.pi,'r.',markersize=2)
+        pl.savefig(pdf_name)
