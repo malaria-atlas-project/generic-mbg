@@ -173,25 +173,18 @@ except OSError:
 workspace_file = tb.openFile(os.path.join(eval_dir,eval_dir+'.hdf5'),'w')
 
 workspace_file.createArray('/','unmasked',unmasked)
-
-for mp in mod.map_postproc:
-    for name in ['mean','var']:
-        workspace_file.createCArray('/',mp.__name__+'_'+name,shape=(samples.shape[0]+1, x.shape[0]),atom=tb.FloatAtom(),filters=tb.Filters(complevel=1,complib='zlib'))
-
         
 # Prepare reducing functions
-reduce_fns = [mean_reduce_with_hdf(workspace_file), var_reduce_with_hdf(workspace_file)]
+reduce_fns = [mean_reduce_with_hdf(workspace_file, len(samples)+1), var_reduce_with_hdf(workspace_file, len(samples)+1)]
 n_arrays = 2
 
 if len(q)>0 or len(ci)>0:
     n_arrays += o.n_bins
     def binfn(arr,n_bins=o.n_bins):
         return np.array(arr*n_bins,dtype=int)
-    hsr = histogram_reduce_with_hdf(bins, binfn, workspace_file)
+    hsr = histogram_reduce_with_hdf(bins, binfn, workspace_file, len(samples)+1)
     hsf = histogram_finalize(bins, q, hsr)
     reduce_fns = reduce_fns + [hsr]
-    for mp in mod.map_postproc:
-        workspace_file.createCArray('/',mp.__name__+'_histogram',shape=(samples.shape[0]+1, x.shape[0], o.n_bins),atom=tb.Float32Atom(),filters=tb.Filters(complevel=1,complib='zlib'))
 
 upper_gb = samples.shape[0]*x.shape[0]*n_arrays*4*len(mod.map_postproc)/1.e9
 if upper_gb > 1:

@@ -30,32 +30,41 @@ def obs_corrections(mu_pri, C_pri, like_m, like_v, i):
     mu_corr = (like_m-mu_pri[i])*C_pri_scale
     return mu_corr, C_corr
 
-def mean_reduce_with_hdf(hf):
-    def mean_reduce_(sofar, next, name, ind, hf=hf):
+def mean_reduce_with_hdf(hf, n_reps):
+    def mean_reduce_(sofar, next, name, ind, hf=hf, n_reps=n_reps):
         """A function to be used with hdf5_to_samps"""
-        hfa = getattr(hf.root, name+'_mean')
+        if hasattr(hf.root, name+'_mean'):
+            hfa = getattr(hf.root, name+'_mean')
+        else:
+            hfa = hf.createCArray('/',name+'_mean',shape=(n_reps,)+next.shape,atom=tb.FloatAtom(),filters=tb.Filters(complevel=1,complib='zlib'))
         if sofar is None:
-            hfa[ind] = 0.
+            hfa[ind] = next
         else:
             hfa[ind] = hfa[ind] + next
         return 1
     return mean_reduce_
 
-def var_reduce_with_hdf(hf):
-    def var_reduce_(sofar, next, name, ind, hf=hf):
+def var_reduce_with_hdf(hf, n_reps):
+    def var_reduce_(sofar, next, name, ind, hf=hf, n_reps=n_reps):
         """A function to be used with hdf5_to_samps"""
-        hfa = getattr(hf.root, name+'_var')
+        if hasattr(hf.root, name+'_var'):
+            hfa = getattr(hf.root, name+'_var')
+        else:
+            hfa = hf.createCArray('/',name+'_var',shape=(n_reps,)+next.shape,atom=tb.FloatAtom(),filters=tb.Filters(complevel=1,complib='zlib'))
         if sofar is None:
-            hfa[ind] = 0.
+            hfa[ind] = next**2
         else:
             hfa[ind] = hfa[ind] + next**2
         return 1
     return var_reduce_
         
-def histogram_reduce_with_hdf(bins, binfn, hf):
+def histogram_reduce_with_hdf(bins, binfn, hf, n_reps):
     """Produces an accumulator to be used with hdf5_to_samps"""
-    def hr(sofar, next, name, ind, hf=hf):
-        hfa = getattr(hf.root, name+'_histogram')
+    def hr(sofar, next, name, ind, hf=hf, n_reps=n_reps):
+        if hasattr(hf.root, name+'_histogram'):
+            hfa = getattr(hf.root, name+'_histogram')
+        else:
+            hfa = hf.createCArray('/',name+'_histogram',shape=(n_reps,)+next.shape+(len(bins),),atom=tb.FloatAtom(),filters=tb.Filters(complevel=1,complib='zlib'))
         if sofar is None:
             hfa[ind] = 0.
         # Call to Fortran function multiinc
