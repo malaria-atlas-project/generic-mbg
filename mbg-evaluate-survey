@@ -51,7 +51,7 @@ p.set_defaults(n_bins=100)
 p.set_defaults(raster_path='.')
 p.set_defaults(raster_thin=1)
 p.set_defaults(thin=50)
-p.set_defaults(total=50000)
+p.set_defaults(total=1000)
 p.set_defaults(bufsize=0)
 p.set_defaults(year=None)
 p.set_defaults(continue_past_npd=0)
@@ -61,12 +61,6 @@ p.set_defaults(quantile_list='.05 .25 .5 .75 .95')
 (o, args) = p.parse_args()
 if len(args) != 5:
     raise ValueError, 'You must supply exactly four positional arguments. You supplied %i.'%len(args)
-
-if o.raster_thin>1:
-    raise NotImplementedError, """The raster_thin argument has caused too many problems 
-    and is disabled until it can be implemented properly. For the time being, 
-    please thin your rasters manually, and reconcile the outputs to the desired 
-    rasterusing a GIS program."""
 
 o.module, o.hf_name, o.burn, o.survey, o.mask_name = args
 o.burn = int(o.burn)
