@@ -155,6 +155,7 @@ def hdf5_to_survey_eval(M, x, nuggets, burn, thin, total, fns, postprocs, pred_c
 
         base_M_preds = {}
         base_S_preds = {}
+        norms = dict([(s, np.random.normal(size=n_per)) for s in gp_submods])
         for s in gp_submods:
             M_obs[s] = pm.utils.value(s.M_obs)
             C_obs[s] = pm.utils.value(s.C_obs)
@@ -162,10 +163,9 @@ def hdf5_to_survey_eval(M, x, nuggets, burn, thin, total, fns, postprocs, pred_c
             base_M_preds[s], base_V_pred = pm.gp.point_eval(M_obs[s], C_obs[s], x)
             base_S_preds[s] = np.sqrt(base_V_pred + nugs[s])
             
-            apply_postprocs_and_reduce(n_per, base_M_preds, base_S_preds, postprocs, fns, products, postproc_args, extra_postproc_args, joint=False, ind=-1)
+            apply_postprocs_and_reduce(n_per, base_M_preds, base_S_preds, postprocs, fns, products, postproc_args, extra_postproc_args, joint=False, ind=-1, norms=norms[s])
         
         try:
-            norms = dict([(s, np.random.normal(size=n_per)) for s in gp_submods])
             for l in xrange(len(survey_data)):    
                 M_preds = {}
                 S_preds = {}
