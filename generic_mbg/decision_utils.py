@@ -165,6 +165,7 @@ def hdf5_to_survey_eval(M, x, nuggets, burn, thin, total, fns, postprocs, pred_c
             apply_postprocs_and_reduce(n_per, base_M_preds, base_S_preds, postprocs, fns, products, postproc_args, extra_postproc_args, joint=False, ind=-1)
         
         try:
+            norms = dict([(s, np.random.normal(size=n_per)) for s in gp_submods])
             for l in xrange(len(survey_data)):    
                 M_preds = {}
                 S_preds = {}
@@ -190,7 +191,7 @@ def hdf5_to_survey_eval(M, x, nuggets, burn, thin, total, fns, postprocs, pred_c
                             raise np.linalg.LinAlgError
                     S_preds[s] = np.sqrt(V_pred + nugs[s])
                     
-                    apply_postprocs_and_reduce(n_per, M_preds, S_preds, postprocs, fns, products, postproc_args, extra_postproc_args, joint=False, ind=l)
+                    apply_postprocs_and_reduce(n_per, M_preds, S_preds, postprocs, fns, products, postproc_args, extra_postproc_args, joint=False, ind=l, norms=norms[s])
 
         except np.linalg.LinAlgError:
             continue

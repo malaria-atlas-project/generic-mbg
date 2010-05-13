@@ -269,9 +269,10 @@ def get_args(postprocs, fns, f_labels, M):
         extra_postproc_args[postproc] = set(postproc_args[postproc]) - set(f_labels)
     return products, postproc_args, extra_postproc_args
 
-def apply_postprocs_and_reduce(n_per, M_preds, S_preds, postprocs, fns, products, postproc_args, extra_postproc_args, joint, **kwds):
+def apply_postprocs_and_reduce(n_per, M_preds, S_preds, postprocs, fns, products, postproc_args, extra_postproc_args, joint, norms=None, **kwds):
     # Postprocess if necessary: logit, etc.
-    norms = np.random.normal(size=n_per)
+    if norms is None:
+        norms = np.random.normal(size=n_per)
     gp_submods = M_preds.keys()
     
     cmin, cmax = pm.thread_partition_array(M_preds[gp_submods[0]])
