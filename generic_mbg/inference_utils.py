@@ -18,7 +18,7 @@ import numpy as np
 import time
 import tables as tb
 from st_cov_fun import my_st
-from histogram_utils import iinvlogit, iamul, iasq, icsum, subset_eq, iasadd
+from histogram_utils import iinvlogit, isinvlogit, iamul, iasq, icsum, subset_eq, iasadd
 from pylab import csv2rec,rec2csv
 
 class close(object):
@@ -54,6 +54,16 @@ def invlogit(x):
         raise ValueError, 'x is not Fortran-contiguous'
     cmin, cmax = pm.thread_partition_array(x)        
     pm.map_noreturn(iinvlogit, [(x,cmin[i],cmax[i]) for i in xrange(len(cmax))])
+    return x
+    
+def stukel_invlogit(x,a1,a2):
+    """A shape-preserving, in-place, threaded inverse Stukel's logit function."""
+    if np.prod(np.shape(x))<10000:
+        return pm.flib.stukel_invlogit(x,a1,a2)
+    if not x.flags['F_CONTIGUOUS']:
+        raise ValueError, 'x is not Fortran-contiguous'
+    cmin, cmax = pm.thread_partition_array(x)        
+    pm.map_noreturn(isinvlogit, [(x,a1,a2,cmin[i],cmax[i]) for i in xrange(len(cmax))])
     return x
 
 def fast_inplace_mul(a,s):

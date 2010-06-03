@@ -165,8 +165,6 @@ cf2py threadsafe
       DOUBLE PRECISION C(nx)
       INTEGER nx, i, cmin, cmax
 
-      EXTERNAL DSCAL
-
       if (cmax.EQ.-1) then
           cmax = nx
       end if
@@ -180,6 +178,46 @@ cf2py threadsafe
       RETURN
       END   
 
+
+      SUBROUTINE isinvlogit(C,a1,a2,nx,cmin,cmax)
+
+cf2py intent(inplace) C
+cf2py integer intent(in), optional :: cmin = 0
+cf2py integer intent(in), optional :: cmax = -1
+cf2py intent(hide) nx,ny
+cf2py threadsafe
+
+      DOUBLE PRECISION C(nx), a1, a2
+      INTEGER nx, i, cmin, cmax
+
+      if (cmax.EQ.-1) then
+          cmax = nx
+      end if
+
+
+        do i=cmin+1,cmax
+            if (C(i).GT.0.0D0) then
+                if (a1.GT.0.0D0) then
+                    C(i) = (dexp(a1*C(i))-1.0D0)/a1
+                else if (a1.LT.0.0D0) then
+                    C(i) = -dlog(1.0D0-a1*C(i))/a1
+                end if
+
+            else if (C(i).LT.0.0D0) then
+                if (a2.GT.0.0D0) then
+                    C(i) = -(dexp(-a2*C(i))-1.0D0)/a2
+                else if (a2.LT.0.0D0) then
+                    C(i) = dlog(1.0D0+a2*C(i))/a2
+                end if
+
+            end if
+        end do
+        
+        CALL iinvlogit(C,nx,cmin,cmax)
+
+
+      RETURN
+      END   
 
 
       SUBROUTINE iaaxpy(a,x,y,n,cmin,cmax)
