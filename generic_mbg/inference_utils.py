@@ -93,6 +93,13 @@ def crossmul_and_sum(c,x,d,y):
     pm.map_noreturn(icsum, [(c,x,d,y,cmin[i],cmax[i]) for i in xrange(len(cmax))])
     return c
 
+class zero_inflate_logp(object):
+    def __init__(self, logp_fn):
+        self.logp_fn = logp_fn
+    def __call__(self, x, p0, *args, **kwds):
+        n_zero=np.sum(x==0)
+        return n_zero*np.log(p0) + (np.alen(x)-n_zero)
+
 def create_model(mod,db,input=None):
     """
     Takes either:
