@@ -39,11 +39,12 @@ def roc(p_samps, n_samps, pos, neg):
     marginal_p = np.mean(p_samps,axis=0)
     
     for i in xrange(len(t)):
-        where_yes = np.where(marginal_p>t[i])
-        where_no = np.where(marginal_p <= t[i])
-        fp_here = np.sum(neg[where_yes])/tot_neg
+        where_yes = np.where(marginal_p > t[i])
+        where_no = np.where(marginal_p < t[i])
+        where_eq = np.where(marginal_p == t[i])
+        fp_here = (np.sum(neg[where_yes]) + np.sum(.5*neg[where_eq]))/tot_neg
         if fp_here < 1:
-            tp.append(np.sum(pos[where_yes])/tot_pos)
+            tp.append((np.sum(pos[where_yes]) + np.sum(.5*pos[where_eq]))/tot_pos)
             fp.append(fp_here)
         if fp_here == 0:
             break
@@ -51,7 +52,7 @@ def roc(p_samps, n_samps, pos, neg):
     fp = np.array(fp)
     tp = np.array(tp)
         
-    pl.fill(np.concatenate((fp,[1,1])), np.concatenate((tp,[0,1])), facecolor='.8', edgecolor='k', linewidth=1)
+    pl.fill(np.concatenate((fp,[0,1,1])), np.concatenate((tp,[0,0,1])), facecolor='.8', edgecolor='k', linewidth=1)
     pl.plot([0,1],[0,1],'k-.')
     
     pl.xlabel('False positive rate')
@@ -73,7 +74,7 @@ def scatter(p_samps, n_samps, pos, neg):
     p_pred = np.mean(p_samps, axis=0)
     p_obs = pos/(pos+neg).astype('float')
     
-    pl.plot(p_obs, p_pred,'k.', markersize=2)
+    pl.plot(p_obs, p_pred,'r.', markersize=2)
     urc = max(p_obs.max(),p_pred.max())*1.1
     
     pl.plot([0,urc],[0,urc],'k-.')
@@ -87,7 +88,7 @@ def coverage(p_samps, n_samps, pos, neg):
     """
     Plots the coverage plot in the lower right panel of mbgw.
     """
-    obs_quantiles = np.array([np.sum(n_samps[:,i] > pos[i]) for i in xrange(len(pos))], dtype='float')/n_samps.shape[0]
+    obs_quantiles = np.array([np.sum(n_samps[:,i] > pos[i])+.5*np.sum(n_samps[:,i] == pos[i]) for i in xrange(len(pos))], dtype='float')/n_samps.shape[0]
     pt = np.linspace(0,1,500)
     cover = np.array([np.sum(obs_quantiles<pti) for pti in pt], dtype='float')/len(obs_quantiles)
     pl.plot([0,1],[0,1],'k-.')

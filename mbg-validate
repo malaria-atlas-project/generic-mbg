@@ -151,6 +151,7 @@ samps_h5file = tb.openFile(base_outname+'-validation-samples.hdf5', 'w')
 
 # Record observed values
 samps_h5file.createTable('/','observed',np.rec.fromarrays(obs, names=','.join([f.__name__ for f in vp])))
+samps_h5file.createTable('/','n',np.rec.fromarrays(obs, names=','.join([f.__name__ for f in vp])))
 samps_h5file.createGroup('/','predicted')
 for f, obs_, n_ in zip(vp, obs, n):
     
@@ -161,6 +162,7 @@ for f, obs_, n_ in zip(vp, obs, n):
     samps_h5file.createCArray('/predicted',f.__name__,tb.FloatAtom(),samps.shape,filters=tb.Filters(complevel=1,complib='zlib'))[:]=samps
     
     n_ = np.asarray(n_).astype('float')
+    samps_h5file.root.n.col(f.__name__)[:]=n_
     
     errors = np.rec.fromarrays([np.empty(len(input)) for i in (0,1,2)], names='mean error,mean abs error,RMS error')
 
@@ -172,6 +174,16 @@ for f, obs_, n_ in zip(vp, obs, n):
         errors['mean error'][i] = np.mean(frequency_dev)
         errors['mean abs error'][i] = np.mean(np.abs(frequency_dev))
         errors['RMS error'][i] = np.sqrt(np.mean(frequency_dev**2))
+                
+        pl.clf()
+        pdf, bins, patches = pl.hist(samps[i], 50, normed=True,facecolor='.3')
+        yext = pdf.max()
+        pl.plot([obs_[i],obs_[i]],[0,yext],'r-.',linewidth=3,label='Observed %s'%f.__name__)
+        pl.legend(loc=0)
+        pl.xlabel(f.__name__)
+        pl.ylabel('Predictive density')
+        pl.title('(%f, %f)'%(lon[i],lat[i]))
+        pl.savefig('%i.pdf'%i)
     
     pl.rec2csv(errors,'mean-errors.csv')
 
