@@ -435,7 +435,7 @@ class CovarianceWithCovariates(object):
             C = crossmul_and_sum(Cbase, x_evals, self.privar, y_evals)
             C = fast_inplace_scalar_add(C, self.mfac)
         else:
-            C = Cbase
+            C = fast_inplace_scalar_add(Cbase, self.mfac)
             
         return C
 
