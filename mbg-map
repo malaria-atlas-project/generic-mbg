@@ -142,13 +142,13 @@ for k in all_covariate_keys:
 
 # Create utility fns
 if len(q)>0:
-    def binfn(arr,n_bins=o.n_bins):
-        return np.array(((arr-quantile_lolim)/(quantile_uplim-quantile_lolim))*n_bins,dtype=int)
+    def binfn(arr,n_bins=o.n_bins,qu=o.quantile_uplim,ql=o.quantile_lolim):
+        return np.array(((arr-ql)/(qu-ql))*n_bins,dtype=int)
 
     hsr = histogram_reduce(bins, binfn)
     hsf = histogram_finalize(bins, q, hsr)
 
-def finalize(prod, n, q=q, ef=extra_finalize):
+def finalize(prod, n, q=q, ef=extra_finalize, qu=o.quantile_uplim, ql=o.quantile_lolim):
     mean = prod[mean_reduce] / n
     var = prod[var_reduce] / n - mean**2
     std = np.sqrt(var)
@@ -157,7 +157,7 @@ def finalize(prod, n, q=q, ef=extra_finalize):
     if len(q)>0:
         # from IPython.Debugger import Pdb
         # Pdb(color_scheme='Linux').set_trace()   
-        out.update(hsf(prod, n)*(quantile_uplim-quantile_lolim)+quantile_lolim)
+        out.update(hsf(prod, n)*(qu-ql)+ql)
     if ef is not None:
         out.update(ef(prod, n))
     return out
