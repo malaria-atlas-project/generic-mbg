@@ -42,6 +42,8 @@ p.add_option('-i','--iter',help='The total number of samples to use in generatin
 p.add_option('-p','--raster-path',help="The path to the covariate rasters. Defaults to the current working directory.",dest='raster_path')
 p.add_option('-y','--year',help='The decimal year at which the map should be produced. Required for space-time models.',dest='year',type='float')
 p.add_option('-d','--ignore-npd',help='Whether to discard and continue past non-positive-definite iterations.',dest='continue_past_npd',type='int')
+p.add_option('-u','--quantile-uplim',help='The upper limit of the mapped quantiles',type='float',dest='quantile_uplim')
+p.add_option('-l','--quantile-lolim',help='The lower limit of the mapped quantiles',type='float',dest='quantile_lolim')
 
 p.set_defaults(n_bins=100)
 p.set_defaults(raster_path='.')
@@ -51,6 +53,8 @@ p.set_defaults(total=50000)
 p.set_defaults(bufsize=0)
 p.set_defaults(year=None)
 p.set_defaults(continue_past_npd=0)
+p.set_defaults(quantile_uplim=1.)
+p.set_defaults(quantile_lolim=0.)
 p.set_defaults(quantile_list='0.05 0.25 0.5 0.75 0.95')
 
 (o, args) = p.parse_args()
@@ -139,7 +143,7 @@ for k in all_covariate_keys:
 # Create utility fns
 if len(q)>0:
     def binfn(arr,n_bins=o.n_bins):
-        return np.array(arr*n_bins,dtype=int)
+        return np.array(((arr-quantile_lolim)/(quantile_uplim-quantile_lolim))*n_bins,dtype=int)
 
     hsr = histogram_reduce(bins, binfn)
     hsf = histogram_finalize(bins, q, hsr)
@@ -153,7 +157,7 @@ def finalize(prod, n, q=q, ef=extra_finalize):
     if len(q)>0:
         # from IPython.Debugger import Pdb
         # Pdb(color_scheme='Linux').set_trace()   
-        out.update(hsf(prod, n))
+        out.update(hsf(prod, n)*(quantile_uplim-quantile_lolim)+quantile_lolim)
     if ef is not None:
         out.update(ef(prod, n))
     return out
