@@ -157,7 +157,8 @@ def finalize(prod, n, q=q, ef=extra_finalize, qu=o.quantile_uplim, ql=o.quantile
     if len(q)>0:
         # from IPython.Debugger import Pdb
         # Pdb(color_scheme='Linux').set_trace()   
-        out.update(hsf(prod, n)*(qu-ql)+ql)
+        fin = hsf(prod, n)
+        out.update(dict([(k,fin[k]*(qu-ql)+ql) for k in fin.iterkeys()]))
     if ef is not None:
         out.update(ef(prod, n))
     return out
