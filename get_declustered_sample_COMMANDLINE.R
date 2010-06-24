@@ -127,7 +127,7 @@ getdeclusteredsample<-function(tablepath,prop,minSample=c(),DECLUSTER=TRUE,MAKEP
 
 ## run command:
 ## R --vanilla < get_declustered_sample_COMMANDLINE.R startArgs tablepath prop minSample DECLUSTER MAKEPLOT > getdeclusteredsample_output.temp
-## e.g. R --vanilla < get_declustered_sample_COMMANDLINE.R startArgs pts.csv 0.1 50 TRUE TRUE > getdeclusteredsample_output.temp
+## e.g. R --vanilla < generic-mbg/get_declustered_sample_COMMANDLINE.R startArgs pts.csv 0.1 50 TRUE TRUE > getdeclusteredsample_output.temp
 
 # bring in command line arguments
   argv <- commandArgs ()
@@ -152,13 +152,11 @@ getdeclusteredsample<-function(tablepath,prop,minSample=c(),DECLUSTER=TRUE,MAKEP
         print("Attempting to install package seqintr")
         install.packages("seqinr",repos="http://cran.r-project.org")
         if(!any(ip[,1]=="seqinr"))print("ERROR in get_declustered_sample!!! Package seqinr not loaded - returning error")
-        return(-9999)
     }
     if(!any(ip[,1]=="deldir")){
         print("Attempting to install package deldir")
         install.packages("deldir",repos="http://cran.r-project.org")
         if(!any(ip[,1]=="deldir"))print("ERROR in get_declustered_sample!!! Package deldir not loaded - returning error")
-        return(-9999)
     }
 
     require(deldir)
