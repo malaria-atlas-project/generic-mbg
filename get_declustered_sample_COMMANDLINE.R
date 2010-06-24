@@ -126,8 +126,8 @@ getdeclusteredsample<-function(tablepath,prop,minSample=c(),DECLUSTER=TRUE,MAKEP
 ###################################################################################################
 
 ## run command:
-## R --vanilla < getdeclusteredsample.R startArgs tablepath prop minSample DECLUSTER MAKEPLOT > getdeclusteredsample_output.temp
-## e.g. R --vanilla < getdeclusteredsample.R startArgs pts.csv 0.1 50 TRUE TRUE > getdeclusteredsample_output.temp
+## R --vanilla < get_declustered_sample_COMMANDLINE.R startArgs tablepath prop minSample DECLUSTER MAKEPLOT > getdeclusteredsample_output.temp
+## e.g. R --vanilla < get_declustered_sample_COMMANDLINE.R startArgs pts.csv 0.1 50 TRUE TRUE > getdeclusteredsample_output.temp
 
 # bring in command line arguments
   argv <- commandArgs ()
