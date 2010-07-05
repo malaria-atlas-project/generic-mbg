@@ -436,7 +436,8 @@ def vec_to_raster(vec, fname, raster_path, out_name, unmasked, path='.'):
     # FIXME: Make this work with arbitrary mask types.
     
     if np.any(np.isnan(vec)):
-        raise ValueError, 'NaN in vec'  
+        #raise ValueError, 'NaN in vec'
+        print ("warning!! "+str(np.sum(np.isnan(vec)))+" of "+str()+" NaN values in vec - check output: "+out_name)
     
     lon,lat,data,type = import_raster(fname, os.path.join('..',raster_path))
     data = grid_convert(data,'y-x+','x+y+')
