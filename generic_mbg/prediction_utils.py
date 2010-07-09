@@ -356,6 +356,7 @@ def hdf5_to_samps(M, x, nuggets, burn, thin, total, fns, postprocs, pred_covaria
     if len(iter)==0:
         raise ValueError, 'Check --total --thin and burn parameters, currently asking for zero realisations'        
     actual_total = n_per * len(iter)
+    print("total chain length = "+str(all_chain_len(hf))+"\nburn = "+str(burn)+"\nthin = "+str(thin)+"\ntotal = "+str(total))
     print("will do "+str(len(iter))+" full iterations with "+str(n_per)+" nuggets each = "+str(actual_total)+" in total")
     time_count = -np.inf
     time_start = time.time()
