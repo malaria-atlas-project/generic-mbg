@@ -352,7 +352,9 @@ def hdf5_to_samps(M, x, nuggets, burn, thin, total, fns, postprocs, pred_covaria
         n_per=1
         newthin=(all_chain_len(hf)-burn)/total
         iter = np.arange(burn,all_chain_len(hf),newthin)
-            
+    
+    if len(iter)==0:
+        raise ValueError, 'Check --total --thin and burn parameters, currently asking for zero realisations'        
     actual_total = n_per * len(iter)
     print("will do "+str(len(iter))+" full iterations with "+str(n_per)+" nuggets each = "+str(actual_total)+" in total")
     time_count = -np.inf
