@@ -45,6 +45,15 @@ def maybe_convert(ra, field, dtype):
             except:
                 raise ValueError, 'Input column %s, element %i (starting from zero) is %s,\n which cannot be cast to %s'%(field,i,arr[i],dtype)
 
+def plot_variables(M):
+    for s in M._variables_to_tally:
+        if np.prod(np.shape(s.value)) == 1 and np.asarray(s.value).dtype != np.dtype('object'):
+            print 'Plotting %s'%s.__name__
+            pl.clf()
+            pl.plot(all_chain_trace(M.db._h5file, s.__name__))
+            pl.title(s.__name__)
+            pl.savefig(s.__name__+'.pdf')
+    
 
 def invlogit(x):
     """A shape-preserving, in-place, threaded inverse logit function."""

@@ -146,10 +146,4 @@ try:
 except OSError:
     pass
 os.chdir(plot_dir)
-for s in M._variables_to_tally:
-    if np.prod(np.shape(s.value)) == 1 and np.asarray(s.value).dtype != np.dtype('object'):
-        print 'Plotting %s'%s.__name__
-        pl.clf()
-        pl.plot(all_chain_trace(M.db._h5file, s.__name__))
-        pl.title(s.__name__)
-        pl.savefig(s.__name__+'.pdf')
+plot_variables(M)
