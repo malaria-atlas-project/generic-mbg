@@ -345,8 +345,19 @@ def hdf5_to_samps(M, x, nuggets, burn, thin, total, fns, postprocs, pred_covaria
 
     if len(iter)==0:
         raise ValueError, 'You asked for %i burnin iterations with thinnnig %i but the chains are only %i iterations long.'%(burn, thin, all_chain_len(hf))
-    n_per = total/len(iter)+1
+    if (total>len(iter)):
+        n_per = total/len(iter)+1
+        
+    if (total<=len(iter)):
+        n_per=1
+        newthin=(all_chain_len(hf)-burn)/total
+        iter = np.arange(burn,all_chain_len(hf),newthin)
+    
+    if len(iter)==0:
+        raise ValueError, 'Check --total --thin and burn parameters, currently asking for zero realisations'        
     actual_total = n_per * len(iter)
+    print("total chain length = "+str(all_chain_len(hf))+"\nburn = "+str(burn)+"\nthin = "+str(thin)+"\ntotal = "+str(total))
+    print("will do "+str(len(iter))+" full iterations with "+str(n_per)+" nuggets each = "+str(actual_total)+" in total")
     time_count = -np.inf
     time_start = time.time()
     
@@ -393,7 +404,12 @@ def hdf5_to_samps(M, x, nuggets, burn, thin, total, fns, postprocs, pred_covaria
                         xaug = np.vstack((s.mesh, xbad))
                         try:
                             np.linalg.cholesky(s.C.value(xaug,xaug))
-                            raise ValueError, 'Some elements of V_pred were negative. This problem cannot be attributed to non-positive definiteness.'
+                        except RuntimeError:
+                            if continue_past_npd!=1:
+                                raise ValueError, 'Some elements of V_pred were negative. This problem cannot be attributed to non-positive definiteness.'
+                            if continue_past_npd:
+                                warnings.warn('Some elements of V_pred were negative. This problem cannot be attributed to non-positive definiteness.')
+
                         except np.linalg.LinAlgError:
                             if continue_past_npd:
                                 warnings.warn('Some elements of V_pred were negative due to non-positive definiteness.')
@@ -431,7 +447,8 @@ def vec_to_raster(vec, fname, raster_path, out_name, unmasked, path='.'):
     # FIXME: Make this work with arbitrary mask types.
     
     if np.any(np.isnan(vec)):
-        raise ValueError, 'NaN in vec'  
+        #raise ValueError, 'NaN in vec'
+        print ("warning!! "+str(np.sum(np.isnan(vec)))+" of "+str()+" NaN values in vec - check output: "+out_name)
     
     lon,lat,data,type = import_raster(fname, os.path.join('..',raster_path))
     data = grid_convert(data,'y-x+','x+y+')
