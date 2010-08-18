@@ -279,7 +279,7 @@ def get_args(postprocs, fns, f_labels, M):
         extra_postproc_args[postproc] = set(postproc_args[postproc]) - set(f_labels)
     return products, postproc_args, extra_postproc_args
 
-def apply_postprocs_and_reduce(n_per, M_preds, S_preds, postprocs, fns, products, postproc_args, extra_postproc_args, joint, norms=None, **kwds):
+def apply_postprocs_and_reduce(M, n_per, M_preds, S_preds, postprocs, fns, products, postproc_args, extra_postproc_args, joint, norms=None, **kwds):
     # Postprocess if necessary: logit, etc.
     if norms is None:
         norms = np.random.normal(size=n_per)
@@ -433,7 +433,7 @@ def hdf5_to_samps(M, x, nuggets, burn, thin, total, fns, postprocs, pred_covaria
             actual_total -= n_per
             continue
         
-        apply_postprocs_and_reduce(n_per, M_preds, S_preds, postprocs, fns, products, postproc_args, extra_postproc_args, joint)    
+        apply_postprocs_and_reduce(M, n_per, M_preds, S_preds, postprocs, fns, products, postproc_args, extra_postproc_args, joint)    
 
     if finalize is not None:
         return dict(zip(postprocs, [finalize(products[postproc], actual_total) for postproc in postprocs]))
