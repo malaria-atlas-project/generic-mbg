@@ -41,6 +41,7 @@ def all_chain_trace(hf, name):
     return np.concatenate([np.ravel(chain.PyMCsamples.col(name)) for chain in chains(hf)])
 
 def plot_variables(M):
+    import pylab as pl
     for s in M._variables_to_tally:
         if np.prod(np.shape(s.value)) == 1 and np.asarray(s.value).dtype != np.dtype('object'):
             print 'Plotting %s'%s.__name__
