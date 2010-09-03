@@ -415,11 +415,11 @@ def hdf5_to_samps(M, x, nuggets, burn, thin, total, fns, postprocs, pred_covaria
                         xaug = np.vstack((s.mesh, xbad))
                         try:
                             np.linalg.cholesky(s.C.value(xaug,xaug))
-                        except RuntimeError:
-                            if continue_past_npd!=1:
-                                raise ValueError, 'Some elements of V_pred were negative. This problem cannot be attributed to non-positive definiteness.'
-                            if continue_past_npd:
-                                warnings.warn('Some elements of V_pred were negative. This problem cannot be attributed to non-positive definiteness.')
+                        # except RuntimeError:
+                        #     if continue_past_npd!=1:
+                        #         raise ValueError, 'Some elements of V_pred were negative. This problem cannot be attributed to non-positive definiteness.'
+                        #     if continue_past_npd:
+                        #         raise ValueError, 'Some elements of V_pred were negative. This problem cannot be attributed to non-positive definiteness.'
 
                         except np.linalg.LinAlgError:
                             if continue_past_npd:

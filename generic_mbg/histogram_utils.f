@@ -13,6 +13,61 @@
 ! You should have received a copy of the GNU General Public License
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
+
+
+      SUBROUTINE meshmatch(tempvals,mesh,cache,cacheval,nm,nc,nd)
+      
+cf2py intent(inplace) tempvals
+cf2py intent(hide) nm,nd,nc
+      
+      INTEGER nm,nc,nd,j,k,l
+      DOUBLE PRECISION mesh(nm,nd), cache(nc,nd)
+      DOUBLE PRECISION tempvals(nm), cacheval(nc)
+      LOGICAL match
+      
+      do j=1,nm
+          if (.TRUE.) then
+              do k=1,nc
+                  match=.TRUE.
+                  do l=1,nd
+                      if (mesh(j,l).NE.cache(k,l)) then
+                          match=.FALSE.
+                          go to 101
+                       end if
+101                end do
+                   if (match) then
+                       tempvals(j) = cacheval(k)
+                       go to 102
+                   end if
+102           end do
+          else
+            continue
+          end if
+      end do
+
+      ! # initialise vector for extracted values
+      ! tempvals = np.repeat(np.nan,len(mesh[:,0]))
+      !     
+      ! # loop through elements of new mesh and attempt to find them in cached mesh ii
+      ! for jj in xrange(0,len(mesh[:,0])):
+      ! 
+      !     print("On element "+str(jj)+" of "+str(len(mesh[:,0])))
+      ! 
+      !     # loop through different meshes stored in cache
+      !     for ii,m in enumerate(self.meshes):
+      ! 
+      !         matchid=((m==mesh[jj,:]).sum(axis=1)==2)
+      ! 
+      !         # if we have a match in cached mesh ii..
+      !         if(sum(matchid)>0):
+      ! 
+      !             # extract value for this mesh location from cache
+      !             tempvals[jj] = self.values[ii][np.where(matchid)[0][0]]
+      !             break
+
+      RETURN
+      END
+
       SUBROUTINE bufster(arr,ci,barr,ni,nj,nci)
 cf2py intent(out) barr
 cf2py intent(hide) ni, nj, nci

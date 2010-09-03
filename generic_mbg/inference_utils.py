@@ -18,7 +18,7 @@ import numpy as np
 import time
 import tables as tb
 from st_cov_fun import my_st
-from histogram_utils import iinvlogit, isinvlogit, iamul, iasq, icsum, subset_eq, iasadd
+from histogram_utils import iinvlogit, isinvlogit, iamul, iasq, icsum, subset_eq, iasadd, meshmatch
 from pylab import csv2rec,rec2csv
 
 class close(object):
@@ -311,31 +311,36 @@ class CachingCovariateEvaluator(object):
                     raise ValueError
                 return self.values[i][start:stop]
 
-        raise RuntimeError
-        print( "The given mesh is not present as contiguous block in cache, checking if present in non-contiguous blocks")
+        # raise RuntimeError, 'The given mesh is not present as a contiguous block in cache.'
+        # print( "The given mesh is not present as contiguous block in cache, checking if present in non-contiguous blocks")
 
-        # initialise vector for extracted values
-        tempvals = np.repeat(np.nan,len(mesh[:,0]))
-            
-        # loop through elements of new mesh and attempt to find them in cached mesh ii
-        for jj in xrange(0,len(mesh[:,0])):
-        
-            print("On element "+str(jj)+" of "+str(len(mesh[:,0])))
-        
-            # loop through different meshes stored in cache
-            for ii,m in enumerate(self.meshes):
+        tempvals = np.empty(mesh.shape[0])
+        tempvals.fill(np.nan)
+        for m,v in zip(self.meshes, self.values):
+            meshmatch(tempvals,mesh,m,v)
 
-                matchid=((m==mesh[jj,:]).sum(axis=1)==2)
-
-                # if we have a match in cached mesh ii..
-                if(sum(matchid)>0):
-
-                    # extract value for this mesh location from cache
-                    tempvals[jj] = self.values[ii][np.where(matchid)[0][0]]
-                    break
+        # # initialise vector for extracted values
+        # tempvals = np.repeat(np.nan,len(mesh[:,0]))
+        #     
+        # # loop through elements of new mesh and attempt to find them in cached mesh ii
+        # for jj in xrange(0,len(mesh[:,0])):
+        # 
+        #     print("On element "+str(jj)+" of "+str(len(mesh[:,0])))
+        # 
+        #     # loop through different meshes stored in cache
+        #     for ii,m in enumerate(self.meshes):
+        # 
+        #         matchid=((m==mesh[jj,:]).sum(axis=1)==2)
+        # 
+        #         # if we have a match in cached mesh ii..
+        #         if(sum(matchid)>0):
+        # 
+        #             # extract value for this mesh location from cache
+        #             tempvals[jj] = self.values[ii][np.where(matchid)[0][0]]
+        #             break
 
         # check all mesh locations have been identified in cache
-        notfound = sum(np.isnan(tempvals)) 
+        notfound = np.sum(np.isnan(tempvals)) 
             
         if(notfound>0):
             raise RuntimeError, str(notfound)+' of '+str(len(mesh[:,0]))+' elements of given mesh not present in the cache'           
