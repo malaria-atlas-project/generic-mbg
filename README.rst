@@ -22,7 +22,13 @@ a few easy shell commands:
   some pixels missing. Outputs the full probability density function of each
   predicted quantity over a thinned version of the raster, and stores it under 
   compression in HDF5 format. This file can be opened and examined graphically 
-  using MayaVI.
+  using MayaVI, or converted into two-dimensional maps later.
+  
+* ``mbg-areal-predict`` takes the HDF5 archive produced by mbg-infer, a raster
+  with some pixels missing and a text file containing one or more multipolygons
+  in geojson format, which must be tagget with time intervals for space-time models. 
+  Produces samples from the predictive distribution of certain integrals over the 
+  given multipolygons. See the PDF documentation for more detail.
   
 * ``mbg-validate`` takes the HDF5 archive produced by mbg-infer and a 'holdout'
   dataset, stored in a csv file, and creates a set of predictive samples at the
@@ -93,8 +99,7 @@ Required arguments
    * ``t`` : Time in decimal years. This is only required for spatiotemporal models.
 
    All other columns are interpreted as covariates, eg ``ndvi`` etc., UNLESS the module 
-   implements the ``non_cov_columns`` attribute. For example, MBGWorld expects
-   lo_age, up_age columns, pos and neg columns, but does not interpret them as covariates.
+   implements the ``non_cov_columns`` attribute. See the PDF documentation.
    
 
 Options
@@ -104,12 +109,13 @@ Options
   database. Small values are good but slow. 1 is best.
 
 * ``-i`` or ``--iter`` : The number of MCMC iterations to perform. Large values are good
-  but slow.
+  but slow. Defaults to 100000.
 
-.. * ``-n`` or ``-ncpus`` : The maximum number of CPU cores to make available to the MCMC 
-..   algorithm. Should be less than or equal to the number of cores in your computer. The 
-..   All the cores you make available may not be utilized. Use top or the Activity Monitor
-..   to monitor your actual CPU usage. Large values are good but tie up more of your computer.
+* ``-n`` or ``-ncpus`` : The maximum number of CPU cores to make available to the MCMC 
+  algorithm. Should be less than or equal to the number of cores in your computer. The 
+  All the cores you make available may not be utilized. Use top or the Activity Monitor
+  to monitor your actual CPU usage. Large values are good but tie up more of your computer.
+  Defaults to the value of the environment variable ``OMP_NUM_THREADS``.
 
 ``mbg-describe-tracefile``
 ==========================
@@ -123,7 +129,7 @@ Writes the input data to csv with filename ``database-file-input-csv``, substitu
 the actual filename.
 
 If the path is a directory, walks the filesystem starting from the directory, inspecting
-every database file it finds. Does not produce any csvs.
+every database file it finds. Does not produce any csv's.
 
 Required arguments
 ------------------
@@ -238,10 +244,10 @@ Options
 
 * ``-t`` or ``--thin`` : The factor by which to thin the MCMC trace stored in the database.
   If you use ``-t 10``, only every 10th stored MCMC iteration will be used to produce the maps.
-  Small values are good but slow. 1 is best.
+  Small values are good but slow. 1 is best. Defaults to 50.
 
 * ``-i`` or ``--iter`` : The total number of predictive samples to use in generating the maps.
-  Large values are good but slow. Defaults to 20000.
+  Large values are good but slow. Defaults to 50000.
 
 * ``-p`` or ``--raster-path`` : The path to the files containing the covariate rasters. These 
   files' headers must match those of the input raster, and their missing pixels must match
@@ -252,6 +258,14 @@ Options
 
 * ``-y`` or ``--year`` : If your model is spatiotemporal, you must provide the decimal year at 
   which you want your map produced. For example, Jan 1 2008 would be ``-y 2008``.
+  
+* ``-d`` or ``--ignore-npd`` : If ``1``, MCMC iterations whose covariance functions are non-
+  positive-definite on the data locations plus the prediction locations will be ignored. If
+  ``0``, any such iterations will result in errors. Defaults to 0.
+  
+* ``-u`` or ``--quantile-uplim`` : The upper limit of the mapped quantiles. Defaults to 1.
+
+* ``-l`` or ``--quantile-lolim`` : The lower limit of the mapped quantiles. Defaults to 0.
 
 
 ``mbg-3dmap``
@@ -286,12 +300,12 @@ Options
 
 * ``-n`` or ``--n-bins`` : The number of bins to use in the histogram from which quantiles
   are computed. Large values are good, but use up more system memory. Decrease this if you
-  see memory errors.
+  see memory errors. Defaults to 100.
 
 * ``-b`` or ``--bufsize`` : The number of buffer pixels to render around the edges of the
   continents. Set to zero unless the ``raster-thin`` option is greater than 1. The buffer
   will not be very good. In general, if you want a buffer you're better off making your 
-  own in ArcView rather than using this option.
+  own in ArcView rather than using this option. Defaults to 0.
 
 * ``-q`` or ``--quantiles`` : A string containing the quantiles you want. For example,
   ``'0.25 0.5 0.75'`` would map the lower and upper quartiles and the medial. Default is 
@@ -299,14 +313,15 @@ Options
 
 * ``-t`` or ``--thin`` : The factor by which to thin the MCMC trace stored in the database.
   If you use ``-t 10``, only every 10th stored MCMC iteration will be used to produce the maps.
-  Small values are good but slow. 1 is best.
+  Small values are good but slow. 1 is best. Defaults to 50.
   
 * ``-r`` or ``--raster-thin``: The 3d data cube takes up much more disk space and memory than
   the scalar maps. You might need to degrade the input raster to lower resolution. A value of
-  10 means that the 3d maps will have 1/10 the spatial resolution of the input raster.
+  10 means that the 3d maps will have 1/10 the spatial resolution of the input raster. Defaults
+  to 1.
 
 * ``-i`` or ``--iter`` : The total number of predictive samples to use in generating the maps.
-  Large values are good but slow. Defaults to 20000.
+  Large values are good but slow. Defaults to 50000.
 
 * ``-p`` or ``--raster-path`` : The path to the files containing the covariate rasters. These 
   files' headers must match those of the input raster, and their missing pixels must match
@@ -317,6 +332,77 @@ Options
 
 * ``-y`` or ``--year`` : If your model is spatiotemporal, you must provide the decimal year at 
   which you want your map produced. For example, Jan 1 2008 would be ``-y 2008``.
+  
+* ``-d`` or ``--ignore-npd`` : If ``1``, MCMC iterations whose covariance functions are non-
+  positive-definite on the data locations plus the prediction locations will be ignored. If
+  ``0``, any such iterations will result in errors. Defaults to 0.
+
+
+``mbg-areal-predict``
+=====================
+::
+
+  mbg-areal-predict module database-file burn polyfile [options]
+
+Produces a folder called ``name-areal-samples`` where ``name`` is the name of the 
+database file. Populates this folder with files called ``fname-aname-samples`` and
+``fname-aname-estimates``. ``fname-aname-samples`` is a CSV file with no column 
+headers whose columns correspond to reps, and whose rows correspond to Monte Carlo
+trials. ``fname-aname-estimates`` is a CSV file whose columns have titles 
+``sname-estimate`` and ``sname-mcse``. ``aname`` iterates over the module's 
+``areal-postproc`` functions and ``sname`` iterates over the summaries generated for
+``mbg-map``, eg ``mean``, ``quantile-0.5``, etc.
+
+Required arguments
+------------------
+
+1. The name of the module containing the model specification.
+
+2. The name of the database file (produced by mbg-infer) to be used to generate the 
+  maps. If you do not want it to go in the current directory, specify a path.
+
+3. The number of burnin iterations to discard from the trace before making the maps.
+  You will need to figure this out by inspecting the traces produced by ``mbg-infer``.
+ 
+4. The name of a text file containing one or more multipolygons in geojson format. The
+  ``properties`` of each multipolygon must contain a unique ``name`` key. For
+  spatiotemporal models, they must also contain ``tmin`` and ``tmax`` keys.
+  
+
+Options
+-------
+
+* ``-r`` or ``--reps`` : The number of repetitions to do, for purposes of estimating Monte
+  Carlo standard error. Defaults to 10.
+  
+* ``x`` or ``--points`` : The number of points in space or space-time to use to estimate the
+  integrals at each repetition. Defaults to 100.
+
+* ``-q`` or ``--quantiles`` : A string containing the quantiles you want. For example,
+  ``'0.25 0.5 0.75'`` would produce the lower and upper quartiles and the median of the
+  posterior for each areal summary. Default is ``'0.05 0.25 0.5 0.75 0.95'``.
+
+* ``-t`` or ``--thin`` : The factor by which to thin the MCMC trace stored in the database.
+  If you use ``-t 10``, only every 10th stored MCMC iteration will be used to produce the 
+  estimates. Small values are good but slow. 1 is best. Defaults to 10.
+  
+* ``-i`` or ``--iter`` : The total number of predictive samples to use in generating the 
+  estimates. Large values are good but slow. Defaults to 1000.
+
+* ``-p`` or ``--raster-path`` : The path to the files containing the covariate rasters, if any. 
+  These files' headers must match one another, and their missing pixels must match also. There 
+  must be a file corresponding to every covariate column in input 3 of mbg-infer. If any of the
+  multipolygons extend outside the given rasters or contain missing pixels, an error will result.
+  
+* ``-w`` or ``--weight-raster`` : The name of a raster file in the ``raster-path``, with no
+  extension. See the PDF documentation.
+
+* ``-c`` or ``--coordinate-time`` : If ``1``, sampling points line up in the temporal dimension.
+  See the PDF documentation.
+
+* ``-d`` or ``--ignore-npd`` : If ``1``, MCMC iterations whose covariance functions are non-
+  positive-definite on the data locations plus the prediction locations will be ignored. If
+  ``0``, any such iterations will result in errors.
 
 ``mbg-validate``
 ================
@@ -349,10 +435,15 @@ Options
 -------
 
 * ``-t`` or ``--thin`` : The factor by which to thin the MCMC trace stored in the database.
-  Small values are good but slow. 1 is best.
+  Small values are good but slow. 1 is best. Defaults to 50.
 
 * ``-i`` or ``--iter`` : The total number of predictive samples you want to generate. Large
-  values are good but slow. Defaults to 20000.
+  values are good but slow. Defaults to 50000.
+  
+* ``-d`` or ``--ignore-npd`` : If ``1``, MCMC iterations whose covariance functions are non-
+  positive-definite on the data locations plus the prediction locations will be ignored. If
+  ``0``, any such iterations will result in errors. Defaults to 0.
+
 
 
 ``mbg-scalar-priors``

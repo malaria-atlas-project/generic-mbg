@@ -40,11 +40,9 @@ p = OptionParser('usage: %prog module database-file input [options]' + req_doc)
 p.add_option('-t','--thin',help='How much to thin the MCMC trace. Defaults to 10.',dest='thin',type='int')
 p.add_option('-i','--iter',help='The total number of MCMC iterations to conduct. Defaults to 50000',dest='total',type='int')
 p.add_option('-n','--ncpus',help='Number of CPU cores to make available to the MCMC',dest='ncpus',type='int')
-p.add_option('-d','--delay',help='Delay iterations for AdaptiveMetropolis instance',dest='AM_delay',type='int')
 
 p.set_defaults(thin=10)
 p.set_defaults(total=100000)
-p.set_defaults(AM_delay=5000)
 p.set_defaults(ncpus=int(os.environ['OMP_NUM_THREADS']))
 
 (o, args) = p.parse_args()

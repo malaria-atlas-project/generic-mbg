@@ -44,7 +44,7 @@ p.add_option('-d','--ignore-npd',help='Whether to discard and continue past non-
 
 p.set_defaults(thin=50)
 p.set_defaults(continue_past_npd=0)
-p.set_defaults(total=20000)
+p.set_defaults(total=50000)
 
 
 (o, args) = p.parse_args()
