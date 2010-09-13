@@ -364,9 +364,10 @@ Required arguments
 3. The number of burnin iterations to discard from the trace before making the maps.
   You will need to figure this out by inspecting the traces produced by ``mbg-infer``.
  
-4. The name of a text file containing one or more multipolygons in geojson format. The
-  ``properties`` of each multipolygon must contain a unique ``name`` key. For
-  spatiotemporal models, they must also contain ``tmin`` and ``tmax`` keys.
+4. The name of a text file containing one or more (multi)polygons in geojson format,
+  contained in a geometry collection. The ``properties`` of each (multi)polygon must 
+  contain a unique ``name`` key. For spatiotemporal models, they must also contain 
+  ``tmin`` and ``tmax`` keys.
   
 
 Options

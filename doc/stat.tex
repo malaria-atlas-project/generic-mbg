@@ -224,7 +224,70 @@ The shell command \texttt{mbg-validate} will read the non-covariate columns from
 
 \subsubsection{Postprocessing for areal prediction}  
 
+The task performed by the shell command \texttt{mbg-areal-predict} has a more complicated specification than the tasks performed by the other shell commands. The problem tackled by \texttt{mbg-areal-predict} is samples from, and summaries of, the posterior predictive distribution of quantities of the form
+\begin{eqnarray*}
+    h\left(\int_{a_1\times\tau_1} g_1(f_1,\ldots,f_n,x,t)da dt, \ldots,\int_{a_m\times\tau_m} g_m(f_1,\ldots,f_n,x,t)da dt\right)
+\end{eqnarray*}
+where $a_1,\ldots,a_m$ are regions and $da$ denotes integration over area; $\tau_1\ldots\tau_m$ are time intervals and $dt$ denotes integration over time; $x$ is a geographical location; $t$ is a particular time; $f_1,\ldots,f_n$ are the Gaussian random fields in the model; and $g_1\ldots g_m$ and $h$ are arbitrary functions. This general specification covers many `volumetric' estimates of epidemiological interest. Three concrete examples are given below.
 
+\begin{description}
+    \item[\emph{Plasmodium falciparum} clinical burden in a country.] In this case, $n=m=1$. $f_1$ is the Gaussian random field, with nugget incorporated, corresponding to parasite rate. $g_1$ transforms this value to parasite rate (with a random age-correction factor), and thence to clinical incidence, and multiplies it by the population density of the pixel containing $x$. $a$ is the administrative unit under consideration and $\tau$ is most likely a particular year. $h$ multiplies its argument by the total area $|a|$ of $a$.
+    \item[The total change in \emph{Plasmodium falciparum} clinical burden in a country between two consecutive years.] In this case $m=2$ with $a_1=a_2$ and $\tau_1=[y,y+1]$ and $\tau_2=[y+1,y+2]$, $y$ being the first of the two years. $f$ and $g$ are as in the previous example. $h(z_1,z_2)=(z_2-z_1)|a|$.
+    \item[The difference in areal mean HbS prevalence between Lysenko endemicity classes.] In this case $m=5$ (the number of Lysenko classes) and $n=1$. $a_i$ is Lysenko class $i$ and $\tau$ is not needed, since the model is atemporal. $f_1$ is the Gaussian random field corresponding to HbS allele frequency. $g_i$ applies the inverse link function to its argument and divides by $|a_i|$. $h$ maps vectors of length $n$ to vectors of length $n-1$: $h(z_1,\ldots,z_n)=[z_2-z_1,\ldots,z_n-z_{n-1}]$.
+    
+The regions $a_1,\ldots,a_m$ and time intervals $\tau_1,\ldots,\tau_m$ are defined in the argument \texttt{polyfile} of \texttt{mbg-areal-predict}. The regions are given as \href{http://geojson.org/geojson-spec.html}{GeoJSON} polygons or multipolygons, contained in geometry collections. The associated time intervals are defined by properties \texttt{tmin} and \texttt{tmax}. An example geometry collection called \texttt{gc1} containing two regions (\texttt{r1} and \texttt{r2}) is given below.
+\end{description}
+\begin{verbatim}
+    { "type": "GeometryCollection",
+      "geometries": [
+        { "type": "MultiPolygon",
+          "coordinates": [
+            [[[102.0, 2.0], [103.0, 2.0], [103.0, 3.0], [102.0, 3.0], [102.0, 2.0]]],
+            [[[100.0, 0.0], [101.0, 0.0], [101.0, 1.0], [100.0, 1.0], [100.0, 0.0]],
+             [[100.2, 0.2], [100.8, 0.2], [100.8, 0.8], [100.2, 0.8], [100.2, 0.2]]]
+            ]
+            "properties": {"name": "r1", "tmin": 2000.0, "tmax": 2007.5}
+          }
+        { "type": "MultiPolygon",
+          "coordinates": [
+            [[[102.0, 2.0], [103.0, 2.0], [103.0, 3.0], [102.0, 3.0], [102.0, 2.0]]],
+            [[[100.0, 0.0], [101.0, 0.0], [101.0, 1.0], [100.0, 1.0], [100.0, 0.0]],
+             [[100.2, 0.2], [100.8, 0.2], [100.8, 0.8], [100.2, 0.8], [100.2, 0.2]]]
+            ]
+            "properties": {"name": "r2", "tmin": 1993.5, "tmax": 2000.0}
+          }
+      ]
+      "properties": {"name": "gc1"}
+    }
+\end{verbatim}
+
+The file may contain multiple geometry collections, each of which is independently subjected to an estimation procedure of the form given above. 
+
+The specializing module must expose an attribute called \texttt{areal\_postproc}, which like \texttt{map\_postproc} and \texttt{validate\_postproc} must be a list of functions. Each must take a Shapely geometry collection as its lone argument and return two values: \texttt{h}, which must be of appropriate arity to fulfil its role given above; and \texttt{g}, which must be a dictionary of functions keyed by area name. Each value in \texttt{g} mist take as arguments the random fields in the model, an array of locations (lat/lon or lat/lon/t, depending on whether the model is temporal) and optionally any other variables in the model. The following specifications might implement concrete examples above:
+\begin{verbatim}
+    def prevalence(gc):
+        "Plasmodium falciparum clinical burden in a country"
+        def h(z,a=gc.geoms[0].area()):
+            return z*a
+        def g(S,a1,a2):
+            return generic_mbg.stukel_invlogit(S, a1, a2)
+        return h, {gc.geoms[0].name: g}
+    
+    def diff_prevalence(gc):
+        "Total change in Plasmodium falciparum clinical burden in a country between two consecutive years"
+        def h(z1,z2,a=gc.geoms[0].area()):
+            return (z2-z1)*a
+        def g(S,a1,a2):
+            return generic_mbg.stukel_invlogit(S, a1, a2)
+        return h, dict([geom.name, g] for geom in gc.geoms)
+    
+    def hbs_diff(gc):
+        "Difference in areal mean HbS prevalence between Lysenko endemicity classes"
+        def h(*l):
+            return np.diff(l)
+        g = dict([geom.name, lambda S, a=geom.area: generic_mbg.invlogit(S)/a] for geom in gc.geoms)
+        return h, g
+\end{verbatim}
 \subsection{Initializing the MCMC object}
 \label{sub:mcmc-init} 
 
@@ -234,3 +297,5 @@ The shell command \texttt{mbg-infer} will call \texttt{make\_model} and wrap the
         M.use_step_method(generic_mbg.FieldStepper, \
             M.f_x, M.V, M.C_eval, M.M_eval, M.x, M.g_x)
 \end{verbatim}
+
+\textbf{Document output format once you produce a data structure}
