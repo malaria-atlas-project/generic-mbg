@@ -1,7 +1,7 @@
 \chapter{Statistician's guide} 
 \label{chap:stat}
 
-This chapter explains how to write specializing modules. A specializing module is a Python package that defines a PyMC probability model. It needs to expose certain attributes that tell the generic package how to interpret the variables the model contains.
+This chapter explains how to write specializing modules. A specializing module is a Python package that defines a PyMC probability model. It needs to expose certain attributes that tell \texttt{generic-mbg} how to interpret the variables the model contains.
 
 This chapter assumes you know how to use PyMC. See the \href{http://code.google.com/p/pymc/}{PyMC user guide} if you don't.
 
@@ -15,14 +15,14 @@ Try the following from the shell, on a single line:
         -e 'cut_matern, utils' 
         -a 'Anand Patil, Carlos Guerra, Rosalind Howes'
 \end{verbatim}
-The command \texttt{mbg-init-specializing-module} is there to help you get the file structure of your specializing module right. It will create Fortran extensions according to the \texttt{-e} option, add the commands to compile them in \texttt{setup.py}, and license the package to the given authors under the GPL. It will also initialize a git repository in the new directory, and make the initial commit.
+The command \texttt{mbg-init-specializing-module} is there to help you get the file structure of your specializing module right. It will create Fortran extensions according to the \texttt{-e} option, add the commands to compile them in \texttt{setup.py}, give the package's copyright to the given authors and license it under the GPL. It will also initialize a git repository in the new directory, and make the initial commit.
 
 
 Take a moment to browse the directory tree you've created, which should look like this:
 \begin{center}
 \includegraphics[width=12cm]{filestructure.png}     
 \end{center}
-Pay special attention to the \texttt{\_\_init\_\_.py} file, which lists the attributes you'll need to define to tell the generic package how to use your specializing module.
+Pay special attention to the \texttt{\_\_init\_\_.py} file, which lists the attributes you'll need to define to tell \texttt{generic-mbg} how to use your specializing module.
 
 \subsection{Importing}
 You can install the new package as follows:
@@ -30,7 +30,7 @@ You can install the new package as follows:
     cd duffy-vivax
     python setup.py develop
 \end{verbatim}
-See section \ref{sec:spec-local} for more detail. Now change directory to \texttt{\~}, start your favorite Python interpreter, and import the \texttt{duffy\_vivax} module. Browse through its namespace. Pay special attention to the calling conventions of the Fortran subroutines you've generated:
+See section \ref{sec:spec-local} for more detail. Now change directory to \texttt{\~}, start the Python interpreter, and import the \texttt{duffy\_vivax} module. Browse through its namespace. Pay special attention to the calling conventions of the Fortran subroutines you've generated:
 \begin{verbatim}
     In [2]: duffy_vivax.utils.dummy?
     Type:           fortran
@@ -48,7 +48,7 @@ The \texttt{f2py} directives in \texttt{utils.f} (the lines beginning with \text
 
 \section{Writing the model}
 
-The primary attribute of a specialization module is a function called \texttt{make\_model}, henceforth the `model factory'. The model factory should take the following arguments:
+The primary attribute of a specializing module is a function called \texttt{make\_model}, henceforth the `model factory'. The model factory should take the following arguments:
 \begin{description}
     \item[lon] An array of longitudes, in radians.
     \item[lat] An array of latitudes, in radians, of the same length as \texttt{lon}.
@@ -56,7 +56,7 @@ The primary attribute of a specialization module is a function called \texttt{ma
     \item[covariate\_dict] A dictionary mapping labels to arrays. Each array should give the evaluation of a covariate surface on the \texttt{[lon,lat,t]} input array defined so far.
     \item[**non\_cov\_columns] Any number keyword arguments whose values are arrays of the same length as \texttt{lon}.
 \end{description}
-These arguments will be read from a user-supplied datafile and fed into the model factory by \texttt{mbg-infer}. The model factory should return its local as follows: 
+These arguments will be read from a user-supplied datafile and fed into the model factory by \texttt{mbg-infer}. The model factory should return its local variables as follows: 
 \begin{verbatim}
     def make_model(lon,lat,covariate_dict,**non_cov_columns):
         ...
@@ -65,7 +65,7 @@ These arguments will be read from a user-supplied datafile and fed into the mode
 
 \subsection{The fields}
 
-The generic package handles probability models containing one or more Gaussian random fields, whose means are linear combinations of covariate surface evaluations with normally-distributed coefficients, with normally-distributed nuggets:
+\texttt{Generic-mbg} handles probability models containing one or more Gaussian random fields, whose means are linear combinations of covariate surface evaluations with normally-distributed coefficients, with normally-distributed nuggets:
 \begin{equation}
     \label{eq:canonical} 
     \begin{array}{r}
@@ -77,7 +77,7 @@ The generic package handles probability models containing one or more Gaussian r
         g_x \sim \textup{N}(f_x, V) 
     \end{array}
 \end{equation}
-where $K$ is a positive definite covariance function with parameters $\theta$ and $f_0$ is any old function with parameters $\phi$. The generic package does not care what priors you use for $\theta$, $\phi$, $V$ or the $V_\beta$'s, but the coefficients $\beta$ must be iid and normally distributed. Similarly, the package doesn't care how any other variables depend on any of the variables in the model. There may be any number of these Gaussian process submodels in a model.
+where $K$ is a positive definite covariance function with parameters $\theta$ and $f_0$ is any old function with parameters $\phi$. \texttt{Generic-mbg} does not care what priors you use for $\theta$, $\phi$, $V$ or the $V_\beta$'s, but the coefficients $\beta$ must be iid and normally distributed. Similarly, the package doesn't care how any other variables depend on any of the variables in the model. There may be any number of these Gaussian process submodels in a model.
 
 The nugget and covariates are optional. Without both, the model would be simplified:
 \begin{eqnarray*}
@@ -106,7 +106,7 @@ can be marginalized to obtain the following model:
     f\sim\textup{GP}(M,C)
     \end{array}
 \end{equation}
-This parameterization is required in the generic package, because experience shows that the MCMC chains tend to mix much better. Section \ref{sub:example} shows how to do this easily. The shell command \texttt{mbg-covariate-traces} can be used to obtain MCMC traces for the $\beta$'s after the MCMC is complete.
+This parameterization is required in \texttt{generic-mbg}, because experience shows that the MCMC chains tend to mix much better. Section \ref{sub:example} shows how to do this easily. The shell command \texttt{mbg-covariate-traces} can be used to obtain MCMC traces for the $\beta$'s after the MCMC is complete.
 
 \subsection{The nugget and mixing}
 
@@ -115,17 +115,17 @@ The last two lines of model \ref{eq:canonical},
     f_x = f(x) \sim \textup{N}(M(x), C(x,x))\\
     g_x \sim \textup{N}(f_x, V)
 \end{eqnarray*}
-are slightly nonstandard. Usually, the nugget variance $V$ would be incorporated in the covariance function, and $f_x$ would not be directly imputed. Keeping $f_x$ and $g_x$ separate is strongly recommended in the generic package, however. Experience has shown that the following jumping strategy:
+are slightly nonstandard. Usually, the nugget variance $V$ would be incorporated in the covariance function, and $f_x$ would not be directly imputed. Keeping $f_x$ and $g_x$ separate is strongly recommended in \texttt{generic-mbg}, however. Experience has shown that the following jumping strategy:
 \begin{enumerate}
     \item Metropolis sample each element of $g_x$ one at a time
     \item Gibbs sample $f_x$ jointly conditional on $g_x$
 \end{enumerate}
-performs well in a wide range of situations. The second step can be performed using the step method \texttt{FieldStepper}, which is provided by the generic package. Section \ref{sub:mcmc-init} describes how to use \texttt{FieldStepper}. 
+performs well in a wide range of situations. The second step can be performed using the step method \texttt{FieldStepper}, which is provided by \texttt{generic-mbg}. Section \ref{sub:mcmc-init} describes how to use \texttt{FieldStepper}. 
 
 \subsection{Example field}
 \label{sub:example} 
 
-Let's make the submodel in equation \ref{eq:canonical}, reparameterized as in equation \ref{eq:int-covariates}. First, let's make the covariance function and its parameters:
+Let's make the submodel in equation \ref{eq:canonical}, reparameterized as in equation \ref{eq:int-covariates}. First, the covariance function and its parameters:
 \begin{verbatim}
     amp = pymc.Exponential('amp', .1, value=1.)
     scale = pymc.Exponential('scale_shift', .1, value=.08)
@@ -148,7 +148,7 @@ Let's make the submodel in equation \ref{eq:canonical}, reparameterized as in eq
         return pymc.gp.FullRankCovariance(eval_fun, amp=amp, scale=scale, 
             diff_degree=diff_degree)
 \end{verbatim}
-The generic package provides the wrapper class \texttt{CovarianceWithCovariates}, which creates a covariance function of the form shown in (\ref{eq:int-covariates}). The key \texttt{'m'} is understood to correspond to the constant term. As formulated, the variances of the covariate coefficients are free parameters in the model, meaning the model can simplify itself. Now a trivial mean function:
+\texttt{Generic-mbg} provides the wrapper class \texttt{CovarianceWithCovariates}, which creates a covariance function of the form shown in (\ref{eq:int-covariates}). The key \texttt{'m'} is understood to correspond to the constant term. As formulated, the variances of the covariate coefficients are free parameters in the model, meaning the model can simplify itself. Now a trivial mean function:
 \begin{verbatim}
     M = pymc.gp.Mean(lamda x: numpy.zeros(x.shape[0]))
 \end{verbatim}
@@ -162,25 +162,25 @@ Now we're ready to create $g_x$:
 \begin{verbatim}
     g_x = pymc.Normal('g_x', mu=S.f_eval, tau=1/V)
 \end{verbatim}
-PyMC parameterizes the normal distribution by precision rather than variance, so the second parameter of $g_x$ is $\tau=1/V$. The mean is the \texttt{f\_eval} attribute of the GP submodel, which gives the GP's evaluation on the input mesh, in this case \texttt{x}. That's all there is to producing GP submodels in the generic package. You can complete the model any way you like: add more GP submodels, likelihoods, etc.
+PyMC parameterizes the normal distribution by precision rather than variance, so the second parameter of $g_x$ is $\tau=1/V$. The mean is the \texttt{f\_eval} attribute of the GP submodel, which gives the GP's evaluation on the input mesh, in this case \texttt{x}. That's all there is to producing GP submodels in \texttt{generic-mbg}. You can complete the model any way you like: add more GP submodels, likelihoods, etc.
 
 \subsection{Be sure to commit}
 \label{sub:git-commit} 
-It's important to commit any changes you make to the specialization module to the local repository before running any MCMC, because the hash of the current git head is stored in the MCMC trace. If the state of the code doesn't correspond to the hash, you may not be able to reproduce your results later.
+It's important to commit any changes you make to the specializing module to the local repository before running any MCMC, because the hash of the current git head is stored in the MCMC trace. If the state of the code doesn't correspond to the hash, you may not be able to reproduce your results later.
 
 \section{Required attributes}
 
-The specialization module needs to expose several attributes in addition to \texttt{make\_model}. See \texttt{\_\_init\_\_.py} in the package you just created, \texttt{duffy\_vivax}
+The specializing module needs to expose several attributes in addition to \texttt{make\_model}. See \texttt{\_\_init\_\_.py} in the package you just created, \texttt{duffy\_vivax}
 
 \subsection{Metadata and non-covariate columns}
 \subsubsection{Non-covariate columns} 
-The attribute \texttt{non\_cov\_columns} is a dictionary mapping labels to type strings (such as \texttt{'float'}, \texttt{'int'}, \texttt{'str'}, etc.). The generic package will expect to find the labels as column headers in any CSV datafiles provided by the end user. 
+The attribute \texttt{non\_cov\_columns} is a dictionary mapping labels to type strings (such as \texttt{'float'}, \texttt{'int'}, \texttt{'str'}, etc.). \texttt{Generic-mbg} will expect to find the labels as column headers in any CSV datafiles provided by the end user. 
 \subsubsection{Arbitrary metadata} 
 The attribute \texttt{metadata\_keys} allows you to store any local variable generated by the model factory in the trace. If your \texttt{metadata\_keys} are \texttt{['n\_tacos', 'fillings']}, then the corresponding variables can be retrieved from the trace file using \texttt{hf.root.metadata.n\_tacos[0]}, etc.
 
-\subsection{Tagging the children and coparents of the Gaussian process submodels}
+\subsection{Tagging the nuggets of the Gaussian process submodels}
 \label{sub:variable-tags} 
-The following attributes tag certain variables created by the model factory as playing certain roles in GP submodels:
+The following variables must be defined in a specializing module to tag certain variables created by the model factory as playing certain roles in GP submodels:
 \begin{description}
     \item[\texttt{nugget\_labels}] A dictionary mapping the names of the GP submodels to the labels of their associated nugget variances, ie \texttt{\{'S': 'V'\}}.
     \item[\texttt{obs\_labels}] A dictionary mapping the names of the GP submodels to the labels of their associated evaluations with nugget, ie \texttt{\{'S': 'g\_x'\}}.
@@ -189,13 +189,13 @@ The following attributes tag certain variables created by the model factory as p
 \subsection{Postprocessing functions}
 
 \subsubsection{Postprocessing for map generation}
-The specialization package must expose a list of functions called \texttt{map\_postproc}. Each of these functions should take arguments corresponding to all the Gaussian process submodels in the model, and return... whatever it is you want to show the per-pixel predictive distribution of in the maps. For example, if your model is a spatial GLM with count data and an inverse-logit link function, and the name of the lone GP submodel in the model is $S$, this function would do:
+The specializing module must expose a list of functions called \texttt{map\_postproc}. Each of these functions should take arguments corresponding to all the Gaussian process submodels in the model, and return... whatever it is you want to show the per-pixel predictive distribution of in the maps. For example, if your model is a spatial GLM with count data and an inverse-logit link function, and the name of the lone GP submodel in the model is $S$, this function would do:
 \begin{verbatim}
     def prevalence(S):
         return generic_mbg.invlogit(S)
     map_postproc = [prevalence]
 \end{verbatim}
-The generic package's link functions should be preferred to all others when possible, because they're multithreaded.
+\texttt{Generic-mbg}'s link functions should be preferred to all others when possible, because they're multithreaded.
 
 The map postprocessing function can take additional arguments corresponding to tallied variables in the probability model. For example, if you wanted to use Stukel's link function, and had shape variables $a_1$ and $a_2$ in the model:
 \begin{verbatim}
@@ -206,16 +206,29 @@ The map postprocessing function can take additional arguments corresponding to t
 Note that the GP submodel arguments are understood to be per-pixel realizations on the prediction grid with nugget variance incorporated.
 
 \subsubsection{Postprocessing for validation} 
-The \texttt{generic-mbg} validation schema is to choose one or more summaries of the data that can be considered the results of binomial trials, and to compare the model's prediction of the outcomes of these trials given a subset of the data to the observed outcomes in the rest of the data. The specialization package must expose a list of functions called \texttt{validate\_postproc} that define these summaries. 
+The \texttt{generic-mbg} validation scheme is to choose one or more summaries of the data that can be considered the results of random trials, and to compare the model's prediction of the outcomes of these trials given a subset of the data to the observed outcomes in the rest of the data. The specializing module must expose a list of functions called \texttt{validate\_postproc} that define these summaries. 
 
-The validation trials may depend on some aspects of the held-out dataset, for example the ages of the survey participants. For that reason, each of the functions in \texttt{validate\_postproc} must take a single argument, which is the held-out dataset represented as a record array. Each should return three values: the `number successful', the `number of attempts', and a function. The function should have the same calling conventions as those in \texttt{map\_postproc}: it should take the GP submodels, and optionally some variables in the model, as arguments. It should return a predictive sample for the `number successful' given the values of the model variables. 
+The validation trials may depend on some aspects of the held-out dataset, for example the ages of the survey participants. For that reason, each of the functions in \texttt{validate\_postproc} must take a single argument, which is the held-out dataset represented as a record array. Each should return three values: the `number successful', the `number of attempts', and a function. The function should have the same calling conventions as those in \texttt{map\_postproc}: it should take the GP submodels, and optionally some variables in the model, as arguments. It should return a predictive sample for the `number successful' given the values of the model variables and possibly the `number of attempts'. For example:
+\begin{verbatim}
+    def prevalence(data):
+        obs = data.pos
+        n = data.pos + data.neg
+        def f(S, a1, a2, n=n):
+            return pm.rbinomial(n, generic_mbg.stukel_invlogit(S, a1, a2))
+        return obs, n, f
+
+    validate_postproc=[pr]    
+\end{verbatim}
 
 The shell command \texttt{mbg-validate} will read the non-covariate columns from the held-out datasheet, pass them into \texttt{validate\_postproc}, and use the returned function to convert the Gaussian field realizations to predictions. As with \texttt{map\_postproc}, the GP submodel arguments received will be per-pixel realizations on the held-out locations with nugget variance incorporated.
+
+\subsubsection{Postprocessing for areal prediction}  
+
 
 \subsection{Initializing the MCMC object}
 \label{sub:mcmc-init} 
 
-The shell command \texttt{mbg-infer} will call \texttt{make\_model} and wrap the jumble of variables it returns in a PyMC \texttt{MCMC} object. Before it begins sampling, it will call \texttt{mcmc\_init} on the MCMC object. This is your chance to assign custom step methods, etc. For example, to use the generic package's \texttt{FieldStepper} on the Gaussian field evaluation in section \ref{sub:example}:
+The shell command \texttt{mbg-infer} will call \texttt{make\_model} and wrap the jumble of variables it returns in a PyMC \texttt{MCMC} object. Before it begins sampling, it will call \texttt{mcmc\_init} on the MCMC object. This is your chance to assign custom step methods, etc. For example, to use \texttt{generic-mbg}'s \texttt{FieldStepper} on the Gaussian field evaluation in section \ref{sub:example}:
 \begin{verbatim}
     def mcmc_init(M):
         M.use_step_method(generic_mbg.FieldStepper, \
