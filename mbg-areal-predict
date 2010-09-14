@@ -30,38 +30,46 @@ See the PDF documentation of generic-mbg.
   database-file         The name of the database file produced by the mcmc.
   burn                  The number of initial MCMC iterations to discard. 
                         You must provide this argument.
+  polyfile              A file containing the regions to consider in GeoJSON
+                        format. See the PDF documentation.
 """
 p = OptionParser('usage: %prog module database-file burn mask [options]' + req_doc)
 p.add_option('-r','--reps',help='The number of repetitions to do, for purposes of computing Monte Carlo standard error. Defaults to 10.',dest='reps',type='int')
+p.add_option('-n','--n-bins',help='The number of bins to use when creating histograms. Defaults to 100.',dest='n_bins',type='int')
 p.add_option('-x','--points',help='The number of spatial points to use for estimating areal integrals. Defaults to 100.',dest='points',type='int')
 p.add_option('-i','--iter',help="The number of posterior predictive draws to take for each repetition. defaults to 1000.",dest='iter',type='int')
 p.add_option('-t','--thin',help='How much to thin the MCMC trace. Defaults to 10.',dest='thin',type='int')
 p.add_option('-w','--weight-raster',help="An optional raster giving relative weights. This can be used if weighted samples will give a better approximation to the integral than multiplying the integrand by the weight.",dest='weight_raster')
-p.add_option('-c','--coordinate-time',help="If 'f', (x,t) samples are distributed randomly in the admin unit X the time interval. If 't', then to each 'x' sample there correspond multiple 't' samples and vice versa. Set this to true if your f's need to take an integral in time (or space), apply a nonlinear transformation, and then take an integral in space (or time).",dest='coordinate_time')
+p.add_option('-c','--coordinate-time',help="If 0, (x,t) samples are distributed randomly in the admin unit X the time interval. If 1, then to each 'x' sample there correspond multiple 't' samples and vice versa. Set this to true if your f's need to take an integral in time (or space), apply a nonlinear transformation, and then take an integral in space (or time).",dest='coordinate_time')
 p.add_option('-d','--ignore-npd',help='Whether to discard and continue past non-positive-definite iterations.',dest='continue_past_npd',type='int')
 p.add_option('-q','--quantiles',help="The quantile maps to generate. Should be in the form '0.05 0.25 0.5 0.75 0.95', and the inverted commas are important! Defaults to '0.05 0.25 0.5 0.75 0.95'",dest='quantile_list')
+p.add_option('-p','--raster-path',help="The path to the covariate rasters. Defaults to the current working directory.",dest='raster_path')
+p.add_option('-u','--quantile-uplim',help='The upper limit of the mapped quantiles',type='float',dest='quantile_uplim')
+p.add_option('-l','--quantile-lolim',help='The lower limit of the mapped quantiles',type='float',dest='quantile_lolim')
 
 p.set_defaults(reps=10)
 p.set_defaults(points=100)
 p.set_defaults(iter=1000)
 p.set_defaults(weight_raster=None)
-p.set_defaults(coordinate_time='f')
+p.set_defaults(coordinate_time=0)
 p.set_defaults(continue_past_npd=0)
 p.set_defaults(thin=10)
 p.set_defaults(quantile_list='0.05 0.25 0.5 0.75 0.95')
+p.set_defaults(raster_path='.')
+p.set_defaults(quantile_uplim=1.)
+p.set_defaults(quantile_lolim=0.)
+p.set_defaults(n_bins=100)
+
+
 
 (o, args) = p.parse_args()
-if len(args) != 3:
+if len(args) != 4:
     raise ValueError, 'You must supply exactly four positional arguments. You supplied %i.'%len(args)
 
-if o.coordinate_time=='f':
-    o.coordinate_time=False
-elif o.coordinate_time=='t':
-    o.coordinate_time=True
-else:
-    raise ValueError, 'Option --coordinate-time must be True or False.'
-    
-o.module, o.hf_name, o.burn = args
+if o.coordinate_time:
+    raise NotImplementedError, "Haven't implemented time coordination yet."
+        
+o.module, o.hf_name, o.burn, o.polyfile_name = args
 o.burn = int(o.burn)
 
 import matplotlib
@@ -79,3 +87,124 @@ mod_basename, mod_ext = os.path.splitext(mod_name)
 mod_search_path = [mod_path, os.getcwd()] + sys.path
 mod = imp.load_module(mod_basename, *imp.find_module(mod_basename, mod_search_path))
 
+for n in ['nugget_labels', 'obs_labels']:
+    try:
+        exec("%s=getattr(mod,'%s')"%(n,n))
+    except:
+        cls,inst,tb = sys.exc_info()
+        new_inst = cls('Could not import %s from %s. Tell Anand. Original error message:\n\n\t%s'%(n,mod_name,inst.message))
+        raise cls,new_inst,tb
+    
+if hasattr(mod, 'extra_reduce_fns'):
+    extra_reduce_fns = mod.extra_reduce_fns
+    extra_finalize = mod.extra_finalize
+else:
+    extra_reduce_fns = []
+    extra_finalize = None
+
+# Parse quantiles
+if len(o.quantile_list) == 0:
+    q = []
+else:
+    q = map(float, o.quantile_list.split(' '))
+
+# Restore model
+M = create_model(mod,pm.database.hdf5.load(o.hf_name))
+hf = M.db._h5file
+meta = hf.root.metadata
+nuggets = dict([(getattr(M,k),getattr(M,v)) for k,v in mod.nugget_labels.iteritems()])
+bins = np.linspace(0,1,o.n_bins)
+
+# Create covariate locations
+ck = copy.copy(M.covariate_keys)
+cov_bbox = None
+try:
+    ck.remove('m')
+except ValueError:
+    pass
+if len(ck)>0:
+    x, unmasked, output_type = raster_to_locs(ck[0], thin=1, bufsize=0, path=o.raster_path)
+    cov_lon, cov_lat, cov_data, cov_type = import_raster(ck[0], o.raster_path)
+    cov_mask = cov_data.mask
+    cov_bbox = x[:,0].min(), x[:,1].min(), x[:,0].max(), x[:,1].max()
+
+# Load covariates
+if len(ck)>0:
+    all_covariate_keys = M.covariate_keys
+    covariate_dict = {}
+    for k in all_covariate_keys:
+        if k != 'm':
+            try:
+                covariate_dict[k] = raster_to_vals(k, path=o.raster_path, thin=1, unmasked=unmasked)
+            except IOError:
+                raise IOError, 'Covariate raster %s not found in path %s.'%(k+'.asc',o.raster_path)
+
+if o.weight_raster is not None:
+    if cov_bbox is None:
+        x, unmasked, output_type = raster_to_locs(o.weight_raster, thin=1, bufsize=0, path=o.raster_path)
+        cov_lon, cov_lat, cov_data, cov_type = import_raster(o.weight_raster, o.raster_path)
+        cov_mask = cov_data.mask
+        cov_bbox = x[:,0].min(), x[:,1].min(), x[:,0].max(), x[:,1].max()        
+    weights = raster_to_vals(o.weight_raster, path=o.raster_path, thin=1, unmasked=unmasked)
+    
+
+# Create utility fns
+if len(q)>0:
+    def binfn(arr,n_bins=o.n_bins,qu=o.quantile_uplim,ql=o.quantile_lolim):
+        return np.array(((arr-ql)/(qu-ql))*n_bins,dtype=int)
+
+    hsr = histogram_reduce(bins, binfn)
+    hsf = histogram_finalize(bins, q, hsr)
+
+def finalize(prod, n, q=q, ef=extra_finalize, qu=o.quantile_uplim, ql=o.quantile_lolim):
+    mean = prod[mean_reduce] / n
+    var = prod[var_reduce] / n - mean**2
+    std = np.sqrt(var)
+    std_to_mean = std/mean
+    out = {'mean': mean, 'var': var, 'std': std, 'std-to-mean':std_to_mean}
+    if len(q)>0:
+        fin = hsf(prod, n)
+        out.update(dict([(k,fin[k]*(qu-ql)+ql) for k in fin.iterkeys()]))
+    if ef is not None:
+        out.update(ef(prod, n))
+    return out
+
+reduce_fns = [mean_reduce, var_reduce]
+if len(q)>0:
+    reduce_fns = reduce_fns + [hsr]
+
+
+# Slurp the polyfile
+import geojson
+from shapely.geometry import asShape
+gjdat = geojson.loads(file(o.polyfile_name).read())
+mps = {}
+for geomcoll in gjdat['geometries']:
+    mps_ = {}
+    for geom in geomcoll['geometries']:
+        g = asShape(geom)
+        if cov_bbox is not None:
+            if not box_inside_box(np.array(g.envelope.bounds)*np.pi/180., cov_bbox):
+                raise ValueError, 'Multipolygon "%s" in geometry collection "%s" is not inside the covariate raster.'%(geom['properties']['name'],geomcoll['properties']['name'])
+            # Report the number of missing pixels inside the unit.
+            mask_in_unit = rastervals_in_unit(g, cov_lon.min(), cov_lat.min(), cov_lon[1]-cov_lon[0], cov_mask, view='y-x+')
+            frac_masked = np.sum(mask_in_unit)/float(len(mask_in_unit))
+            if frac_masked>0:
+                warnings.warn('%f of the pixels in multipolygon "%s" in geometry collection "%s" are missing.'%(frac_masked,geom['properties']['name'],geomcoll['properties']['name']))
+        mps_[geom['properties']['name']]={'geom':g,'tmin':geom['properties'].get('tmin'),'tmax':geom['properties'].get('tmax')}
+    mps[geomcoll['properties']['name']]=mps_
+
+
+# For each geometry collection:
+#   Generate h,g
+# Create estimates
+t_start = time.time()
+print '\nAreal predictions produced in %f seconds\n'%(time.time() - t_start)
+# For each rep:
+#   For each geometry collection:
+#      Draw the samples, stratifying by multipolygon, possibly weighted
+#      Evaluate g
+#      Take the expectation, possibly unweighted
+#      Multiply by total area or whatever
+#      Store.
+# Write out... need to figure out output format at this stage.q

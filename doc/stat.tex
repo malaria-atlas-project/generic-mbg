@@ -120,7 +120,7 @@ are slightly nonstandard. Usually, the nugget variance $V$ would be incorporated
     \item Metropolis sample each element of $g_x$ one at a time
     \item Gibbs sample $f_x$ jointly conditional on $g_x$
 \end{enumerate}
-performs well in a wide range of situations. The second step can be performed using the step method \texttt{FieldStepper}, which is provided by \texttt{generic-mbg}. Section \ref{sub:mcmc-init} describes how to use \texttt{FieldStepper}. 
+performs well in a wide range of situations. The second step can be performed using the step method \texttt{GPEvaluationGibbs}, which is provided by \texttt{PyMC}. Section \ref{sub:mcmc-init} describes how to use \texttt{GPEvaluationGibbs}. 
 
 \subsection{Example field}
 \label{sub:example} 
@@ -186,9 +186,8 @@ The following variables must be defined in a specializing module to tag certain 
     \item[\texttt{obs\_labels}] A dictionary mapping the names of the GP submodels to the labels of their associated evaluations with nugget, ie \texttt{\{'S': 'g\_x'\}}.
 \end{description}
 
-\subsection{Postprocessing functions}
 
-\subsubsection{Postprocessing for map generation}
+\subsection{Postprocessing for map generation}
 The specializing module must expose a list of functions called \texttt{map\_postproc}. Each of these functions should take arguments corresponding to all the Gaussian process submodels in the model, and return... whatever it is you want to show the per-pixel predictive distribution of in the maps. For example, if your model is a spatial GLM with count data and an inverse-logit link function, and the name of the lone GP submodel in the model is $S$, this function would do:
 \begin{verbatim}
     def prevalence(S):
@@ -205,7 +204,7 @@ The map postprocessing function can take additional arguments corresponding to t
 \end{verbatim}
 Note that the GP submodel arguments are understood to be per-pixel realizations on the prediction grid with nugget variance incorporated.
 
-\subsubsection{Postprocessing for validation} 
+\subsection{Postprocessing for validation} 
 The \texttt{generic-mbg} validation scheme is to choose one or more summaries of the data that can be considered the results of random trials, and to compare the model's prediction of the outcomes of these trials given a subset of the data to the observed outcomes in the rest of the data. The specializing module must expose a list of functions called \texttt{validate\_postproc} that define these summaries. 
 
 The validation trials may depend on some aspects of the held-out dataset, for example the ages of the survey participants. For that reason, each of the functions in \texttt{validate\_postproc} must take a single argument, which is the held-out dataset represented as a record array. Each should return three values: the `number successful', the `number of attempts', and a function. The function should have the same calling conventions as those in \texttt{map\_postproc}: it should take the GP submodels, and optionally some variables in the model, as arguments. It should return a predictive sample for the `number successful' given the values of the model variables and possibly the `number of attempts'. For example:
@@ -222,80 +221,121 @@ The validation trials may depend on some aspects of the held-out dataset, for ex
 
 The shell command \texttt{mbg-validate} will read the non-covariate columns from the held-out datasheet, pass them into \texttt{validate\_postproc}, and use the returned function to convert the Gaussian field realizations to predictions. As with \texttt{map\_postproc}, the GP submodel arguments received will be per-pixel realizations on the held-out locations with nugget variance incorporated.
 
-\subsubsection{Postprocessing for areal prediction}  
+\subsection{Postprocessing for areal prediction}  
 
 The task performed by the shell command \texttt{mbg-areal-predict} has a more complicated specification than the tasks performed by the other shell commands. The problem tackled by \texttt{mbg-areal-predict} is samples from, and summaries of, the posterior predictive distribution of quantities of the form
-\begin{eqnarray*}
-    h\left(\int_{a_1\times\tau_1} g_1(f_1,\ldots,f_n,x,t)da dt, \ldots,\int_{a_m\times\tau_m} g_m(f_1,\ldots,f_n,x,t)da dt\right)
-\end{eqnarray*}
-where $a_1,\ldots,a_m$ are regions and $da$ denotes integration over area; $\tau_1\ldots\tau_m$ are time intervals and $dt$ denotes integration over time; $x$ is a geographical location; $t$ is a particular time; $f_1,\ldots,f_n$ are the Gaussian random fields in the model; and $g_1\ldots g_m$ and $h$ are arbitrary functions. This general specification covers many `volumetric' estimates of epidemiological interest. Three concrete examples are given below.
+\begin{equation}
+    \label{eq:areal-targ} 
+    h\left(\frac{1}{|a_1|_w}\int_{a_1} g_1(f_1,\ldots,f_n,x,\tau)w(x)da, \ldots,\frac{1}{|a_2|_w}\int_{a_m\times\tau_m} g_m(f_1,\ldots,f_n,x,\tau)w(x)da\right)
+\end{equation}
+where $a_1,\ldots,a_m$ are regions and $da$ denotes integration over area; $w$ is a weighting function and $|a|_w=\int_a w(x)da$; $\tau_1\ldots\tau_m$ are time intervals; $x$ is a geographical location; $f_1,\ldots,f_n$ are the Gaussian random fields in the model; and $g_1\ldots g_m$ and $h$ are arbitrary functions. This general specification covers many `volumetric' estimates of epidemiological interest. Three concrete examples are given below.
 
 \begin{description}
-    \item[\emph{Plasmodium falciparum} clinical burden in a country.] In this case, $n=m=1$. $f_1$ is the Gaussian random field, with nugget incorporated, corresponding to parasite rate. $g_1$ transforms this value to parasite rate (with a random age-correction factor), and thence to clinical incidence, and multiplies it by the population density of the pixel containing $x$. $a$ is the administrative unit under consideration and $\tau$ is most likely a particular year. $h$ multiplies its argument by the total area $|a|$ of $a$.
+    \item[\emph{Plasmodium falciparum} clinical burden in a country.] In this case, $n=m=1$. $f_1$ is the Gaussian random field, with nugget incorporated, corresponding to parasite rate. $g_1$ transforms this value to parasite rate (with a random age-correction factor), and thence to clinical incidence, multiplies it by the population density of the pixel containing $x$, and integrates over $\tau$, being a particular year. $h$ multiplies its argument by $|a|^2$.
     \item[The total change in \emph{Plasmodium falciparum} clinical burden in a country between two consecutive years.] In this case $m=2$ with $a_1=a_2$ and $\tau_1=[y,y+1]$ and $\tau_2=[y+1,y+2]$, $y$ being the first of the two years. $f$ and $g$ are as in the previous example. $h(z_1,z_2)=(z_2-z_1)|a|$.
-    \item[The difference in areal mean HbS prevalence between Lysenko endemicity classes.] In this case $m=5$ (the number of Lysenko classes) and $n=1$. $a_i$ is Lysenko class $i$ and $\tau$ is not needed, since the model is atemporal. $f_1$ is the Gaussian random field corresponding to HbS allele frequency. $g_i$ applies the inverse link function to its argument and divides by $|a_i|$. $h$ maps vectors of length $n$ to vectors of length $n-1$: $h(z_1,\ldots,z_n)=[z_2-z_1,\ldots,z_n-z_{n-1}]$.
+    \item[The difference in areal mean HbS prevalence between Lysenko endemicity classes.] In this case $m=5$ (the number of Lysenko classes) and $n=1$. $a_i$ is Lysenko class $i$ and $\tau$ is not needed, since the model is atemporal. $f_1$ is the Gaussian random field corresponding to HbS allele frequency. $g_i$ applies the inverse link function to its argument. $h$ maps vectors of length $n$ to vectors of length $n-1$: $h(z_1,\ldots,z_n)=[z_2-z_1,\ldots,z_n-z_{n-1}]$.
     
-The regions $a_1,\ldots,a_m$ and time intervals $\tau_1,\ldots,\tau_m$ are defined in the argument \texttt{polyfile} of \texttt{mbg-areal-predict}. The regions are given as \href{http://geojson.org/geojson-spec.html}{GeoJSON} polygons or multipolygons, contained in geometry collections. The associated time intervals are defined by properties \texttt{tmin} and \texttt{tmax}. An example geometry collection called \texttt{gc1} containing two regions (\texttt{r1} and \texttt{r2}) is given below.
+The regions $a_1,\ldots,a_m$ and time intervals $\tau_1,\ldots,\tau_m$ are defined in the argument \texttt{polyfile} of \texttt{mbg-areal-predict}. The regions are given as \href{http://geojson.org/geojson-spec.html}{GeoJSON} polygons or multipolygons, contained in geometry collections. The associated time intervals are defined by properties \texttt{tmin} and \texttt{tmax}. An example geometry collection called \texttt{gc1} containing two regions ($r_1$ and $r_2$) is given below.
 \end{description}
 \begin{verbatim}
-    { "type": "GeometryCollection",
-      "geometries": [
-        { "type": "MultiPolygon",
-          "coordinates": [
-            [[[102.0, 2.0], [103.0, 2.0], [103.0, 3.0], [102.0, 3.0], [102.0, 2.0]]],
-            [[[100.0, 0.0], [101.0, 0.0], [101.0, 1.0], [100.0, 1.0], [100.0, 0.0]],
-             [[100.2, 0.2], [100.8, 0.2], [100.8, 0.8], [100.2, 0.8], [100.2, 0.2]]]
-            ]
-            "properties": {"name": "r1", "tmin": 2000.0, "tmax": 2007.5}
-          }
-        { "type": "MultiPolygon",
-          "coordinates": [
-            [[[102.0, 2.0], [103.0, 2.0], [103.0, 3.0], [102.0, 3.0], [102.0, 2.0]]],
-            [[[100.0, 0.0], [101.0, 0.0], [101.0, 1.0], [100.0, 1.0], [100.0, 0.0]],
-             [[100.2, 0.2], [100.8, 0.2], [100.8, 0.8], [100.2, 0.8], [100.2, 0.2]]]
-            ]
-            "properties": {"name": "r2", "tmin": 1993.5, "tmax": 2000.0}
-          }
-      ]
-      "properties": {"name": "gc1"}
+    {"type": "GeometryCollection",
+    "geometries":[
+        {"type": "GeometryCollection",
+        "geometries": [
+            {"type": "MultiPolygon", 
+                "coordinates": [[[[0.64, 5.85], [0.66, 5.75], [0.26, 5.76], [-0.8, 5.21], 
+                            [-1.61, 5.02], [-2.06, 4.73], [-2.93, 5.1], [-3.25, 6.61], 
+                            [-2.49, 8.2], [-2.69, 9.48], [-2.83, 11], [-0.15, 11.14], 
+                            [0.73, 8.32], [0.53, 6.95], [1.2, 6.1], [0.69, 5.75], 
+                            [0.63, 5.95], [0.51, 6.06], [0.41, 6.08], [0.37, 6.04], 
+                            [0.26, 6.1], [0.21, 6.09], [0.36, 6.02], [0.42, 6.07], 
+                            [0.49, 6.04], [0.61, 5.95], [0.64, 5.85]]]], 
+                "properties": {"name": "late", "tmin": 2000.0, "tmax": 2007.5}
+            },
+
+            {"type": "MultiPolygon", 
+                "coordinates": [[[[0.64, 5.85], [0.66, 5.75], [0.26, 5.76], [-0.8, 5.21], 
+                            [-1.61, 5.02], [-2.06, 4.73], [-2.93, 5.1], [-3.25, 6.61], 
+                            [-2.49, 8.2], [-2.69, 9.48], [-2.83, 11], [-0.15, 11.14], 
+                            [0.73, 8.32], [0.53, 6.95], [1.2, 6.1], [0.69, 5.75], 
+                            [0.63, 5.95], [0.51, 6.06], [0.41, 6.08], [0.37, 6.04], 
+                            [0.26, 6.1], [0.21, 6.09], [0.36, 6.02], [0.42, 6.07], 
+                            [0.49, 6.04], [0.61, 5.95], [0.64, 5.85]]]], 
+                "properties": {"name": "early", "tmin": 1993.5, "tmax": 2000.0}
+            }
+        ],
+        "properties" : {"name": "Ghana"}
+        },
+        {"type": "GeometryCollection",
+            "geometries": [
+                {"type": "MultiPolygon", 
+                    "coordinates": [[[[1.4, 9.43], [1.64, 6.22], [1.2, 6.1], [0.53, 6.95], 
+                                [0.73, 8.32], [-0.15, 11.14], [0.92, 11], [0.78,  10.38], 
+                                [1.4, 9.43]]]], 
+                    "properties": {"name": "late", "tmin": 2000.0, "tmax": 2007.5}
+                },
+
+                {"type": "MultiPolygon", 
+                    "coordinates": [[[[1.4, 9.43], [1.64, 6.22], [1.2, 6.1], [0.53, 6.95], 
+                                [0.73, 8.32], [-0.15, 11.14], [0.92, 11], [0.78,  10.38], 
+                                [1.4, 9.43]]]], 
+                    "properties": {"name": "early", "tmin": 1993.5, "tmax": 2000.0}
+                }
+            ],
+            "properties" : {"name": "Togo"}
+            }
+        ]
     }
 \end{verbatim}
 
 The file may contain multiple geometry collections, each of which is independently subjected to an estimation procedure of the form given above. 
 
-The specializing module must expose an attribute called \texttt{areal\_postproc}, which like \texttt{map\_postproc} and \texttt{validate\_postproc} must be a list of functions. Each must take a Shapely geometry collection as its lone argument and return two values: \texttt{h}, which must be of appropriate arity to fulfil its role given above; and \texttt{g}, which must be a dictionary of functions keyed by area name. Each value in \texttt{g} mist take as arguments the random fields in the model, an array of locations (lat/lon or lat/lon/t, depending on whether the model is temporal) and optionally any other variables in the model. The following specifications might implement concrete examples above:
+The specializing module must expose an attribute called \texttt{areal\_postproc}, which like \texttt{map\_postproc} and \texttt{validate\_postproc} must be a list of functions. Each must take a Shapely geometry collection as its lone argument and return two values: $h$, which must be of appropriate arity to fulfil its role given above; and $g$, which must be a dictionary of functions keyed by area name. Each value in $g$ mist take as arguments the random fields in the model, an array of locations (lat/lon) an array of times for temporal models, and optionally any other variables in the model. The following specifications might implement concrete examples above:
 \begin{verbatim}
     def prevalence(gc):
         "Plasmodium falciparum clinical burden in a country"
-        def h(z,a=gc.geoms[0].area()):
-            return z*a
-        def g(S,a1,a2):
-            return generic_mbg.stukel_invlogit(S, a1, a2)
+        def h(z,a=gc.geoms[0].area):
+            return z*a**2
+        def g(S,x,t,a1,a2):
+            return generic_mbg.stukel_invlogit(S(np.hstack((x,t))), a1, a2)
         return h, {gc.geoms[0].name: g}
     
     def diff_prevalence(gc):
-        "Total change in Plasmodium falciparum clinical burden in a country between two consecutive years"
-        def h(z1,z2,a=gc.geoms[0].area()):
+        """Total change in Plasmodium falciparum clinical burden in a country 
+        between two consecutive years"""
+        def h(z1,z2,a=gc.geoms[0].area):
             return (z2-z1)*a
-        def g(S,a1,a2):
-            return generic_mbg.stukel_invlogit(S, a1, a2)
+        def g(S,x,t,a1,a2):
+            return generic_mbg.stukel_invlogit(S(np.hstack((x,t))), a1, a2)
         return h, dict([geom.name, g] for geom in gc.geoms)
     
     def hbs_diff(gc):
         "Difference in areal mean HbS prevalence between Lysenko endemicity classes"
         def h(*l):
             return np.diff(l)
-        g = dict([geom.name, lambda S, a=geom.area: generic_mbg.invlogit(S)/a] for geom in gc.geoms)
+        g = dict([geom.name, lambda S, x, a=geom.area: generic_mbg.invlogit(S(x))/a]\
+            for geom in gc.geoms)
         return h, g
 \end{verbatim}
+
+\subsubsection{Temporal alignment}
+By default, the $g$ function is interpreted as $\tilde g$ in $g(f_1,\ldots,f_n,x,\tau)=\frac{1}{|\tau|}\int_\tau \tilde g(f_1(x,t),\ldots,f_n(x,t))dt$. In this default case, the $x$ and $t$ arguments seen by $g$ are such that \texttt{np.hstack((x,t))} gives an array of space-time samples distributed within $a\times\tau$ either uniformly or according to the weighting raster. The two temporal examples given above fall into this case.
+
+However, consider the case $g(f_1,\ldots,f_n,x,\tau)=k(\int_\tau\tilde g(f_1(x,t),\ldots,f_n(x,t))dt)$, where $k$ is a nonlinear transformation. The estimate \ref{eq:areal-targ} becomes difficult to compute based on uniformly-distributed $x,t$ points in $a\times \tau$. In this case, the function signature of $g$ should be \texttt{g(f1,...,fn,x,tau,...)} and the \texttt{-c} option to \texttt{mbg-areal-predict} should be set. $g$ should generate vectors of time points at each location in $x$ as necessary. If the same $f$'s are used for all time vectors, they will all be jointly simulated.
+
+\subsubsection{Estimation and Monte Carlo standard error}
+\texttt{Mbg-areal-predict} is unique amongst the \texttt{generic-mbg} commands in that its Monte Carlo error will generally be of more concern. For this reason, its \texttt{-r} argument determines the number of replications. All computations are repeated this many times. The averages of the results are presented as estimates, and the standard deviations are scaled and presented as estimates of Monte Carlo standard error.
+
+\textbf{Document output format once you produce a data structure}
+
 \subsection{Initializing the MCMC object}
 \label{sub:mcmc-init} 
 
-The shell command \texttt{mbg-infer} will call \texttt{make\_model} and wrap the jumble of variables it returns in a PyMC \texttt{MCMC} object. Before it begins sampling, it will call \texttt{mcmc\_init} on the MCMC object. This is your chance to assign custom step methods, etc. For example, to use \texttt{generic-mbg}'s \texttt{FieldStepper} on the Gaussian field evaluation in section \ref{sub:example}:
+The shell command \texttt{mbg-infer} will call \texttt{make\_model} and wrap the jumble of variables it returns in a PyMC \texttt{MCMC} object. Before it begins sampling, it will call \texttt{mcmc\_init} on the MCMC object. This is your chance to assign custom step methods, etc. For example, to use \texttt{PyMC}'s \texttt{GPEvaluationGibbs} on the Gaussian field evaluation in section \ref{sub:example}:
 \begin{verbatim}
     def mcmc_init(M):
-        M.use_step_method(generic_mbg.FieldStepper, \
-            M.f_x, M.V, M.C_eval, M.M_eval, M.x, M.g_x)
+        M.use_step_method(pymc.GPEvaluationGibbs, M.S, M.V, M.g_x)
 \end{verbatim}
 
-\textbf{Document output format once you produce a data structure}
+
+

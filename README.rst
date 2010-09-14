@@ -359,19 +359,24 @@ Required arguments
 1. The name of the module containing the model specification.
 
 2. The name of the database file (produced by mbg-infer) to be used to generate the 
-  maps. If you do not want it to go in the current directory, specify a path.
+   maps. If you do not want it to go in the current directory, specify a path.
 
 3. The number of burnin iterations to discard from the trace before making the maps.
-  You will need to figure this out by inspecting the traces produced by ``mbg-infer``.
+   You will need to figure this out by inspecting the traces produced by ``mbg-infer``.
  
 4. The name of a text file containing one or more (multi)polygons in geojson format,
-  contained in a geometry collection. The ``properties`` of each (multi)polygon must 
-  contain a unique ``name`` key. For spatiotemporal models, they must also contain 
-  ``tmin`` and ``tmax`` keys.
+   contained in a geometry collection. The ``properties`` of each (multi)polygon must 
+   contain a unique ``name`` key. For spatiotemporal models, they must also contain 
+   ``tmin`` and ``tmax`` keys.
   
 
 Options
 -------
+
+* ``-n`` or ``--n-bins`` : The number of bins to use in the histogram from which quantiles
+  are computed. Large values are good, but use up more system memory. Decrease this if you
+  see memory errors. Defaults to 100.
+
 
 * ``-r`` or ``--reps`` : The number of repetitions to do, for purposes of estimating Monte
   Carlo standard error. Defaults to 10.
@@ -398,8 +403,8 @@ Options
 * ``-w`` or ``--weight-raster`` : The name of a raster file in the ``raster-path``, with no
   extension. See the PDF documentation.
 
-* ``-c`` or ``--coordinate-time`` : If ``1``, sampling points line up in the temporal dimension.
-  See the PDF documentation.
+.. * ``-c`` or ``--coordinate-time`` : If ``1``, sampling points line up in the temporal dimension.
+..   See the PDF documentation.
 
 * ``-d`` or ``--ignore-npd`` : If ``1``, MCMC iterations whose covariance functions are non-
   positive-definite on the data locations plus the prediction locations will be ignored. If

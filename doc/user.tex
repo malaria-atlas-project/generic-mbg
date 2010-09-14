@@ -434,74 +434,16 @@ trials. \texttt{fname-aname-estimates} is a CSV file whose columns have titles
 \item The name of the module containing the model specification.
 
 \item The name of the database file (produced by mbg-infer) to be used to generate the
-\end{list}
-
-\DUadmonition[system-message]{
-\DUtitle[system-message]{system-message}
-
-
-{\color{red}WARNING/2} in \texttt{../README.rst}, line~362
-
-Enumerated list ends without a blank line; unexpected unindent.
-backrefs: }
-%
-\begin{quote}
-
 maps. If you do not want it to go in the current directory, specify a path.
 
-\end{quote}
-\setcounter{listcnt0}{0}
-\begin{list}{\arabic{listcnt0}.}
-{
-\usecounter{listcnt0}
-\addtocounter{listcnt0}{2}
-\setlength{\rightmargin}{\leftmargin}
-}
-
 \item The number of burnin iterations to discard from the trace before making the maps.
-\end{list}
-
-\DUadmonition[system-message]{
-\DUtitle[system-message]{system-message}
-
-
-{\color{red}WARNING/2} in \texttt{../README.rst}, line~365
-
-Enumerated list ends without a blank line; unexpected unindent.
-backrefs: }
-%
-\begin{quote}
-
 You will need to figure this out by inspecting the traces produced by \texttt{mbg-infer}.
 
-\end{quote}
-\setcounter{listcnt0}{0}
-\begin{list}{\arabic{listcnt0}.}
-{
-\usecounter{listcnt0}
-\addtocounter{listcnt0}{3}
-\setlength{\rightmargin}{\leftmargin}
-}
-
 \item The name of a text file containing one or more (multi)polygons in geojson format,
-\end{list}
-
-\DUadmonition[system-message]{
-\DUtitle[system-message]{system-message}
-
-
-{\color{red}WARNING/2} in \texttt{../README.rst}, line~368
-
-Enumerated list ends without a blank line; unexpected unindent.
-backrefs: }
-%
-\begin{quote}
-
 contained in a geometry collection. The \texttt{properties} of each (multi)polygon must
 contain a unique \texttt{name} key. For spatiotemporal models, they must also contain
 \texttt{tmin} and \texttt{tmax} keys.
-
-\end{quote}
+\end{list}
 
 
 
@@ -510,6 +452,10 @@ contain a unique \texttt{name} key. For spatiotemporal models, they must also co
 }
 %
 \begin{itemize}
+
+\item \texttt{-n} or \texttt{-{}-n-bins} : The number of bins to use in the histogram from which quantiles
+are computed. Large values are good, but use up more system memory. Decrease this if you
+see memory errors. Defaults to 100.
 
 \item \texttt{-r} or \texttt{-{}-reps} : The number of repetitions to do, for purposes of estimating Monte
 Carlo standard error. Defaults to 10.
@@ -536,8 +482,13 @@ multipolygons extend outside the given rasters or contain missing pixels, an err
 \item \texttt{-w} or \texttt{-{}-weight-raster} : The name of a raster file in the \texttt{raster-path}, with no
 extension. See the PDF documentation.
 
-\item \texttt{-c} or \texttt{-{}-coordinate-time} : If \texttt{1}, sampling points line up in the temporal dimension.
-See the PDF documentation.
+\end{itemize}
+
+% * ``-c`` or ``--coordinate-time`` : If ``1``, sampling points line up in the temporal dimension.
+
+% See the PDF documentation.
+%
+\begin{itemize}
 
 \item \texttt{-d} or \texttt{-{}-ignore-npd} : If \texttt{1}, MCMC iterations whose covariance functions are non-
 positive-definite on the data locations plus the prediction locations will be ignored. If
