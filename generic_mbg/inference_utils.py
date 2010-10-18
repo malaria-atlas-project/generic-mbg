@@ -20,15 +20,49 @@ import tables as tb
 from st_cov_fun import my_st
 from histogram_utils import iinvlogit, isinvlogit, iamul, iasq, icsum, subset_eq, iasadd, meshmatch
 from pylab import csv2rec,rec2csv
+import inspect
+import copy
 
-class close(object):
-    def __init__(self, f, **kwds):
-        self.f = f
-        self.kwds = kwds
-        self.__name__ = f.__name__
-    def __call__(self, *args, **new_kwds): 
-        new_kwds.update(self.kwds)
-        return self.f(*args, **new_kwds)
+def close(f, **kwds):
+    "For god's sake. Major symbol capture possibility here."
+    fargs, fvarargs, fvarkw, fdefault=inspect.getargspec(f)
+    
+    if fvarargs is not None:
+        raise ValueError, 'Cannot close a function with varargs'
+    
+    internal_f_name = 'f'
+    while internal_f_name in fargs:
+        internal_f_name = internal_f_name + '_'
+    
+    outer_strs = []
+    default_strs = ['%s=f'%internal_f_name]
+    inner_strs = []
+    
+    for farg_index, farg_d in enumerate(fargs):
+        farg_index_=farg_index-(len(fargs)-len(fdefault or []))
+        if farg_d in kwds.keys():
+            exec('%s=kwds[farg_d]'%farg_d)
+            default_strs.append('%s=%s'%(farg_d,farg_d))
+        else:
+            if farg_index_>=0:
+                exec('%s=fdefault[farg_index_]'%farg_d)
+                outer_strs.append('%s=%s'%(farg_d,farg_d))
+            else:
+                outer_strs.append(farg_d)
+    outer_strs = outer_strs + default_strs
+
+    inner_strs = copy.copy(fargs)
+    
+    if fvarkw is not None:
+        outer_strs.append('**%s'%fvarkw)
+        inner_strs.append('**%s'%fvarkw)
+    
+    exec("""def f_(%s):
+    return %s(%s)"""%(','.join(outer_strs),internal_f_name,','.join(inner_strs)))
+
+    f_.__name__ = f.__name__
+
+    return f_
 
 def maybe_convert(ra, field, dtype):
     """

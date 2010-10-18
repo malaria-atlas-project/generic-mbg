@@ -256,7 +256,22 @@ def histogram_finalize(bins, q, hr):
         return out
     return fin    
 
-
+def get_one_args(postproc, f_labels, M):
+    try:
+        argspec = inspect.getargspec(postproc)
+    except:
+        argspec = inspect.getargspec(postproc.__call__)
+        argspec.args.remove('self')
+    args = argspec.args
+    if argspec.defaults is None:
+        postproc_args = args
+    else:
+        required_args = args[:-len(argspec.defaults)]
+        optional_args = filter(lambda k, M=M: hasattr(M,k), args[-len(argspec.defaults):])
+        postproc_args = required_args+optional_args
+    extra_postproc_args = set(postproc_args) - set(f_labels)
+    return postproc_args, extra_postproc_args
+    
 def get_args(postprocs, fns, f_labels, M):
     # Have a look at the postprocessing functions
     products = {}
@@ -264,20 +279,7 @@ def get_args(postprocs, fns, f_labels, M):
     extra_postproc_args = {}
     for postproc in postprocs:
         products[postproc] = dict(zip(fns, [None]*len(fns)))
-        # Inspect postprocs for extra arguments
-        try:
-            argspec = inspect.getargspec(postproc)
-        except:
-            argspec = inspect.getargspec(postproc.__call__)
-            argspec.args.remove('self')
-        args = argspec.args
-        if argspec.defaults is None:
-            postproc_args[postproc] = args
-        else:
-            required_args = args[:-len(argspec.defaults)]
-            optional_args = filter(lambda k, M=M: hasattr(M,k), args[-len(argspec.defaults):])
-            postproc_args[postproc] = required_args+optional_args
-        extra_postproc_args[postproc] = set(postproc_args[postproc]) - set(f_labels)
+        postproc_args[postproc], extra_postproc_args[postproc] = get_one_args(postproc,f_labels,M)
     return products, postproc_args, extra_postproc_args
 
 def apply_postprocs_and_reduce(M, n_per, M_preds, S_preds, postprocs, fns, products, postproc_args, extra_postproc_args, joint, norms=None, **kwds):
