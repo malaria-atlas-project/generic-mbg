@@ -61,7 +61,7 @@ diags = []
 for k,v in hf.root.chain0.PyMCsamples.coldtypes.iteritems():
     if np.prod(v.shape)==1:
         names.append(k)
-        i,g = np.array(pymc.geweke(all_chain_trace(hf, k), o.first, o.last, o.intervals).T)
+        i,g = np.array(pm.geweke(all_chain_trace(hf, k), o.first, o.last, o.intervals)).T
         diags.append(g)
 
 names.append('breakpoints')
