@@ -34,6 +34,12 @@ See <http://www.gnu.org/licenses/> for the terms of the license.
 
 p = OptionParser('usage: %prog module database-file [options]' + req_doc)
 
+p.add_option('-t','--thin',help='How much to thin the MCMC trace. Defaults to 1, meaning no  thinsing.',dest='thin',type='int')
+p.add_option('-b','--burn',help='How many burnin iterations to discard. Defaults to 0.',dest='burn',type='int')
+
+p.set_defaults(thin=1)
+p.set_defaults(burn=0)
+
 (o, args) = p.parse_args()
 if len(args) != 1:
     raise ValueError, 'You must supply exactly one positional argument. You supplied %i.'%len(args)
@@ -52,7 +58,7 @@ traces = []
 for k,v in hf.root.chain0.PyMCsamples.coldtypes.iteritems():
     if np.prod(v.shape)==1:
         names.append(k)
-        traces.append(all_chain_trace(hf, k))
+        traces.append(all_chain_trace(hf, k)[o.burn::o.thin])
         
 text_trace = np.rec.fromarrays(traces, names=','.join(names))
 
