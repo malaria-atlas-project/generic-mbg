@@ -37,10 +37,12 @@ p = OptionParser('usage: %prog module database-file [options]' + req_doc)
 p.add_option('-f','--first',help='',dest='first',type='float')
 p.add_option('-l','--last',help='',dest='last',type='float')
 p.add_option('-i','--intervals',help='',dest='intervals',type='int')
+p.add_option('-b','--burn',help='',dest='burn',type='int')
 
 p.set_defaults(first=.1)
 p.set_defaults(last=.5)
-p.set_defaults(intervals=20)
+p.set_defaults(intervals=2)
+p.set_defaults(burn=0)
 
 (o, args) = p.parse_args()
 if len(args) != 1:
@@ -61,7 +63,7 @@ diags = []
 for k,v in hf.root.chain0.PyMCsamples.coldtypes.iteritems():
     if np.prod(v.shape)==1:
         names.append(k)
-        i,g = np.array(pm.geweke(all_chain_trace(hf, k), o.first, o.last, o.intervals)).T
+        i,g = np.array(pm.geweke(all_chain_trace(hf, k)[o.burn:], o.first, o.last, o.intervals)).T
         diags.append(g)
 
 names.append('breakpoints')
