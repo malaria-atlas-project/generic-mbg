@@ -1,0 +1,62 @@
+# Copyright (C) 2009 Anand Patil
+# 
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+
+from optparse import OptionParser
+import os
+
+
+# Create option parser
+
+req_doc = """
+
+mbg-covariate-traces  Copyright (C) 2009 Anand Patil
+This program comes with ABSOLUTELY NO WARRANTY.
+This is free software, and you are welcome to redistribute it under certain conditions.
+See <http://www.gnu.org/licenses/> for the terms of the license.
+
+
+  database-file         The name of the database file produced by the mcmc.
+
+"""
+
+p = OptionParser('usage: %prog module database-file [options]' + req_doc)
+
+(o, args) = p.parse_args()
+if len(args) != 1:
+    raise ValueError, 'You must supply exactly one positional argument. You supplied %i.'%len(args)
+
+o.hf_name = args[0]
+
+from generic_mbg import all_chain_trace
+import tables as tb
+import numpy as np
+import pylab as pl
+import os
+
+hf = tb.openFile(o.hf_name)
+names = []
+traces = []
+for k,v in hf.root.chain0.PyMCsamples.coldtypes.iteritems():
+    if np.prod(v.shape)==1:
+        names.append(k)
+        traces.append(all_chain_trace(hf, k))
+        
+text_trace = np.rec.fromarrays(traces, names=','.join(names))
+
+# Load up given module and load its relevant contents
+hf_path, hf_basename  = os.path.split(o.hf_name)
+base_outname = os.path.splitext(hf_basename)[0]
+pl.rec2csv(text_trace, os.path.join(hf_path, hf_basename+'-text-traces.csv'))

@@ -20,6 +20,15 @@ import tables as tb
 from st_cov_fun import my_st
 from histogram_utils import iinvlogit, isinvlogit, iamul, iasq, icsum, subset_eq, iasadd, meshmatch
 from pylab import csv2rec,rec2csv
+import os, sys, imp
+
+def reload_model(mod, hf):
+    mod_path, mod_name = os.path.split(mod)
+    mod_basename, mod_ext = os.path.splitext(mod_name)
+    mod_search_path = [mod_path, os.getcwd()] + sys.path
+    mod = imp.load_module(mod_basename, *imp.find_module(mod_basename, mod_search_path))
+
+    return create_model(mod,pm.database.hdf5.load(hf))
 
 class close(object):
     def __init__(self, f, **kwds):
