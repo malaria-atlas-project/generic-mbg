@@ -48,7 +48,8 @@ if __name__ == '__main__':
                     'mbg-init-user-account',
                     'mbg-evaluate-survey',
                     'mbg-areal-predict',
-                    'mbg-text-traces']:
+                    'mbg-text-traces',
+                    'mbg-geweke-diagnostic']:
 
         commit = get_syscall_output('git show --pretty=format:"%H" --quiet')
         pythonpath = get_syscall_output('which python')
