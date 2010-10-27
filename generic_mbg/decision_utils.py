@@ -156,7 +156,7 @@ def hdf5_to_survey_eval(M, x, nuggets, burn, thin, total, fns, postprocs, pred_c
             print ((k*100)/len(iter)), '% complete',
             time_count = time.time()      
             if k > 0:      
-                print 'expect results '+time.ctime((time_count-time_start)*len(iter)/float(k)+time_start)
+                print 'expect results %s (in %s hours)'%(time.ctime((time_count-time_start)*len(iter)/float(k)+time_start),(time_count-time_start)*(len(iter)-float(k))/float(k)/3600)
             else:
                 print
 
@@ -178,7 +178,7 @@ def hdf5_to_survey_eval(M, x, nuggets, burn, thin, total, fns, postprocs, pred_c
                 M_preds = {}
                 S_preds = {}
                 for s in gp_submods:
-                    print '\t\t',s
+                    print '\t\t',s.name
 
                     mu_pri = M_obs[s](survey_x)
                     C_pri = C_obs[s](survey_x, survey_x)+nugs[s]*np.eye(len(survey_x))
