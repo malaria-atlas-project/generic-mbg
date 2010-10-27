@@ -226,7 +226,7 @@ The shell command \texttt{mbg-validate} will read the non-covariate columns from
 The task performed by the shell command \texttt{mbg-areal-predict} has a more complicated specification than the tasks performed by the other shell commands. The problem tackled by \texttt{mbg-areal-predict} is samples from, and summaries of, the posterior predictive distribution of quantities of the form
 \begin{equation}
     \label{eq:areal-targ} 
-    h\left(\frac{1}{|a_1|_w}\int_{a_1} g_1(f_1,\ldots,f_n,x,\tau)w(x)da, \ldots,\frac{1}{|a_2|_w}\int_{a_m\times\tau_m} g_m(f_1,\ldots,f_n,x,\tau)w(x)da\right)
+    h\left(\frac{1}{|a_1|_w}\int_{a_1\times \tau_1} g_1(f_1,\ldots,f_n,x,\tau)w(x)da, \ldots,\frac{1}{|a_2|_w}\int_{a_m\times\tau_m} g_m(f_1,\ldots,f_n,x,\tau)w(x)da\right)
 \end{equation}
 where $a_1,\ldots,a_m$ are regions and $da$ denotes integration over area; $w$ is a weighting function and $|a|_w=\int_a w(x)da$; $\tau_1\ldots\tau_m$ are time intervals; $x$ is a geographical location; $f_1,\ldots,f_n$ are the Gaussian random fields in the model; and $g_1\ldots g_m$ and $h$ are arbitrary functions. This general specification covers many `volumetric' estimates of epidemiological interest. Three concrete examples are given below.
 

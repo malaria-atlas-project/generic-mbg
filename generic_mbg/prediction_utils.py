@@ -389,9 +389,10 @@ def hdf5_to_samps(M, x, nuggets, burn, thin, total, fns, postprocs, pred_covaria
         
         if time.time() - time_count > 10:
             print ((k*100)/len(iter)), '% complete',
-            time_count = time.time()      
+            time_count
+            
             if k > 0:      
-                print 'expect results '+time.ctime((time_count-time_start)*len(iter)/float(k)+time_start)
+                print 'expect results %s (in %s hours)'%(time.ctime((time_count-time_start)*len(iter)/float(k)+time_start),(time_count-time_start)*(len(iter)-float(k))/float(k)/3600)
             else:
                 print
         

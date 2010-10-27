@@ -22,6 +22,15 @@ from histogram_utils import iinvlogit, isinvlogit, iamul, iasq, icsum, subset_eq
 from pylab import csv2rec,rec2csv
 import inspect
 import copy
+import os, sys, imp
+
+def reload_model(mod, hf):
+    mod_path, mod_name = os.path.split(mod)
+    mod_basename, mod_ext = os.path.splitext(mod_name)
+    mod_search_path = [mod_path, os.getcwd()] + sys.path
+    mod = imp.load_module(mod_basename, *imp.find_module(mod_basename, mod_search_path))
+
+    return create_model(mod,pm.database.hdf5.load(hf))
 
 def close(f, **kwds):
     "For god's sake. Major symbol capture possibility here."

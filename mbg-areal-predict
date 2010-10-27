@@ -94,7 +94,7 @@ for n in ['nugget_labels', 'obs_labels']:
         cls,inst,tb = sys.exc_info()
         new_inst = cls('Could not import %s from %s. Tell Anand. Original error message:\n\n\t%s'%(n,mod_name,inst.message))
         raise cls,new_inst,tb
-    
+
 if hasattr(mod, 'extra_reduce_fns'):
     extra_reduce_fns = mod.extra_reduce_fns
     extra_finalize = mod.extra_finalize
@@ -146,7 +146,7 @@ if o.weight_raster is not None:
         cov_mask = cov_data.mask
         cov_bbox = x[:,0].min(), x[:,1].min(), x[:,0].max(), x[:,1].max()        
     weights = raster_to_vals(o.weight_raster, path=o.raster_path, thin=1, unmasked=unmasked)
-    
+
 
 # Create utility fns
 if len(q)>0:
@@ -196,7 +196,7 @@ for geomcoll in gjdat['geometries']:
 
 
 # For each geometry collection:
-#   Generate h,g
+# Generate h,g
 # Create estimates
 t_start = time.time()
 print '\nAreal predictions produced in %f seconds\n'%(time.time() - t_start)
@@ -207,4 +207,4 @@ print '\nAreal predictions produced in %f seconds\n'%(time.time() - t_start)
 #      Take the expectation, possibly unweighted
 #      Multiply by total area or whatever
 #      Store.
-# Write out... need to figure out output format at this stage.q
+# Write out... need to figure out output format at this stage.
