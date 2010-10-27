@@ -91,22 +91,22 @@ def find_joint_approx_params(mu_pri, C_pri, likefns, tol=1.e-3):
     C_corrs = np.zeros(shape=(mu_pri.shape[0],)*3)
 
     # Skip this to mock
-    # while np.any(np.abs(delta_m)>tol) or np.any(np.abs(delta_v/like_vars)>tol):
-    #     for i in xrange(len(mu_pri)):
-    #         mu -= mu_corrs[i]
-    #         C -= C_corrs[i]
-    # 
-    #         new_like_mean, new_like_var = find_approx_params(mu[i], C[i,i], likefns[i], norms)
-    # 
-    #         delta_m[i] = new_like_mean-like_means[i]
-    #         delta_v[i] = new_like_var- like_vars[i]
-    #         like_means[i] = new_like_mean
-    #         like_vars[i] = new_like_var
-    # 
-    #         mu_corrs[i], C_corrs[i] = obs_corrections(mu, C, like_means[i], like_vars[i], i)
-    # 
-    #         mu += mu_corrs[i]
-    #         C += C_corrs[i]
+    while np.any(np.abs(delta_m)>tol) or np.any(np.abs(delta_v/like_vars)>tol):
+        for i in xrange(len(mu_pri)):
+            mu -= mu_corrs[i]
+            C -= C_corrs[i]
+    
+            new_like_mean, new_like_var = find_approx_params(mu[i], C[i,i], likefns[i], norms)
+    
+            delta_m[i] = new_like_mean-like_means[i]
+            delta_v[i] = new_like_var- like_vars[i]
+            like_means[i] = new_like_mean
+            like_vars[i] = new_like_var
+    
+            mu_corrs[i], C_corrs[i] = obs_corrections(mu, C, like_means[i], like_vars[i], i)
+    
+            mu += mu_corrs[i]
+            C += C_corrs[i]
 
     return like_means, like_vars, mu, C
 
@@ -114,6 +114,9 @@ def hdf5_to_survey_eval(M, x, nuggets, burn, thin, total, fns, postprocs, pred_c
     
     hf=M.db._h5file
     gp_submods = list(set(filter(lambda c: isinstance(c,pm.gp.GPSubmodel), M.containers)))
+    if len(gp_submods)>1:
+        raise NotImplementedError, 'Not implemented for multiple fields yet.'
+    
     f_labels = [gps.name for gps in gp_submods]
 
     products, postproc_args, extra_postproc_args = get_args(postprocs, fns, f_labels, M)
@@ -209,6 +212,7 @@ def hdf5_to_survey_eval(M, x, nuggets, burn, thin, total, fns, postprocs, pred_c
                     S_preds[s] = np.sqrt(V_pred + nugs[s])    
 
                     # This is the time-consuming step. Makes sense I guess.
+                    # TODO: Try it with only a 3dmap reduce.
                     apply_postprocs_and_reduce(M, n_per, M_preds, S_preds, postprocs, fns, products, postproc_args, extra_postproc_args, joint=False, ind=l, norms=norms[s])
 
         except np.linalg.LinAlgError:
