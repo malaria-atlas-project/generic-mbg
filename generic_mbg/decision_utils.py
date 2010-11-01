@@ -15,12 +15,23 @@ def kldiv(p, mu_pri, V_pri, likefn, norms):
     
     return (mean_logapprox_like - mean_loglike)/len(norms)
     
-def find_approx_params(mu_pri, V_pri, likefn, norms):
+def find_approx_params(mu_pri, V_pri, likefn, norms, optimfn = None):
     "Returns the 'likelihood' mean and variance minimizing K-L divergence with the likelihood."
+    snorms = mu_pri+np.sqrt(V_pri)*norms
+    l = np.array([likefn(s) for s in snorms])
+    w = np.exp(l-l.max())
+    m1 = np.sum(snorms*w)/w.sum()
+    m2 = np.sum(snorms**2*w)/w.sum()
+    
+    mu_init = m1
+    v_init = m2-m1**2
+    
     f = close(kldiv, mu_pri=mu_pri, V_pri=V_pri, likefn=likefn, norms=norms)
 
-    from scipy import optimize
-    p = optimize.fmin(f, [mu_pri, V_pri], disp=0)
+    if optimfn is None:
+        from scipy import optimize
+        optimfn = optimize.fmin
+    p = optimfn(f, [mu_init, v_init],disp=0)
 
     return p
     
@@ -57,7 +68,7 @@ def var_reduce_with_hdf(hf, n_reps):
             hfa[ind] = hfa[ind] + next**2
         return 1
     return var_reduce_
-        
+
 def histogram_reduce_with_hdf(bins, binfn, hf, n_reps):
     """Produces an accumulator to be used with hdf5_to_samps"""
     def hr(sofar, next, name, ind, hf=hf, n_reps=n_reps):
@@ -75,8 +86,11 @@ def histogram_reduce_with_hdf(bins, binfn, hf, n_reps):
         return 1
     return hr
 
-def find_joint_approx_params(mu_pri, C_pri, likefns, tol=1.e-3):
-    norms = np.random.normal(size=1000)
+def find_joint_approx_params(mu_pri, C_pri, likefns, approx_param_fn = None, tol=1.e-3, maxiter=10000):
+    if approx_param_fn is None:
+        norms = np.random.normal(size=1000)
+    else:
+        raise NotImplementedError
 
     delta_m = np.ones_like(mu_pri)*np.inf
     delta_v = np.ones_like(mu_pri)*np.inf
@@ -91,12 +105,18 @@ def find_joint_approx_params(mu_pri, C_pri, likefns, tol=1.e-3):
     C_corrs = np.zeros(shape=(mu_pri.shape[0],)*3)
 
     # Skip this to mock
-    while np.any(np.abs(delta_m)>tol) or np.any(np.abs(delta_v/like_vars)>tol):
+    iter = 0
+    ms = []
+    vs = []
+    while (np.any(np.abs(delta_m)>tol) or np.any(np.abs(delta_v/like_vars)>tol)) and iter < maxiter:
+        iter += 1
         for i in xrange(len(mu_pri)):
             mu -= mu_corrs[i]
             C -= C_corrs[i]
-    
-            new_like_mean, new_like_var = find_approx_params(mu[i], C[i,i], likefns[i], norms)
+            if approx_param_fn is None:
+                new_like_mean, new_like_var = find_approx_params(mu[i], C[i,i], likefns[i], norms)
+            else:
+                new_like_mean, new_like_var = approx_param_fn(mu[i], C[i,i], likefns[i])
     
             delta_m[i] = new_like_mean-like_means[i]
             delta_v[i] = new_like_var- like_vars[i]
@@ -107,6 +127,11 @@ def find_joint_approx_params(mu_pri, C_pri, likefns, tol=1.e-3):
     
             mu += mu_corrs[i]
             C += C_corrs[i]
+        ms.append(like_means.copy())
+        vs.append(like_vars.copy())
+
+    if iter==maxiter:
+        raise RuntimeError, 'EP algorithm failed to converge.'
 
     return like_means, like_vars, mu, C
 
@@ -139,7 +164,6 @@ def hdf5_to_survey_eval(M, x, nuggets, burn, thin, total, fns, postprocs, pred_c
     for k in xrange(len(iter)):
         
         i = iter[k]
-        print i
         # Restore the i'th cache fram
         all_chain_remember(M,i)
         
@@ -173,16 +197,13 @@ def hdf5_to_survey_eval(M, x, nuggets, burn, thin, total, fns, postprocs, pred_c
             apply_postprocs_and_reduce(M, n_per, base_M_preds, base_S_preds, postprocs, fns, products, postproc_args, extra_postproc_args, joint=False, ind=-1, norms=norms[s])
         
         try:
-            for l in xrange(len(survey_data)):    
-                print '\t',l
+            for l in xrange(len(survey_data)):   
                 M_preds = {}
                 S_preds = {}
                 for s in gp_submods:
-                    print '\t\t',s.name
 
                     mu_pri = M_obs[s](survey_x)
                     C_pri = C_obs[s](survey_x, survey_x)+nugs[s]*np.eye(len(survey_x))
-                    
                     
                     # FIXME: This will only work for single fields currently.
                     closure_dict = {'data': survey_data[l], 'survey_plan': survey_plan}
