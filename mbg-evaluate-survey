@@ -219,11 +219,11 @@ for mp in mod.map_postproc:
         if len(q)>0:
             hist_info = hsf({hsr: hist_arr[i,:]}, actual_total)
             for qi in q:
-                quantile_arrs[qi][:] = hist_info['quantile-%s'%qi]
+                quantile_arrs[qi][i,:] = hist_info['quantile-%s'%qi]
 
         if len(ci)>0:
             for cii in ci:
-                ci_arrs[cii][:] = hist_info['quantile-%s'%(half*(1+cii))]-hist_info['quantile-%s'%(half*(1-cii))]
+                ci_arrs[cii][i,:] = hist_info['quantile-%s'%(half*(1+cii))]-hist_info['quantile-%s'%(half*(1-cii))]
 print 'Finalizing done in %s seconds'%(time.time()-t1)
 
 map_keys = ['mean','var','std','std_to_mean']+[('quantile_%s'%qi).replace('.','__') for qi in q]+[('ci_%s'%cii).replace('.','__') for cii in ci]
