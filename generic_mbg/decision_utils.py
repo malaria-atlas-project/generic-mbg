@@ -15,8 +15,13 @@ def kldiv(p, mu_pri, V_pri, likefn, norms):
     
     return (mean_logapprox_like - mean_loglike)/len(norms)
     
-def find_approx_params(mu_pri, V_pri, likefn, norms, optimfn = None):
-    "Returns the 'likelihood' mean and variance minimizing K-L divergence with the likelihood."
+def find_approx_params(mu_pri, V_pri, likefn, norms, match_moments, optimfn = None):
+    """
+    Returns the 'likelihood' mean and variance. 
+    Matches posterior moments if match_moments=True,
+    minimizes KL divergence with posterior if False.
+    match_moments=False is better, but slower.
+    """
     snorms = mu_pri+np.sqrt(V_pri)*norms
     l = np.array([likefn(s) for s in snorms])
     w = np.exp(l-l.max())
@@ -26,12 +31,15 @@ def find_approx_params(mu_pri, V_pri, likefn, norms, optimfn = None):
     mu_init = m1
     v_init = m2-m1**2
     
-    f = close(kldiv, mu_pri=mu_pri, V_pri=V_pri, likefn=likefn, norms=norms)
+    if match_moments:
+        p = [mu_init, v_init]
+    else:
+        f = close(kldiv, mu_pri=mu_pri, V_pri=V_pri, likefn=likefn, norms=norms)
 
-    if optimfn is None:
-        from scipy import optimize
-        optimfn = optimize.fmin
-    p = optimfn(f, [mu_init, v_init],disp=0)
+        if optimfn is None:
+            from scipy import optimize
+            optimfn = optimize.fmin
+        p = optimfn(f, [mu_init, v_init],disp=0)
 
     return p
     
@@ -86,7 +94,7 @@ def histogram_reduce_with_hdf(bins, binfn, hf, n_reps):
         return 1
     return hr
 
-def find_joint_approx_params(mu_pri, C_pri, likefns, approx_param_fn = None, tol=1.e-3, maxiter=10000):
+def find_joint_approx_params(mu_pri, C_pri, likefns, match_moments, approx_param_fn = None, tol=1.e-3, maxiter=10000):
     if approx_param_fn is None:
         norms = np.random.normal(size=1000)
     else:
@@ -114,7 +122,7 @@ def find_joint_approx_params(mu_pri, C_pri, likefns, approx_param_fn = None, tol
             mu -= mu_corrs[i]
             C -= C_corrs[i]
             if approx_param_fn is None:
-                new_like_mean, new_like_var = find_approx_params(mu[i], C[i,i], likefns[i], norms)
+                new_like_mean, new_like_var = find_approx_params(mu[i], C[i,i], likefns[i], norms, match_moments)
             else:
                 new_like_mean, new_like_var = approx_param_fn(mu[i], C[i,i], likefns[i])
     
@@ -135,7 +143,7 @@ def find_joint_approx_params(mu_pri, C_pri, likefns, approx_param_fn = None, tol
 
     return like_means, like_vars, mu, C
 
-def hdf5_to_survey_eval(M, x, nuggets, burn, thin, total, fns, postprocs, pred_covariate_dict, survey_x, survey_data, survey_covariate_dict, survey_likelihood, survey_plan, finalize=None, continue_past_npd=False):
+def hdf5_to_survey_eval(M, x, nuggets, burn, thin, total, fns, postprocs, pred_covariate_dict, survey_x, survey_data, survey_covariate_dict, survey_likelihood, survey_plan, match_moments, finalize=None, continue_past_npd=False):
     
     hf=M.db._h5file
     gp_submods = list(set(filter(lambda c: isinstance(c,pm.gp.GPSubmodel), M.containers)))
@@ -216,7 +224,7 @@ def hdf5_to_survey_eval(M, x, nuggets, burn, thin, total, fns, postprocs, pred_c
                         closure_dict_.update(closure_dict)
                         optim_fns.append(close(survey_likelihood,**closure_dict_))
 
-                    like_means, like_vars, mu_post, C_post = find_joint_approx_params(mu_pri, C_pri, optim_fns)
+                    like_means, like_vars, mu_post, C_post = find_joint_approx_params(mu_pri, C_pri, optim_fns, match_moments)
 
                     M_obs_ = copy.copy(M_obs[s])
                     C_obs_ = copy.copy(C_obs[s])

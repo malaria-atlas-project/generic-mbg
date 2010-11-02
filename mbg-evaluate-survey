@@ -46,6 +46,7 @@ p.add_option('-i','--iter',help='The total number of samples to use in generatin
 p.add_option('-p','--raster-path',help="The path to the covariate rasters. Defaults to the current working directory.",dest='raster_path')
 p.add_option('-y','--year',help='The decimal year at which the map should be produced. Required for space-time models.',dest='year',type='float')
 p.add_option('-d','--ignore-npd',help='Whether to discard and continue past non-positive-definite iterations.',dest='continue_past_npd',type='int')
+p.add_option('-m','--match_moments',help='Whether to approximate the likelihood by matching posterior moments rather than minimizing KL divergence between true and approximate posterior. Defoults t 0.',dest='match_moments',type='int')
 
 p.set_defaults(n_bins=100)
 p.set_defaults(raster_path='.')
@@ -57,6 +58,7 @@ p.set_defaults(year=None)
 p.set_defaults(continue_past_npd=0)
 p.set_defaults(credible_intervals='.5 .9')
 p.set_defaults(quantile_list='.05 .25 .5 .75 .95')
+p.set_defaults(match_moments=0)
 
 (o, args) = p.parse_args()
 if len(args) != 5:
@@ -188,7 +190,7 @@ if upper_gb > 1:
 # Do the predictive simulation
 print 'Updating the posterior for each simulated dataset, and simulating on predictive raster.'
 t1 = time.time()
-actual_total = hdf5_to_survey_eval(M, x, nuggets, o.burn, o.thin, o.total, reduce_fns, mod.map_postproc, covariate_dict, survey_x, samples, survey_covariate_dict, mod.survey_likelihood, survey_plan, finalize=None, continue_past_npd=False)
+actual_total = hdf5_to_survey_eval(M, x, nuggets, o.burn, o.thin, o.total, reduce_fns, mod.map_postproc, covariate_dict, survey_x, samples, survey_covariate_dict, mod.survey_likelihood, survey_plan, o.match_moments, finalize=None, continue_past_npd=False)
 print 'Posterior predictive simulations done in %s seconds'%(time.time()-t1)
 
 
