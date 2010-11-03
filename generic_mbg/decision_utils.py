@@ -47,7 +47,7 @@ def obs_corrections(mu_pri, C_pri, like_m, like_v, i):
     C_pri_scale = C_pri[i,:]/(C_pri[i,i]+like_v)
     C_corr = - np.outer(C_pri[i,:], C_pri_scale)
     mu_corr = (like_m-mu_pri[i])*C_pri_scale
-    return mu_corr, C_corr
+    return np.ravel(mu_corr), C_corr
 
 def mean_reduce_with_hdf(hf, n_reps):
     def mean_reduce_(sofar, next, name, ind, hf=hf, n_reps=n_reps):
@@ -124,7 +124,7 @@ def find_joint_approx_params(mu_pri, C_pri, likefns, match_moments, approx_param
             
             if not np.isinf(like_vars[i]):
                 mu_corr, C_corr = obs_corrections(mu, C, like_means[i], -like_vars[i], i)            
-                mu += np.ravel(mu_corr)
+                mu += mu_corr
                 C += C_corr
             
             if approx_param_fn is None:
@@ -143,7 +143,7 @@ def find_joint_approx_params(mu_pri, C_pri, likefns, match_moments, approx_param
             # C += C_corrs[i]
             
             mu_corr, C_corr = obs_corrections(mu, C, like_means[i], like_vars[i], i)
-            mu += np.ravel(mu_corr)
+            mu += mu_corr
             C += C_corr
             
         ms.append(like_means.copy())
