@@ -109,8 +109,8 @@ def find_joint_approx_params(mu_pri, C_pri, likefns, match_moments, approx_param
     mu = mu_pri.copy()
     C = C_pri.copy()
 
-    mu_corrs = np.zeros(shape=(mu_pri.shape[0],)*2)
-    C_corrs = np.zeros(shape=(mu_pri.shape[0],)*3)
+    # mu_corrs = np.zeros(shape=(mu_pri.shape[0],)*2)
+    # C_corrs = np.zeros(shape=(mu_pri.shape[0],)*3)
 
     # Skip this to mock
     iter = 0
@@ -119,8 +119,14 @@ def find_joint_approx_params(mu_pri, C_pri, likefns, match_moments, approx_param
     while (np.any(np.abs(delta_m)>tol) or np.any(np.abs(delta_v/like_vars)>tol)) and iter < maxiter:
         iter += 1
         for i in xrange(len(mu_pri)):
-            mu -= mu_corrs[i]
-            C -= C_corrs[i]
+            # mu -= mu_corrs[i]
+            # C -= C_corrs[i]
+            
+            if not np.isinf(like_vars[i]):
+                mu_corr, C_corr = obs_corrections(mu, C, like_means[i], -like_vars[i], i)            
+                mu += np.ravel(mu_corr)
+                C += C_corr
+            
             if approx_param_fn is None:
                 new_like_mean, new_like_var = find_approx_params(mu[i], C[i,i], likefns[i], norms, match_moments)
             else:
@@ -131,10 +137,15 @@ def find_joint_approx_params(mu_pri, C_pri, likefns, match_moments, approx_param
             like_means[i] = new_like_mean
             like_vars[i] = new_like_var
     
-            mu_corrs[i], C_corrs[i] = obs_corrections(mu, C, like_means[i], like_vars[i], i)
+            # mu_corrs[i], C_corrs[i] = obs_corrections(mu, C, like_means[i], like_vars[i], i)
     
-            mu += mu_corrs[i]
-            C += C_corrs[i]
+            # mu += mu_corrs[i]
+            # C += C_corrs[i]
+            
+            mu_corr, C_corr = obs_corrections(mu, C, like_means[i], like_vars[i], i)
+            mu += np.ravel(mu_corr)
+            C += C_corr
+            
         ms.append(like_means.copy())
         vs.append(like_vars.copy())
 
