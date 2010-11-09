@@ -290,7 +290,7 @@ The regions $a_1,\ldots,a_m$ and time intervals $\tau_1,\ldots,\tau_m$ are defin
 
 The file may contain multiple geometry collections, each of which is independently subjected to an estimation procedure of the form given above. 
 
-The specializing module must expose an attribute called \texttt{areal\_postproc}, which like \texttt{map\_postproc} and \texttt{validate\_postproc} must be a list of functions. Each must take a Shapely geometry collection as its lone argument and return two values: $h$, which must be of appropriate arity to fulfil its role given above; and $g$, which must be a dictionary of functions keyed by area name. Each value in $g$ mist take as arguments the random fields in the model, an array of locations (lat/lon) an array of times for temporal models, and optionally any other variables in the model. The following specifications might implement concrete examples above:
+The specializing module must expose an attribute called \texttt{areal\_postproc}, which like \texttt{map\_postproc} and \texttt{validate\_postproc} must be a list of functions. Each must take a Shapely geometry collection as its lone argument and return two values: $h$, which must take keyword arguments corresponding to the name of each geometry in the given geometry collection; and $g$, which must be a dictionary of functions keyed by area name. Each value in $g$ mist take as arguments the random fields in the model, an array of locations (lat/lon) an array of times for temporal models, and optionally any other variables in the model. The following specifications might implement concrete examples above:
 \begin{verbatim}
     def prevalence(gc):
         "Plasmodium falciparum clinical burden in a country"

@@ -177,7 +177,6 @@ reduce_fns = [mean_reduce, var_reduce]
 if len(q)>0:
     reduce_fns = reduce_fns + [hsr]
 
-
 # Slurp the polyfile
 import geojson
 from shapely.geometry import asShape
@@ -203,11 +202,8 @@ for geomcoll in gjdat['geometries']:
 
 
 # For each geometry collection:
-# Generate h,g
-# Create estimates
 t_start = time.time()
 print '\nAreal predictions produced in %f seconds\n'%(time.time() - t_start)
-products = []
 for i in xrange(o.reps):
     for name, coll in mps.iteritems():
         keys = coll.keys()
@@ -217,12 +213,18 @@ for i in xrange(o.reps):
         else:
             tlims = None
         
-        points = draw_points(geoms, o.points, weights, cov_lon, cov_lat, tlims, o.coordinate_time, o.time_points)
-            
-        p = dict(zip(keys, points))
-#      Draw the samples, stratifying by multipolygon, possibly weighted
-#      Evaluate g
-#      Take the expectation, possibly unweighted
+        points = dict(zip(keys,draw_points(geoms, o.points, weights, cov_lon, cov_lat, tlims, o.coordinate_time, o.time_points)))
+        
+        # Get h and g for this geometry collection
+        for af in mod.areal_postproc:
+            h,g = af(coll)
+        
+        def fmock(x):
+            return np.ones(x.shape[0])
+        
+        g_vals = dict(zip(keys,[np.mean(g[k](fmock,p)) for k,p in points.iteritems()]))
+        h_val = h(**g_vals)
+                
 #      Multiply by total area or whatever
 #      Store.
 # Write out... need to figure out output format at this stage.
