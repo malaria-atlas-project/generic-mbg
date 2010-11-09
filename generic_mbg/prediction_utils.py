@@ -14,11 +14,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
-import cPickle
-import hashlib
-import inspect
 import pymc as pm
-import tables as tb
 import numpy as np
 from map_utils import import_raster, export_raster
 from scipy import ndimage, mgrid
@@ -50,6 +46,44 @@ def plot_variables(M):
             pl.title(s.__name__)
             pl.savefig(s.__name__+'.pdf')
 
+def draw_points_from_weight(n_points, geom, weight, weight_lon, weight_lat):
+    import shapely
+    in_geom = [geom.contains(shapely.geometry.Point(lon,lat)) for lon,lat in zip(weight_lon, weight_lat)]
+    weights_in_geom = weight[np.where(in_geom)].astype('float')
+    weights_in_geom /= weights_in_geom.sum()
+
+    choices = pm.rcategorical(weights_in_geom, size=n_points)
+    return weight_lon[choices], weight_lat[choices]
+    
+
+def draw_points(geoms, n_points, weight=None, weight_lon=None, weight_lat=None, tlims=None, coordinate_time=False, n_time_points=None):
+    
+    areas = [g.area for g in geoms]
+    areas = np.array(areas)/np.sum(areas)
+
+    if coordinate_time and tlims:
+        n_spatial_points = np.round(np.float(n_points)/n_time_points)
+    else:
+        n_spatial_points = n_points
+
+    n_per = [max(1,np.round(n_spatial_points*a)) for a in areas]
+    
+    if tlims:
+        if coordinate_time:
+            t = [np.linspace(tlim[0],tlim[1],n_time_points) for tlim in tlims]
+        else:
+            t = [np.random.uniform(tlim[0],tlim[1], size=np_) for np_,tlim in zip(n_per, tlims)]
+    
+    if weight:
+        lonlat = [draw_points_from_weight(np_, g, weight, weight_lon, weight_lat) for np_,g in zip(n_per, geoms)]
+    else:
+        import map_utils
+        lonlat = [map_utils.multipoly_sample(np_, g) for np_,g in zip(n_per, geoms)]
+
+    if tlims:
+        return [np.vstack((l[0],l[1],t_)).T for l,t in zip(lonlat, times)]
+    else:
+        return [np.vstack((l[0],l[1])).T for l in lonlat]
     
 def all_chain_getitem(hf, name, i, vl=False):
     c = chains(hf)
@@ -189,6 +223,8 @@ def raster_to_vals(name, path='.', thin=1, unmasked=None):
         
 def display_datapoints(h5file, path='', cmap=None, *args, **kwargs):
     """Adds as hdf5 archive's logp-mesh to an image."""
+    import tables as tb
+    
     hf = tb.openFile(path+h5file)
     lpm = hf.root.metadata.logp_mesh[:]
     hf.close()
@@ -257,6 +293,7 @@ def histogram_finalize(bins, q, hr):
     return fin    
 
 def get_one_args(postproc, f_labels, M):
+    import inspect
     try:
         argspec = inspect.getargspec(postproc)
     except:

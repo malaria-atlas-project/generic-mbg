@@ -41,6 +41,7 @@ p.add_option('-i','--iter',help="The number of posterior predictive draws to tak
 p.add_option('-t','--thin',help='How much to thin the MCMC trace. Defaults to 10.',dest='thin',type='int')
 p.add_option('-w','--weight-raster',help="An optional raster giving relative weights. This can be used if weighted samples will give a better approximation to the integral than multiplying the integrand by the weight.",dest='weight_raster')
 p.add_option('-c','--coordinate-time',help="If 0, (x,t) samples are distributed randomly in the admin unit X the time interval. If 1, then to each 'x' sample there correspond multiple 't' samples and vice versa. Set this to true if your f's need to take an integral in time (or space), apply a nonlinear transformation, and then take an integral in space (or time).",dest='coordinate_time')
+p.add_option('-m','--time-points',help="If the coordinate-time flag is set, this option determines how many time points are stacked up. Defaults to 10.",dest='time_points')
 p.add_option('-d','--ignore-npd',help='Whether to discard and continue past non-positive-definite iterations.',dest='continue_past_npd',type='int')
 p.add_option('-q','--quantiles',help="The quantile maps to generate. Should be in the form '0.05 0.25 0.5 0.75 0.95', and the inverted commas are important! Defaults to '0.05 0.25 0.5 0.75 0.95'",dest='quantile_list')
 p.add_option('-p','--raster-path',help="The path to the covariate rasters. Defaults to the current working directory.",dest='raster_path')
@@ -59,6 +60,7 @@ p.set_defaults(raster_path='.')
 p.set_defaults(quantile_uplim=1.)
 p.set_defaults(quantile_lolim=0.)
 p.set_defaults(n_bins=100)
+p.set_defaults(time_points=10)
 
 
 
@@ -111,6 +113,7 @@ else:
 # Restore model
 M = create_model(mod,pm.database.hdf5.load(o.hf_name))
 hf = M.db._h5file
+temporal = ('t' in hf.root.input_csv.colnames)
 meta = hf.root.metadata
 nuggets = dict([(getattr(M,k),getattr(M,v)) for k,v in mod.nugget_labels.iteritems()])
 bins = np.linspace(0,1,o.n_bins)
@@ -146,7 +149,8 @@ if o.weight_raster is not None:
         cov_mask = cov_data.mask
         cov_bbox = x[:,0].min(), x[:,1].min(), x[:,0].max(), x[:,1].max()        
     weights = raster_to_vals(o.weight_raster, path=o.raster_path, thin=1, unmasked=unmasked)
-
+else:
+    weights, cov_lon, cov_lat = None, None, None
 
 # Create utility fns
 if len(q)>0:
@@ -191,7 +195,10 @@ for geomcoll in gjdat['geometries']:
             frac_masked = np.sum(mask_in_unit)/float(len(mask_in_unit))
             if frac_masked>0:
                 warnings.warn('%f of the pixels in multipolygon "%s" in geometry collection "%s" are missing.'%(frac_masked,geom['properties']['name'],geomcoll['properties']['name']))
-        mps_[geom['properties']['name']]={'geom':g,'tmin':geom['properties'].get('tmin'),'tmax':geom['properties'].get('tmax')}
+        if temporal:
+            mps_[geom['properties']['name']]={'geom':g,'tmin':geom['properties']['tmin'],'tmax':geom['properties']['tmax']}
+        else:
+            mps_[geom['properties']['name']]={'geom':g}
     mps[geomcoll['properties']['name']]=mps_
 
 
@@ -200,8 +207,19 @@ for geomcoll in gjdat['geometries']:
 # Create estimates
 t_start = time.time()
 print '\nAreal predictions produced in %f seconds\n'%(time.time() - t_start)
-# For each rep:
-#   For each geometry collection:
+products = []
+for i in xrange(o.reps):
+    for name, coll in mps.iteritems():
+        keys = coll.keys()
+        geoms = [coll[k]['geom'] for k in keys]
+        if temporal:
+            tlims = [(coll[k]['tmin'], coll[k][tmax]) for k in keys]
+        else:
+            tlims = None
+        
+        points = draw_points(geoms, o.points, weights, cov_lon, cov_lat, tlims, o.coordinate_time, o.time_points)
+            
+        p = dict(zip(keys, points))
 #      Draw the samples, stratifying by multipolygon, possibly weighted
 #      Evaluate g
 #      Take the expectation, possibly unweighted
