@@ -230,6 +230,8 @@ The task performed by the shell command \texttt{mbg-areal-predict} has a more co
 \end{equation}
 where $a_1,\ldots,a_m$ are regions and $da$ denotes integration over area; $w$ is a weighting function and $|a|_w=\int_a w(x)da$; $\tau_1\ldots\tau_m$ are time intervals; $x$ is a geographical location; $f_1,\ldots,f_n$ are the Gaussian random fields in the model; and $g_1\ldots g_m$ and $h$ are arbitrary functions. This general specification covers many `volumetric' estimates of epidemiological interest. Three concrete examples are given below.
 
+\textbf{Note if h nonlinear, trial mean is not unbiased.}
+
 \begin{description}
     \item[\emph{Plasmodium falciparum} clinical burden in a country.] In this case, $n=m=1$. $f_1$ is the Gaussian random field, with nugget incorporated, corresponding to parasite rate. $g_1$ transforms this value to parasite rate (with a random age-correction factor), and thence to clinical incidence, multiplies it by the population density of the pixel containing $x$, and integrates over $\tau$, being a particular year. $h$ multiplies its argument by $|a|^2$.
     \item[The total change in \emph{Plasmodium falciparum} clinical burden in a country between two consecutive years.] In this case $m=2$ with $a_1=a_2$ and $\tau_1=[y,y+1]$ and $\tau_2=[y+1,y+2]$, $y$ being the first of the two years. $f$ and $g$ are as in the previous example. $h(z_1,z_2)=(z_2-z_1)|a|$.

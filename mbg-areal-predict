@@ -37,7 +37,7 @@ p = OptionParser('usage: %prog module database-file burn mask [options]' + req_d
 p.add_option('-r','--reps',help='The number of repetitions to do, for purposes of computing Monte Carlo standard error. Defaults to 10.',dest='reps',type='int')
 p.add_option('-n','--n-bins',help='The number of bins to use when creating histograms. Defaults to 100.',dest='n_bins',type='int')
 p.add_option('-x','--points',help='The number of spatial points to use for estimating areal integrals. Defaults to 100.',dest='points',type='int')
-p.add_option('-i','--iter',help="The number of posterior predictive draws to take for each repetition. defaults to 1000.",dest='iter',type='int')
+p.add_option('-i','--iter',help="The number of posterior predictive draws to take for each repetition. defaults to 1000.",dest='total',type='int')
 p.add_option('-t','--thin',help='How much to thin the MCMC trace. Defaults to 10.',dest='thin',type='int')
 p.add_option('-w','--weight-raster',help="An optional raster giving relative weights. This can be used if weighted samples will give a better approximation to the integral than multiplying the integrand by the weight.",dest='weight_raster')
 p.add_option('-c','--coordinate-time',help="If 0, (x,t) samples are distributed randomly in the admin unit X the time interval. If 1, then to each 'x' sample there correspond multiple 't' samples and vice versa. Set this to true if your f's need to take an integral in time (or space), apply a nonlinear transformation, and then take an integral in space (or time).",dest='coordinate_time')
@@ -50,7 +50,7 @@ p.add_option('-l','--quantile-lolim',help='The lower limit of the mapped quantil
 
 p.set_defaults(reps=10)
 p.set_defaults(points=100)
-p.set_defaults(iter=1000)
+p.set_defaults(total=1000)
 p.set_defaults(weight_raster=None)
 p.set_defaults(coordinate_time=0)
 p.set_defaults(continue_past_npd=0)
@@ -130,17 +130,10 @@ if len(ck)>0:
     cov_lon, cov_lat, cov_data, cov_type = import_raster(ck[0], o.raster_path)
     cov_mask = cov_data.mask
     cov_bbox = x[:,0].min(), x[:,1].min(), x[:,0].max(), x[:,1].max()
-
-# Load covariates
-if len(ck)>0:
     all_covariate_keys = M.covariate_keys
-    covariate_dict = {}
-    for k in all_covariate_keys:
-        if k != 'm':
-            try:
-                covariate_dict[k] = raster_to_vals(k, path=o.raster_path, thin=1, unmasked=unmasked)
-            except IOError:
-                raise IOError, 'Covariate raster %s not found in path %s.'%(k+'.asc',o.raster_path)
+    all_covariate_keys.remove('m')
+else:
+    all_covariate_keys = []
 
 if o.weight_raster is not None:
     if cov_bbox is None:
@@ -204,7 +197,49 @@ for geomcoll in gjdat['geometries']:
 # For each geometry collection:
 t_start = time.time()
 print '\nAreal predictions produced in %f seconds\n'%(time.time() - t_start)
+points = {}
+# def hdf5_to_areal_samps(M, x, nuggets, burn, thin, total, fns, h, g, pred_covariate_dict, finalize=None, continue_past_npd=False, joint=False):
+"""
+Parameters:
+    M : MCMC object
+        Its database should have samples in it.
+    x : dict of dicts of arrays
+        {geomname: {geomname: [lon, lat]}}
+    nuggets : dict
+        Should map the GP submodels of M to the corresponding nugget values,
+        if any.
+    burn : int
+        Burnin iterations to discard.
+    thin : int
+        Number of iterations between ones that get used in the predictions.
+    total : int
+        Total number of iterations to use in thinning.
+    fns : list of functions
+        Each function should take four arguments: sofar, next, cols and i.
+        Sofar may be None.
+        The functions will be applied according to the reduce pattern.
+    h : dict of dicts of functions.
+        {postproc: geomcoll: lambda integral1, integral2, integral3, ... : return}
+    g : dict of dict of functions
+        {postproc: geomcoll: geomcoll: lambda fs, [lon, lat, t], variables : return.}
+    pred_covariate_dict : dict of dict of dicts of arrays
+        {geomcoll: geomcoll: covariate: [val]}.
+    finalize : function (optional)
+        This function is applied to the products before returning. It should
+        take a second argument which is the actual number of realizations
+        produced.
+        
+Output is a dictionary of form {postproc: {geomcoll: {finalization: value}}}
+"""
+products = []
+def extract_covariates(x, covariate_names, path):
+    if len(covariate_names)>0:
+        raise NotImplementedError
+    else:
+        return {}
 for i in xrange(o.reps):
+    covariate_dict = {}
+    # Draw points
     for name, coll in mps.iteritems():
         keys = coll.keys()
         geoms = [coll[k]['geom'] for k in keys]
@@ -213,18 +248,29 @@ for i in xrange(o.reps):
         else:
             tlims = None
         
-        points = dict(zip(keys,draw_points(geoms, o.points, weights, cov_lon, cov_lat, tlims, o.coordinate_time, o.time_points)))
+        points[name] = dict(zip(keys,draw_points(geoms, o.points, weights, cov_lon, cov_lat, tlims, o.coordinate_time, o.time_points)))
+        # covariate_dict[name] = dict(zip(keys, extract_covariates(x, k, o.raster_path)))
+        covariate_dict[name] = dict(zip(keys, [extract_covariates(points[name][k], all_covariate_keys, o.raster_path) for k in keys]))
         
-        # Get h and g for this geometry collection
-        for af in mod.areal_postproc:
-            h,g = af(coll)
-        
-        def fmock(x):
-            return np.ones(x.shape[0])
-        
-        g_vals = dict(zip(keys,[np.mean(g[k](fmock,p)) for k,p in points.iteritems()]))
-        h_val = h(**g_vals)
+    h = {}
+    g = {}
+    for ap in mod.areal_postproc:
+        h[ap] = {}
+        g[ap] = {}
+        for name, coll in mps.iteritems():
+            h[ap][name], g[ap][name] = ap(coll)
+    
+    products.append(hdf5_to_areal_samps(M, points, nuggets, o.burn, o.thin, o.total, reduce_fns + extra_reduce_fns, h, g, covariate_dict, finalize, o.continue_past_npd))
+        # # Get h and g for this geometry collection
+        # for af in mod.areal_postproc:
+        #     h,g = af(coll)
+        # 
+        # def fmock(x):
+        #     return np.ones(x.shape[0])
+        # 
+        # g_vals = dict(zip(keys,[np.mean(g[k](fmock,p)) for k,p in points.iteritems()]))
+        # h_val = h(**g_vals)
                 
-#      Multiply by total area or whatever
-#      Store.
-# Write out... need to figure out output format at this stage.
+# Write out.
+# Products is [{postproc: {geomcoll: {finalization: value}}}]
+# Want to write out in order {geomcoll: {postproc: {finalization: [value]}}}

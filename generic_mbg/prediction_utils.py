@@ -350,6 +350,168 @@ def apply_postprocs_and_reduce(M, n_per, M_preds, S_preds, postprocs, fns, produ
             # Reduce surface into products needed
             for f in fns:
                 products[postproc][f] = f(products[postproc][f], surf, postproc.__name__, **kwds)
+
+def hdf5_to_areal_samps(M, x, nuggets, burn, thin, total, fns, h, g, pred_covariate_dict, finalize=None, continue_past_npd=False):
+    """
+    Parameters:
+        M : MCMC object
+            Its database should have samples in it.
+        x : dict of dicts of arrays
+            {geomname: {geomname: [lon, lat]}}
+        nuggets : dict
+            Should map the GP submodels of M to the corresponding nugget values,
+            if any.
+        burn : int
+            Burnin iterations to discard.
+        thin : int
+            Number of iterations between ones that get used in the predictions.
+        total : int
+            Total number of iterations to use in thinning.
+        fns : list of functions
+            Each function should take four arguments: sofar, next, cols and i.
+            Sofar may be None.
+            The functions will be applied according to the reduce pattern.
+        h : dict of dicts of functions
+            {postproc: geomcoll: lambda integral1, integral2, integral3, ... : return}
+        g : dict of dict of functions
+            {postproc: geomcoll: geomcoll: lambda fs, [lon, lat, t], variables : return.}
+        pred_covariate_dict : dict of dict of dicts of arrays
+            {geomcoll: geomcoll: covariate: [val]}.
+        finalize : function (optional)
+            This function is applied to the products before returning. It should
+            take a second argument which is the actual number of realizations
+            produced.
+            
+    Output is a dictionary of form {postproc: {geomcoll: {fn: value}}}
+    """    
+    hf=M.db._h5file
+    gp_submods = list(set(filter(lambda c: isinstance(c,pm.gp.GPSubmodel), M.containers)))
+    f_labels = [gps.name for gps in gp_submods]
+    
+    postprocs = h.keys()
+
+    # Figure out the function signatures of h and g
+    products = {}
+    h_args = {}
+    extra_h_args = {}
+    g_args = {}
+    extra_g_args = {}
+    for outercoll in x.iterkeys():
+        products[outercoll] = {}
+        h_args[outercoll] = {}
+        extra_h_args[outercoll] = {}
+        for postproc in postprocs:
+            h_ = h[postproc][outercoll]
+            g_keys = g[postproc][outercoll].keys()
+            p, a, ea = get_args([h_], fns, g_keys, M)
+            products[outercoll][postproc], h_args[outercoll][postproc], extra_h_args[outercoll][postproc] = p[h_], a[h_], ea[h_]
+            for g_ in g[postproc][outercoll].itervalues():
+                g_args[g_], extra_g_args[g_] = get_one_args(g_, f_labels+['x'], M)
+
+    iter = np.arange(burn,all_chain_len(hf),thin)
+
+    if len(iter)==0:
+        raise ValueError, 'You asked for %i burnin iterations with thinnnig %i but the chains are only %i iterations long.'%(burn, thin, all_chain_len(hf))
+    if (total>len(iter)):
+        n_per = total/len(iter)+1
+
+    if (total<=len(iter)):
+        n_per=1
+        newthin=(all_chain_len(hf)-burn)/total
+        iter = np.arange(burn,all_chain_len(hf),newthin)
+
+    if len(iter)==0:
+        raise ValueError, 'Check --total --thin and burn parameters, currently asking for zero realisations'        
+    actual_total = n_per * len(iter)
+    print("total chain length = "+str(all_chain_len(hf))+"\nburn = "+str(burn)+"\nthin = "+str(thin)+"\ntotal = "+str(total))
+    print("will do "+str(len(iter))+" full iterations with "+str(n_per)+" nuggets each = "+str(actual_total)+" in total")
+    time_count = -np.inf
+    time_start = time.time()
+
+    actual_totals = dict(zip(x.iterkeys(), [actual_total]*len(x)))
+    
+    for k in xrange(len(iter)):
+
+        i = iter[k]
+        
+        if time.time() - time_count > 10:
+            print ((k*100)/len(iter)), '% complete'
+            time_count=time.time()
+
+            if k > 0:      
+                print 'expect results %s (in %s hours)'%(time.ctime((time_count-time_start)*len(iter)/float(k)+time_start),(time_count-time_start)*(len(iter)-float(k))/float(k)/3600)
+            else:
+                print
+        
+        # Restore the i'th cache fram
+        all_chain_remember(M,i)
+        
+        fs = {}
+        for outercoll in x.iterkeys():
+
+        
+            # Add the covariate values on the prediction mesh to the appropriate caches.
+            covariate_covariances = []
+            for d in M.deterministics:
+                if isinstance(d.value, pm.gp.Covariance):
+                    if isinstance(d.value.eval_fun,CovarianceWithCovariates):
+                        for innercoll, x_ in x[outercoll].itervalues():
+                            d.value.eval_fun.add_values_to_cache(x_, pred_covariate_dict[outercoll][innercoll])
+
+            for s in gp_submods:
+                # Copy out the realization to avoid dependencies between outer collections.
+                f_ = np.asscalar(copy.copy(s.f.value))
+                fs[s] = lambda x, f=f_, V=pm.utils.value(nuggets[s]): f(x) + np.sqrt(V)*np.random.normal(size=x.shape[0])
+
+
+            try:
+                for j in xrange(n_per):
+
+                    # Evaluate fields, and store them in argument dict for postproc
+                    for postproc in postprocs:
+                        g_vals = {}
+                        for innercoll in x[outercoll].iterkeys():
+                            g_ = g[postproc][outercoll][innercoll]
+                            g_kwds = {'x':x[outercoll][innercoll]}
+                            for s in gp_submods:
+                                g_kwds[s.name]=fs[s]
+                        
+                            # Pull any extra variables needed for postprocessing out of trace
+                    
+                            for extra_arg in extra_g_args[g_]:
+                                g_kwds[extra_arg] = pm.utils.value(getattr(M, extra_arg))
+
+                            try:
+                                g_vals[innercoll] = np.mean(g_(**g_kwds), axis=0)
+                            except np.linalg.LinAlgError:
+                                if continue_past_npd:
+                                    warnings.warn('The observed covariance was not positive definite at the prediction locations.')
+                                    raise np.linalg.LinAlgError
+                                else:
+                                    raise ValueError, 'The observed covariance was not positive definite at the prediction locations.'
+                        
+                        
+                        h_kwds = copy.copy(g_vals)
+                        for extra_arg in extra_h_args[outercoll][postproc]:
+                            h_kwds[extra_arg] = pm.utils.value(getattr(M, extra_arg))
+                        
+                        h_val = h[postproc][outercoll](**h_kwds)
+
+                        # Reduce surface into products needed
+                        for f in fns:
+                            products[outercoll][postproc][f] = f(products[outercoll][postproc][f], h_val, postproc.__name__)
+            # apply_postprocs_and_reduce(M, n_per, M_preds, S_preds, postprocs, fns, products, postproc_args, extra_postproc_args, joint)    
+            except np.linalg.LinAlgError:
+                # This iteration is non-positive definite, _and_ the user has asked to continue past such iterations.
+                actual_totals[outercoll] -= n_per
+                continue
+
+    if finalize is not None:
+        products = {}
+        for outercoll in x.iterkeys():
+            products[outercoll] = dict(zip(postprocs, [finalize(products[outercoll][postproc], actual_total) for postproc in postprocs]))
+    else:
+        return products
         
 
 def hdf5_to_samps(M, x, nuggets, burn, thin, total, fns, postprocs, pred_covariate_dict, finalize=None, continue_past_npd=False, joint=False):
