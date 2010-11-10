@@ -482,17 +482,181 @@ multipolygons extend outside the given rasters or contain missing pixels, an err
 \item \texttt{-w} or \texttt{-{}-weight-raster} : The name of a raster file in the \texttt{raster-path}, with no
 extension. See the PDF documentation.
 
-\end{itemize}
-
-% * ``-c`` or ``--coordinate-time`` : If ``1``, sampling points line up in the temporal dimension.
-
-% See the PDF documentation.
-%
-\begin{itemize}
+\item \texttt{-c} or \texttt{-{}-coordinate-time} : If \texttt{1}, sampling points line up in the temporal dimension.
+See the PDF documentation.
 
 \item \texttt{-d} or \texttt{-{}-ignore-npd} : If \texttt{1}, MCMC iterations whose covariance functions are non-
 positive-definite on the data locations plus the prediction locations will be ignored. If
 \texttt{0}, any such iterations will result in errors.
+
+\item \texttt{-u} or \texttt{-{}-quantile-uplim} : The upper limit of the mapped quantiles. Defaults to 1.
+
+\item \texttt{-l} or \texttt{-{}-quantile-lolim} : The lower limit of the mapped quantiles. Defaults to 0.
+
+\end{itemize}
+
+
+
+
+\subsection{\texttt{mbg-evaluate-survey}%
+}
+%
+\begin{quote}{\ttfamily \raggedright \noindent
+mbg-evaluate-survey~module~database-file~burn~survey~mask~{[}options{]}
+}
+\end{quote}
+
+mbg-evaluate-survey produces a folder called \texttt{name-survey-eval}, \texttt{name} being the name of the
+database file. It populates this folder with rasters of the requested summary maps given the current
+dataset, and also each summary map of each summary map (for example, mean of variance and
+interquartile range of mean) given that the survey plan will be carried out.
+
+It also produces several pdf plots that help assess whether the importance resampling scheme has been
+successful. See the pdf documentation.
+
+
+
+
+\subsubsection{Required arguments%
+}
+\setcounter{listcnt0}{0}
+\begin{list}{\arabic{listcnt0}.}
+{
+\usecounter{listcnt0}
+\setlength{\rightmargin}{\leftmargin}
+}
+
+\item The name of the module containing the model specification.
+
+\item The name of the database file (produced by mbg-infer) to be used to generate the
+maps. If you do not want it to go in the current directory, specify a path.
+
+\item The number of burnin iterations to discard from the trace before making the maps.
+You will need to figure this out by inspecting the traces produced by \texttt{mbg-infer}.
+
+\item A CSV file containing the survey plan. The columns should be those of the original
+dataset that can be planned in advance; for example, sample size but not number
+positive.
+
+\item The name of a raster, without extension. The maps will be produced in raster files
+in the same format, on identical grids, with identical missing pixels. If the file
+is in a different directory, specify the path to it.
+\end{list}
+
+
+
+
+\subsubsection{Options%
+}
+%
+\begin{itemize}
+
+\item \texttt{-n} or \texttt{-{}-n-bins} : The number of bins to use in the histogram from which quantiles
+are computed. Large values are good, but use up more system memory. Decrease this if you
+see memory errors.
+
+\item \texttt{-b} or \texttt{-{}-bufsize} : The number of buffer pixels to render around the edges of the
+continents. Set to zero unless the \texttt{raster-thin} option is greater than 1. The buffer
+will not be very good. In general, if you want a buffer you're better off making your
+own in ArcView rather than using this option.
+
+\item \texttt{-q} or \texttt{-{}-quantiles} : A string containing the quantiles you want. For example,
+\texttt{'0.25 0.5 0.75'} would map the lower and upper quartiles and the median. Default is
+\texttt{'0.05 0.25 0.5 0.75 0.95'}.
+
+\item \texttt{-r} or \texttt{-{}-raster-thin} : The output maps will be produced on a raster corresponding
+to the  \texttt{mask} argument, degraded by this amount. Defaults to \texttt{1}, meaning no
+degradation.
+
+\item \texttt{-c} or \texttt{-{}-credible-intervals} : A string containing the centered credible intervals
+you want. For example, \texttt{'0.5 0.9'} would map the interquartile range and the centered
+95\% CI. Defaults to \texttt{'0.5 0.9'}.
+
+\item \texttt{-t} or \texttt{-{}-thin} : The factor by which to thin the MCMC trace stored in the database.
+If you use \texttt{-t 10}, only every 10th stored MCMC iteration will be used to produce the maps.
+Small values are good but slow. 1 is best. Defaults to 50.
+
+\item \texttt{-i} or \texttt{-{}-iter} : The total number of predictive samples to use in generating the maps.
+Large values are good but slow. Defaults to 50000.
+
+\item \texttt{-p} or \texttt{-{}-raster-path} : The path to the files containing the covariate rasters. These
+files' headers must match those of the input raster, and their missing pixels must match
+those of the input raster also. There must be a file corresponding to every covariate column
+in input 3 of mbg-infer. For example, if you used \texttt{rain} and \texttt{ndvi} as your column headers,
+files \texttt{rain.asc} and \texttt{ndvi.flt} and \texttt{temp.hdf5} should be present in the raster path.
+Defaults to the current working directory.
+
+\item \texttt{-y} or \texttt{-{}-year} : If your model is spatiotemporal, you must provide the decimal year at
+which you want your map produced. For example, Jan 1 2008 would be \texttt{-y 2008}.
+
+\item \texttt{-d} or \texttt{-{}-ignore-npd} : If \texttt{1}, MCMC iterations whose covariance functions are non-
+positive-definite on the data locations plus the prediction locations will be ignored. If
+\texttt{0}, any such iterations will result in errors. Defaults to 0.
+
+\item \texttt{-u} or \texttt{-{}-quantile-uplim} : The upper limit of the mapped quantiles. Defaults to 1.
+
+\item \texttt{-l} or \texttt{-{}-quantile-lolim} : The lower limit of the mapped quantiles. Defaults to 0.
+
+\end{itemize}
+
+
+
+
+\subsection{\texttt{mbg-update-dataset}%
+}
+%
+\begin{quote}{\ttfamily \raggedright \noindent
+mbg-update-dataset~module~database-file~burn~new-input~{[}options{]}
+}
+\end{quote}
+
+Produces a new database file called \texttt{name-update-newname} where \texttt{name} is the name
+of the database file and \texttt{newname} is the name of \texttt{new-input}. Also produces a folder
+called \texttt{name-update-newname-plots}, which is populated with updated traces and diagnostic
+plots to help determine whether the importance resampling scheme has been successful. See
+the PDF documentation.
+
+The new database file will have the burnin iterations discarded. The total number of MCMC
+iterations will be unchanged.
+
+
+
+
+\subsubsection{Required arguments%
+}
+\setcounter{listcnt0}{0}
+\begin{list}{\arabic{listcnt0}.}
+{
+\usecounter{listcnt0}
+\setlength{\rightmargin}{\leftmargin}
+}
+
+\item The name of the module containing the model specification.
+
+\item The name of a database file produced by \texttt{mbg-infer}.
+
+\item The number of burnin iterations to discard.
+
+\item The name of a csv file containing the new input dataset. The columns should be the same
+as those given to \texttt{mbg-infer} initially.
+\end{list}
+
+
+
+
+\subsubsection{Options%
+}
+%
+\begin{itemize}
+
+\item \texttt{-t} or \texttt{-{}-thin} : If thin is 10, every 10th MCMC iteration will be stored in the
+database. Small values are good but slow. 1 is best.
+
+\item \texttt{-n} or \texttt{-ncpus} : The maximum number of CPU cores to make available to the MCMC
+algorithm. Should be less than or equal to the number of cores in your computer. The
+All the cores you make available may not be utilized. Use top or the Activity Monitor
+to monitor your actual CPU usage. Large values are good but tie up more of your computer.
+Defaults to the value of the environment variable \texttt{OMP\_NUM\_THREADS}.
 
 \end{itemize}
 

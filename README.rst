@@ -403,12 +403,145 @@ Options
 * ``-w`` or ``--weight-raster`` : The name of a raster file in the ``raster-path``, with no
   extension. See the PDF documentation.
 
-.. * ``-c`` or ``--coordinate-time`` : If ``1``, sampling points line up in the temporal dimension.
-..   See the PDF documentation.
+* ``-c`` or ``--coordinate-time`` : If ``1``, sampling points line up in the temporal dimension.
+  See the PDF documentation.
 
 * ``-d`` or ``--ignore-npd`` : If ``1``, MCMC iterations whose covariance functions are non-
   positive-definite on the data locations plus the prediction locations will be ignored. If
   ``0``, any such iterations will result in errors.
+  
+* ``-u`` or ``--quantile-uplim`` : The upper limit of the mapped quantiles. Defaults to 1.
+
+* ``-l`` or ``--quantile-lolim`` : The lower limit of the mapped quantiles. Defaults to 0.
+
+
+
+``mbg-evaluate-survey``
+=======================
+::
+
+  mbg-evaluate-survey module database-file burn survey mask [options]
+
+mbg-evaluate-survey produces a folder called ``name-survey-eval``, ``name`` being the name of the
+database file. It populates this folder with rasters of the requested summary maps given the current
+dataset, and also each summary map of each summary map (for example, mean of variance and 
+interquartile range of mean) given that the survey plan will be carried out. 
+
+It also produces several pdf plots that help assess whether the importance resampling scheme has been 
+successful. See the pdf documentation.
+
+Required arguments
+------------------
+
+1. The name of the module containing the model specification.
+
+2. The name of the database file (produced by mbg-infer) to be used to generate the 
+   maps. If you do not want it to go in the current directory, specify a path.
+   
+3. The number of burnin iterations to discard from the trace before making the maps.
+   You will need to figure this out by inspecting the traces produced by ``mbg-infer``.
+
+4. A CSV file containing the survey plan. The columns should be those of the original
+   dataset that can be planned in advance; for example, sample size but not number
+   positive.
+   
+5. The name of a raster, without extension. The maps will be produced in raster files
+   in the same format, on identical grids, with identical missing pixels. If the file 
+   is in a different directory, specify the path to it.
+
+Options
+-------
+
+* ``-n`` or ``--n-bins`` : The number of bins to use in the histogram from which quantiles
+  are computed. Large values are good, but use up more system memory. Decrease this if you
+  see memory errors.
+
+* ``-b`` or ``--bufsize`` : The number of buffer pixels to render around the edges of the
+  continents. Set to zero unless the ``raster-thin`` option is greater than 1. The buffer
+  will not be very good. In general, if you want a buffer you're better off making your 
+  own in ArcView rather than using this option.
+
+* ``-q`` or ``--quantiles`` : A string containing the quantiles you want. For example,
+  ``'0.25 0.5 0.75'`` would map the lower and upper quartiles and the median. Default is 
+  ``'0.05 0.25 0.5 0.75 0.95'``.
+
+* ``-r`` or ``--raster-thin`` : The output maps will be produced on a raster corresponding
+  to the  ``mask`` argument, degraded by this amount. Defaults to ``1``, meaning no
+  degradation.
+
+* ``-c`` or ``--credible-intervals`` : A string containing the centered credible intervals 
+  you want. For example, ``'0.5 0.9'`` would map the interquartile range and the centered 
+  95% CI. Defaults to ``'0.5 0.9'``.
+
+* ``-t`` or ``--thin`` : The factor by which to thin the MCMC trace stored in the database.
+  If you use ``-t 10``, only every 10th stored MCMC iteration will be used to produce the maps.
+  Small values are good but slow. 1 is best. Defaults to 50.
+
+* ``-i`` or ``--iter`` : The total number of predictive samples to use in generating the maps.
+  Large values are good but slow. Defaults to 50000.
+
+* ``-p`` or ``--raster-path`` : The path to the files containing the covariate rasters. These 
+  files' headers must match those of the input raster, and their missing pixels must match
+  those of the input raster also. There must be a file corresponding to every covariate column
+  in input 3 of mbg-infer. For example, if you used ``rain`` and ``ndvi`` as your column headers,
+  files ``rain.asc`` and ``ndvi.flt`` and ``temp.hdf5`` should be present in the raster path. 
+  Defaults to the current working directory.
+
+* ``-y`` or ``--year`` : If your model is spatiotemporal, you must provide the decimal year at 
+  which you want your map produced. For example, Jan 1 2008 would be ``-y 2008``.
+  
+* ``-d`` or ``--ignore-npd`` : If ``1``, MCMC iterations whose covariance functions are non-
+  positive-definite on the data locations plus the prediction locations will be ignored. If
+  ``0``, any such iterations will result in errors. Defaults to 0.
+  
+* ``-u`` or ``--quantile-uplim`` : The upper limit of the mapped quantiles. Defaults to 1.
+
+* ``-l`` or ``--quantile-lolim`` : The lower limit of the mapped quantiles. Defaults to 0.
+
+
+
+
+``mbg-update-dataset``
+======================
+::
+
+  mbg-update-dataset module database-file burn new-input [options]
+
+Produces a new database file called ``name-update-newname`` where ``name`` is the name
+of the database file and ``newname`` is the name of ``new-input``. Also produces a folder
+called ``name-update-newname-plots``, which is populated with updated traces and diagnostic 
+plots to help determine whether the importance resampling scheme has been successful. See 
+the PDF documentation.
+
+The new database file will have the burnin iterations discarded. The total number of MCMC 
+iterations will be unchanged.
+
+Required arguments
+------------------
+
+1. The name of the module containing the model specification.
+
+2. The name of a database file produced by ``mbg-infer``.
+
+3. The number of burnin iterations to discard.
+
+4. The name of a csv file containing the new input dataset. The columns should be the same
+   as those given to ``mbg-infer`` initially.
+
+
+Options
+-------
+
+* ``-t`` or ``--thin`` : If thin is 10, every 10th MCMC iteration will be stored in the 
+  database. Small values are good but slow. 1 is best.
+
+* ``-n`` or ``-ncpus`` : The maximum number of CPU cores to make available to the MCMC 
+  algorithm. Should be less than or equal to the number of cores in your computer. The 
+  All the cores you make available may not be utilized. Use top or the Activity Monitor
+  to monitor your actual CPU usage. Large values are good but tie up more of your computer.
+  Defaults to the value of the environment variable ``OMP_NUM_THREADS``.
+  
+
 
 ``mbg-validate``
 ================
