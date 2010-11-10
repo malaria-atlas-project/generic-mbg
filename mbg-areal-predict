@@ -48,6 +48,7 @@ p.add_option('-p','--raster-path',help="The path to the covariate rasters. Defau
 p.add_option('-u','--quantile-uplim',help='The upper limit of the mapped quantiles',type='float',dest='quantile_uplim')
 p.add_option('-l','--quantile-lolim',help='The lower limit of the mapped quantiles',type='float',dest='quantile_lolim')
 
+
 p.set_defaults(reps=10)
 p.set_defaults(points=100)
 p.set_defaults(total=1000)
@@ -238,6 +239,8 @@ def extract_covariates(x, covariate_names, path):
     else:
         return {}
 for i in xrange(o.reps):
+    s = 'Doing repetition %i of %i'%(i, o.reps)
+    print s+'\n'+'='*len(s)
     covariate_dict = {}
     # Draw points
     for name, coll in mps.iteritems():
@@ -261,16 +264,7 @@ for i in xrange(o.reps):
             h[ap][name], g[ap][name] = ap(coll)
     
     products.append(hdf5_to_areal_samps(M, points, nuggets, o.burn, o.thin, o.total, reduce_fns + extra_reduce_fns, h, g, covariate_dict, finalize, o.continue_past_npd))
-        # # Get h and g for this geometry collection
-        # for af in mod.areal_postproc:
-        #     h,g = af(coll)
-        # 
-        # def fmock(x):
-        #     return np.ones(x.shape[0])
-        # 
-        # g_vals = dict(zip(keys,[np.mean(g[k](fmock,p)) for k,p in points.iteritems()]))
-        # h_val = h(**g_vals)
-                
+
 # Write out.
-# Products is [{postproc: {geomcoll: {finalization: value}}}]
+# Products is [{geomcoll: {postproc: {finalization: value}}}]
 # Want to write out in order {geomcoll: {postproc: {finalization: [value]}}}

@@ -270,6 +270,7 @@ def sample_finalize(prod, n):
 def histogram_reduce(bins, binfn):
     """Produces an accumulator to be used with hdf5_to_samps"""
     def hr(sofar, next, name):
+        next = np.atleast_1d(next)
         if sofar is None:
             sofar = np.zeros(next.shape+(len(bins),), dtype=int, order='F')
         # Call to Fortran function multiinc
@@ -507,11 +508,10 @@ def hdf5_to_areal_samps(M, x, nuggets, burn, thin, total, fns, h, g, pred_covari
                 continue
 
     if finalize is not None:
-        products = {}
         for outercoll in x.iterkeys():
             products[outercoll] = dict(zip(postprocs, [finalize(products[outercoll][postproc], actual_total) for postproc in postprocs]))
-    else:
-        return products
+
+    return products
         
 
 def hdf5_to_samps(M, x, nuggets, burn, thin, total, fns, postprocs, pred_covariate_dict, finalize=None, continue_past_npd=False, joint=False):
