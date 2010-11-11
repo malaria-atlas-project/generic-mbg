@@ -3,7 +3,7 @@
 :Contact: anand.prabhakar.patil@gmail.com
 :Web site: github.com/malaria-atlas-project/generic-mbg
 :Copyright: Anand Patil, 2009.
-:License: GPL, see GPL in this directory.
+:License: GPL, see GPL in this directory. The manual is licensed under the Creative Commons by-nc-sa 3.0 unported license, see http://creativecommons.org/licenses/by-nc-sa/3.0/legalcode .
 
 The generic MBG package allows us to write PyMC probability models for each 
 project that works with some kind of spatial GLM, then turn the model over 
@@ -33,6 +33,16 @@ a few easy shell commands:
 * ``mbg-validate`` takes the HDF5 archive produced by mbg-infer and a 'holdout'
   dataset, stored in a csv file, and creates a set of predictive samples at the
   holdout locations and some validation plots.
+  
+* ``mbg-evaluate-survey`` takes the HDF5 archive produced by mbg-infer, a raster
+  with some pixels missing and a CSV file containing a survey plan, that is the
+  columns of a dataset that can be planned ahead of time. Produces a set of
+  summary maps of the predictive distribution of the summary maps assuming the
+  survey plan is carried out.
+  
+* ``mbg-update-dataset`` takes the HDF5 archive produced by mbg-infer and a CSV
+  file containing new data, and produces an updated HDF5 archive that takes the
+  new data into account.
   
 * ``mbg-decluster`` partitions a CSV datafile into 'kept' and 'holdout' portions.
 

@@ -1,3 +1,18 @@
+# Copyright (C) 2009 Anand Patil
+# 
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+# 
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+# 
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 import imp, os, sys
 
 delayed_import_str ="""import matplotlib
@@ -28,7 +43,6 @@ def parse_quantiles(o):
         q = map(float, o.quantile_list.split(' '))
     return q
 
-    
 def get_reduce_finalize(mod):
     if hasattr(mod, 'extra_reduce_fns'):
         extra_reduce_fns = mod.extra_reduce_fns
@@ -48,7 +62,6 @@ def init_output_dir(o, suffix):
         pass
     os.chdir(output_dir)
 
-        
 def get_mask_t(o, hf):
     x, unmasked, output_type = raster_to_locs(o.mask_name, thin=o.raster_thin, bufsize=o.bufsize, path=o.raster_path)
     if o.year is None:
@@ -57,7 +70,6 @@ def get_mask_t(o, hf):
     else:
         x = np.vstack((x.T,o.year*np.ones(x.shape[0]))).T
     return unmasked, x
-
 
 def get_covariate_dict(M, o, unmasked):
     all_covariate_keys = M.covariate_keys
