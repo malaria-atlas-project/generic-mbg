@@ -85,10 +85,7 @@ import tables as tb
 import numpy as np
 import os, imp, sys, time
 
-mod_path, mod_name = os.path.split(o.module)
-mod_basename, mod_ext = os.path.splitext(mod_name)
-mod_search_path = [mod_path, os.getcwd()] + sys.path
-mod = imp.load_module(mod_basename, *imp.find_module(mod_basename, mod_search_path))
+M, hf, mod, mod_name = reload_model(o.module, o.hf_name)
 
 for n in ['nugget_labels', 'obs_labels']:
     try:
@@ -112,10 +109,7 @@ else:
     q = map(float, o.quantile_list.split(' '))
 
 # Restore model
-M = create_model(mod,pm.database.hdf5.load(o.hf_name))
-hf = M.db._h5file
 temporal = ('t' in hf.root.input_csv.colnames)
-meta = hf.root.metadata
 nuggets = dict([(getattr(M,k),getattr(M,v)) for k,v in mod.nugget_labels.iteritems()])
 bins = np.linspace(0,1,o.n_bins)
 

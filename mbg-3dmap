@@ -75,10 +75,7 @@ import pylab as pl
 
 # Load up given module and load its relevant contents
 
-mod_path, mod_name = os.path.split(o.module)
-mod_basename, mod_ext = os.path.splitext(mod_name)
-mod_search_path = [mod_path, os.getcwd()] + sys.path
-mod = imp.load_module(mod_basename, *imp.find_module(mod_basename, mod_search_path))
+M, hf, mod, mod_name = reload_model(o.module, o.hf_name)
 
 for n in ['nugget_labels', 'obs_labels']:
     try:
@@ -115,7 +112,6 @@ else:
 
 
 # Create predictive locations
-
 lon,lat,mask_data,mask_type = import_raster(o.mask_name, path=o.raster_path)
 bbox = [lon.min(), lat.min(), lon.max(), lat.max()]
 x, unmasked, output_type = raster_to_locs(o.mask_name, thin=o.raster_thin, bufsize=o.bufsize, path=o.raster_path)
@@ -124,9 +120,6 @@ if not o.year is None:
 
 
 # Restore model
-M = create_model(mod,pm.database.hdf5.load(o.hf_name))
-hf = M.db._h5file
-meta = hf.root.metadata
 nuggets = dict([(getattr(M,k),getattr(M,v)) for k,v in mod.nugget_labels.iteritems()])
 bins = np.linspace(0,1,o.n_bins)
 
@@ -172,7 +165,7 @@ if np.iterable(mod.map_postproc):
     mp = mod.map_postproc
 else:
     mp = [mod.map_postproc]
-products = hdf5_to_samps(M,x,nuggets,o.burn,o.thin,o.total,reduce_fns + extra_reduce_fns, mp, covariate_dict, finalize, o.continue_past_npd)
+products = hdf5_to_samps(M,x,nuggets,o.burn,o.thin,o.total,reduce_fns, mp, covariate_dict, finalize, o.continue_past_npd)
 print '\nMaps produced in %f seconds\n'%(time.time() - t_start)
 
 # Write out

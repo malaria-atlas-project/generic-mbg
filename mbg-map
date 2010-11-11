@@ -84,11 +84,7 @@ import os, imp, sys, time
 import pylab as pl
 
 # Load up given module and load its relevant contents
-
-mod_path, mod_name = os.path.split(o.module)
-mod_basename, mod_ext = os.path.splitext(mod_name)
-mod_search_path = [mod_path, os.getcwd()] + sys.path
-mod = imp.load_module(mod_basename, *imp.find_module(mod_basename, mod_search_path))
+M, hf, mod, mod_name = reload_model(o.module, o.hf_name)
 
 for n in ['nugget_labels', 'obs_labels']:
     try:
@@ -116,8 +112,6 @@ else:
 # Create predictive locations
 
 # Restore model
-M = create_model(mod,pm.database.hdf5.load(o.hf_name))
-hf = M.db._h5file
 x, unmasked, output_type = raster_to_locs(o.mask_name, thin=o.raster_thin, bufsize=o.bufsize, path=o.raster_path)
 if o.year is None:
     if 't' in hf.root.input_csv.colnames:

@@ -45,7 +45,7 @@ p.set_defaults(burn=0)
 if len(args) != 2:
     raise ValueError, 'You must supply exactly two positional arguments. You supplied %i.'%len(args)
 
-o.module, o.hf_name = args
+M, hf, mod, mod_name = reload_model(o.module, o.hf_name)
 
 import matplotlib
 matplotlib.use('PDF')
@@ -61,10 +61,6 @@ import pylab as pl
 
 
 # Load up given module and load its relevant contents
-
-M = reload_model(o.module, o.hf_name)
-
-hf = M.db._h5file
 n = all_chain_len(hf)
 
 # Generate covariate trace

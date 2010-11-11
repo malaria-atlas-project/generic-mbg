@@ -69,11 +69,7 @@ from pylab import csv2rec
 
 
 # Load up given module and load its relevant contents
-
-mod_path, mod_name = os.path.split(o.module)
-mod_basename, mod_ext = os.path.splitext(mod_name)
-mod_search_path = [mod_path, os.getcwd()] + sys.path
-mod = imp.load_module(mod_basename, *imp.find_module(mod_basename, mod_search_path))
+M, hf, mod, mod_name = reload_model(o.module, o.hf_name)
 
 
 # Parse input file
@@ -113,8 +109,6 @@ for n in input.dtype.names:
 
 
 # Initialize model using preexisting DB
-M = create_model(mod, pm.database.hdf5.load(o.hf_name))
-hf = M.db._h5file
 nuggets = dict([(getattr(M,k),getattr(M,v)) for k,v in mod.nugget_labels.iteritems()])
 
 
