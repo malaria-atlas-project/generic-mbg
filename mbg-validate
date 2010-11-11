@@ -98,15 +98,10 @@ for k in all_covariate_keys:
 
 
 # Sort out the observed values and the postprocessing functions
-if np.iterable(mod.validate_postproc):
-    postproc_fns = mod.validate_postproc
-else:
-    postproc_fns = [mod.validate_postproc]
-
 vp = []
 obs = []
 n = []
-for postproc_fn in postproc_fns:
+for postproc_fn in mod.validate_postproc:
     obs_, n_, vp_ = postproc_fn(input)
     obs.append(obs_)
     n.append(n_)

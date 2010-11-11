@@ -125,11 +125,7 @@ reduce_fns = [mean_reduce, hsr]
 # Create rasters
 t_start = time.time()
 
-if np.iterable(mod.map_postproc):
-    mp = mod.map_postproc
-else:
-    mp = [mod.map_postproc]
-products = hdf5_to_samps(M,x,nuggets,o.burn,o.thin,o.total,reduce_fns, mp, covariate_dict, finalize, o.continue_past_npd)
+products = hdf5_to_samps(M,x,nuggets,o.burn,o.thin,o.total,reduce_fns, mod.map_postproc, covariate_dict, finalize, o.continue_past_npd)
 print '\nMaps produced in %f seconds\n'%(time.time() - t_start)
 
 # Write out
