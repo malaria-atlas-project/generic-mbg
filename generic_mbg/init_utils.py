@@ -29,6 +29,17 @@ def get_reduce_finalize(mod):
         extra_reduce_fns = []
         extra_finalize = None
         
+def init_output_dir(o, suffix):
+    hf_path, hf_basename  = os.path.split(o.hf_name)
+    base_outname = os.path.splitext(hf_basename)[0]
+    output_dir = os.path.join(hf_path, base_outname+'-%s'%suffix)
+    try:
+        os.mkdir(output_dir)
+    except OSError:
+        pass
+    os.chdir(output_dir)
+
+        
 def get_mask_t(o, hf):
     x, unmasked, output_type = raster_to_locs(o.mask_name, thin=o.raster_thin, bufsize=o.bufsize, path=o.raster_path)
     if o.year is None:

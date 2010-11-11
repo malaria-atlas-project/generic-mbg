@@ -91,7 +91,6 @@ else:
 
 # Restore model
 unmasked, x = get_mask_t(o, hf)
-
 bins = np.linspace(0,1,o.n_bins)
 
 # Load covariates
@@ -133,14 +132,7 @@ print '\nMaps produced in %f seconds\n'%(time.time() - t_start)
 
 
 # Write out
-hf_path, hf_basename  = os.path.split(o.hf_name)
-base_outname = os.path.splitext(hf_basename)[0]
-map_dir = os.path.join(hf_path, base_outname+'-maps')
-try:
-    os.mkdir(map_dir)
-except OSError:
-    pass
-os.chdir(map_dir)
+init_output_dir(o, 'maps')
 
 for f in mp:
     for k,v in products[f].iteritems():

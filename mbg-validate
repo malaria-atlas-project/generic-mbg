@@ -105,14 +105,7 @@ products = hdf5_to_samps(M,x,nuggets,o.burn,o.thin,o.total,[sample_reduce], vp, 
 print '\nPredictive samples drawn in %f seconds\n'%(time.time() - t1)
 
 # Write out
-hf_path, hf_basename  = os.path.split(o.hf_name)
-base_outname = os.path.splitext(hf_basename)[0]
-val_dir = os.path.join(hf_path, base_outname+'-validation')
-try:
-    os.mkdir(val_dir)
-except OSError:
-    pass
-os.chdir(val_dir)
+init_output_dir(o, 'validation')
 samps_h5file = tb.openFile(base_outname+'-validation-samples.hdf5', 'w')
 
 # Record observed values

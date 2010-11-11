@@ -122,12 +122,5 @@ print '\nMCMC completed in %f seconds\n'%(time.time() - t_start)
 M.db._h5file.flush()
 
 # Write out
-
-base_outname = os.path.splitext(hf_basename)[0]
-plot_dir = os.path.join(hf_path, base_outname+'-plots')
-try:
-    os.mkdir(plot_dir)
-except OSError:
-    pass
-os.chdir(plot_dir)
+init_output_dir(o, 'plots')
 plot_variables(M)

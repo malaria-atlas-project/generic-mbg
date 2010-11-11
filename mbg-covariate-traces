@@ -92,15 +92,7 @@ for i in xrange(o.burn,n,o.thin):
 print 'Covariate traces produced in %f seconds.'%(time.time()-time_start)
 
 # Write out
-
-hf_path, hf_basename  = os.path.split(o.hf_name)
-base_outname = os.path.splitext(hf_basename)[0]
-cov_trace_dir = os.path.join(hf_path, base_outname+'-covariate-traces')
-try:
-    os.mkdir(cov_trace_dir)
-except OSError:
-    pass
-os.chdir(cov_trace_dir)
+init_output_dir(o, 'covariate-traces')
 pl.rec2csv(cov_trace, 'covariate-traces.csv')
 
 for k in cov_trace.dtype.names:

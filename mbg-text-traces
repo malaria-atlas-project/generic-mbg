@@ -59,6 +59,5 @@ for k,v in hf.root.chain0.PyMCsamples.coldtypes.iteritems():
 text_trace = np.rec.fromarrays(traces, names=','.join(names))
 
 # Load up given module and load its relevant contents
-hf_path, hf_basename  = os.path.split(o.hf_name)
-base_outname = os.path.splitext(hf_basename)[0]
-pl.rec2csv(text_trace, os.path.join(hf_path, hf_basename+'-text-traces.csv'))
+init_output_dir(o, 'text-traces')
+pl.rec2csv(text_trace, 'text-traces.csv'))
