@@ -14,7 +14,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from optparse import OptionParser
-import os
+import os, sys, time, imp, datetime
 
 # Create option parser
 
@@ -53,20 +53,11 @@ o.module, o.hf_name, o.input_name = args
 
 os.environ['OMP_NUM_THREADS']=str(o.ncpus)
 
-import matplotlib
-matplotlib.use('PDF')
-matplotlib.interactive(False)
-
-from map_utils import *
 from generic_mbg import *
-import tables as tb
-import numpy as np
-import imp, sys
-import pymc as pm
-from pylab import csv2rec, rec2csv
-import pylab as pl
-import time, datetime
-import sys, subprocess
+exec(delayed_import_str)
+
+from pylab import csv2rec, rec2csvl
+import subprocess
 
 pm.set_threadpool_size(o.ncpus)
 

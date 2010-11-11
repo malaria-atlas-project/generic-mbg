@@ -15,6 +15,7 @@
 
 
 from optparse import OptionParser
+import os, sys, time, imp, datetime
 
 # Create option parser
 req_doc = """
@@ -71,17 +72,8 @@ if o.raster_thin>1:
 o.module, o.hf_name, o.burn, o.mask_name = args
 o.burn = int(o.burn)
 
-import matplotlib
-matplotlib.use('PDF')
-matplotlib.interactive(False)
-
-from map_utils import *
 from generic_mbg import *
-import tables as tb
-import numpy as np
-import os, imp, sys, time
-
-import pylab as pl
+exec(delayed_import_str)
 
 # Load up given module and load its relevant contents
 M, hf, mod, mod_name = reload_model(o.module, o.hf_name)

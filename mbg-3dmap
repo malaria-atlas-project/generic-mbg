@@ -13,8 +13,8 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-
 from optparse import OptionParser
+import os, sys, time, imp, datetime
 
 # Create option parser
 req_doc = """
@@ -61,17 +61,8 @@ if len(args) != 4:
 o.module, o.hf_name, o.burn, o.mask_name = args
 o.burn = int(o.burn)
 
-import matplotlib
-matplotlib.use('PDF')
-matplotlib.interactive(False)
-
-from map_utils import *
 from generic_mbg import *
-import tables as tb
-import numpy as np
-import os, imp, sys, time
-
-import pylab as pl
+exec(delayed_import_str)
 
 # Load up given module and load its relevant contents
 
