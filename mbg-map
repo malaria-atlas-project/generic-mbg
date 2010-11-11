@@ -121,7 +121,7 @@ print '\nMaps produced in %f seconds\n'%(time.time() - t_start)
 # Write out
 init_output_dir(o, 'maps')
 
-for f in mp:
+for f in mod.map_postproc:
     for k,v in products[f].iteritems():
         if f is mod.map_postproc:
             out_name = k
