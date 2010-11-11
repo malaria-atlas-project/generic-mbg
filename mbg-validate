@@ -58,7 +58,7 @@ from pylab import csv2rec
 
 # Load up given module and load its relevant contents
 M, hf, mod, mod_name = reload_model(o.module, o.hf_name)
-
+nuggets, obs_labels = get_nuggets_and_obs(mod, mod_name, M)
 
 # Parse input file
 input = csv2rec(file(o.input_name,'U'))
@@ -87,17 +87,14 @@ else:
     non_cov_coltypes = {}
 non_cov_colnames = non_cov_coltypes.keys()
 
+all_covariate_keys = M.covariate_keys
 covariate_dict = {}
-for n in input.dtype.names:
-    if n not in ['lon','lat','t']:
-        if n in non_cov_colnames:
-            non_cov_columns[n] = maybe_convert(input, n, non_cov_coltypes[n])
-        else:
-            covariate_dict[n]=maybe_convert(input, n, 'float')
-
-
-# Initialize model using preexisting DB
-nuggets = dict([(getattr(M,k),getattr(M,v)) for k,v in mod.nugget_labels.iteritems()])
+for k in all_covariate_keys:
+    if k != 'm':
+        try:
+            covariate_dict[k] = raster_to_vals(k, path=o.raster_path, thin=o.raster_thin, unmasked=unmasked)
+        except IOError:
+            raise IOError, 'Covariate raster %s not found in path %s.'%(k+'.asc',o.raster_path)
 
 
 # Sort out the observed values and the postprocessing functions

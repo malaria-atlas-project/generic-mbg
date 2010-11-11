@@ -77,14 +77,7 @@ from generic_mbg import *
 exec(delayed_import_str)
 
 M, hf, mod, mod_name = reload_model(o.module, o.hf_name)
-
-for n in ['nugget_labels', 'obs_labels']:
-    try:
-        exec("%s=getattr(mod,'%s')"%(n,n))
-    except:
-        cls,inst,tb = sys.exc_info()
-        new_inst = cls('Could not import %s from %s. Tell Anand. Original error message:\n\n\t%s'%(n,mod_name,inst.message))
-        raise cls,new_inst,tb
+nuggets, obs_labels = get_nuggets_and_obs(mod, mod_name, M)
 
 if hasattr(mod, 'extra_reduce_fns'):
     extra_reduce_fns = mod.extra_reduce_fns
@@ -101,7 +94,6 @@ else:
 
 # Restore model
 temporal = ('t' in hf.root.input_csv.colnames)
-nuggets = dict([(getattr(M,k),getattr(M,v)) for k,v in mod.nugget_labels.iteritems()])
 bins = np.linspace(0,1,o.n_bins)
 
 # Create covariate locations

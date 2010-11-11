@@ -75,13 +75,7 @@ import decimal
 survey_plan = pl.csv2rec(o.survey)
 M, hf, mod, mod_name = reload_model(o.module, o.hf_name)
 
-for n in ['nugget_labels', 'obs_labels']:
-    try:
-        exec("%s=getattr(mod,'%s')"%(n,n))
-    except:
-        cls,inst,tb = sys.exc_info()
-        new_inst = cls('Could not import %s from %s. Tell Anand. Original error message:\n\n\t%s'%(n,mod_name,inst.message))
-        raise cls,new_inst,tb
+nuggets, obs_labels = get_nuggets_and_obs(mod, mod_name, M)
 
 if hasattr(mod, 'extra_reduce_fns'):
     extra_reduce_fns = mod.extra_reduce_fns
@@ -111,10 +105,6 @@ else:
 x, unmasked, output_type = raster_to_locs(o.mask_name, thin=o.raster_thin, bufsize=o.bufsize, path=o.raster_path)
 if not o.year is None:
     x = np.vstack((x.T,o.year*np.ones(x.shape[0]))).T
-
-
-# Restore model
-nuggets = dict([(getattr(M,k),getattr(M,v)) for k,v in mod.nugget_labels.iteritems()])
 
 
 # Load covariates

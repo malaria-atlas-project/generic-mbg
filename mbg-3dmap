@@ -66,25 +66,7 @@ exec(delayed_import_str)
 
 M, hf, mod, mod_name = reload_model(o.module, o.hf_name)
 
-for n in ['nugget_labels', 'obs_labels']:
-    try:
-        exec("%s=getattr(mod,'%s')"%(n,n))
-    except:
-        cls,inst,tb = sys.exc_info()
-        new_inst = cls('Could not import %s from %s. Tell Anand. Original error message:\n\n\t%s'%(n,mod_name,inst.message))
-        raise cls,new_inst,tb
-
-if hasattr(mod, 'map_postproc'):
-    postproc = mod.map_postproc
-elif hasattr(mod, 'postproc'):
-    postproc = mod.postproc
-else:
-    raise ValueError, 'Module %s lacks the postproc attribute. Tell Anand.'%mod
-
-if hasattr(mod,'diag_safe'):
-    diag_safe=mod.diag_safe
-else:
-    diag_safe = False
+nuggets, obs_labels = get_nuggets_and_obs(mod, mod_name, M)
     
 if hasattr(mod, 'extra_reduce_fns'):
     extra_reduce_fns = mod.extra_reduce_fns
@@ -109,7 +91,6 @@ if not o.year is None:
 
 
 # Restore model
-nuggets = dict([(getattr(M,k),getattr(M,v)) for k,v in mod.nugget_labels.iteritems()])
 bins = np.linspace(0,1,o.n_bins)
 
 # Load covariates
@@ -149,7 +130,6 @@ reduce_fns = [mean_reduce, hsr]
 # Create rasters
 t_start = time.time()
 
-# (hf, x, burn, thin, total, fns, f_labels, fs_have_nugget, x_label, nugget_labels, M_labels, C_labels, pred_cv_dicts, postproc, diags_safe, finalize=None, **non_cov_columns)
 if np.iterable(mod.map_postproc):
     mp = mod.map_postproc
 else:
