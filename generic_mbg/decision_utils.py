@@ -46,14 +46,15 @@ def find_approx_params(mu_pri, V_pri, likefn, norms, match_moments, optimfn = No
     
     mu_post_init = m1
     v_post_init = m2-m1**2
-    
+
     mu_pri_ = np.mean(snorms)
     V_pri_ = np.var(snorms)
     
     v_like_init = v_post_init*V_pri/(V_pri_ - v_post_init)
     mu_like_init = (mu_post_init*(v_like_init+V_pri_)-mu_pri_*v_like_init)/V_pri_
+
     if v_like_init<0:
-        raise RuntimeError, 'Crap.'
+        raise RuntimeError, 'Likelihood variance initialized negative, something is wrong.'
     
     if match_moments:
         p = [mu_like_init, v_like_init]
@@ -161,11 +162,13 @@ def find_joint_approx_params(mu_pri, C_pri, likefns, match_moments, approx_param
 
     mu = mu_pri.copy()
     C = C_pri.copy()
+    
 
     # Skip this to mock
     iter = 0
     while (np.any(np.abs(delta_m)>tol) or np.any(np.abs(delta_v/like_vars)>tol)) and iter < maxiter:
         iter += 1
+        
         for i in xrange(len(mu_pri)):
             
             if not np.isinf(like_vars[i]):
@@ -266,7 +269,6 @@ def hdf5_to_survey_eval(M, x, nuggets, burn, thin, total, fns, postprocs, pred_c
                     mu_pri = M_obs[s](survey_x)
                     C_pri = C_obs[s](survey_x, survey_x)+nugs[s]*np.eye(len(survey_x))
                     
-                    # FIXME: This will only work for single fields currently.
                     closure_dict = {'data': survey_data[l], 'survey_plan': survey_plan}
                     
                     for extra_arg in extra_sl_args:

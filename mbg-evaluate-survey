@@ -105,7 +105,7 @@ samples = products[postproc[0]]['samples']
 
 
 # Make output dir and workspace hdf5 file to hold intermediate results.
-init_output_dir(o, '-survey-eval')
+init_output_dir(o, 'survey-eval')
 workspace_file = tb.openFile('workspace.hdf5','w')
 workspace_file.createArray('/','unmasked',unmasked)
         

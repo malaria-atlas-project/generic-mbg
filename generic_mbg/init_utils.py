@@ -17,6 +17,7 @@ import imp, os, sys
 import numpy as np
 import pymc as pm
 from pylab import csv2rec,rec2csv
+import decimal
 
 delayed_import_str ="""import matplotlib
 matplotlib.use('PDF')
@@ -43,7 +44,7 @@ def parse_quantiles(o):
     if len(o.quantile_list) == 0:
         q = []
     else:
-        q = map(float, o.quantile_list.split(' '))
+        q = map(decimal.Decimal, o.quantile_list.split(' '))
     return q
 
 def get_reduce_finalize(mod):
