@@ -78,13 +78,7 @@ M, hf, mod, mod_name = reload_model(o.module, o.hf_name)
 
 nuggets, obs_labels = get_nuggets_and_obs(mod, mod_name, M)
     
-if hasattr(mod, 'extra_reduce_fns'):
-    extra_reduce_fns = mod.extra_reduce_fns
-    extra_finalize = mod.extra_finalize
-else:
-    extra_reduce_fns = []
-    extra_finalize = None
-
+extra_reduce_fns, extra_finalize = get_reduce_finalize(mod)
 # Parse quantiles
 
 if len(o.quantile_list) == 0:
