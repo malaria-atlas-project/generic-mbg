@@ -45,25 +45,19 @@ p.set_defaults(thin=10)
 p.set_defaults(total=100000)
 p.set_defaults(ncpus=int(os.environ['OMP_NUM_THREADS']))
 
+# Parse command-line arguments and make imports
 o, args = p.parse_args()
-
 from generic_mbg import *
 check_args(args, 3)
-
 o.module, o.hf_name, o.input_name = args
-
 os.environ['OMP_NUM_THREADS']=str(o.ncpus)
-
 exec(delayed_import_str)
-
 from pylab import csv2rec, rec2csvl
 import subprocess
-
 pm.set_threadpool_size(o.ncpus)
 
 
-# Figure out what the database file is supposed to be
-
+# Figure out whether to make a new tracefile or continue sampling into an existing one.
 hf_path, hf_basename  = os.path.split(o.hf_name)    
 prev_db = None
 if hf_path=='':
@@ -84,21 +78,17 @@ if hf_basename in os.listdir(hf_path):
 
 
 # Load up given module and load its relevant contents
-
 mod, mod_name = reload_module(o.module)
 
-# Get revision
-
+# Get revision to store in the tracefile.
 curdir = os.getcwd()
 os.chdir(os.path.join(mod.__path__[0],'..'))
 process = subprocess.Popen('git show --pretty=format:"%H" --quiet', stdout=subprocess.PIPE, shell=True)
 os.waitpid(process.pid, 0)
 mod_commit = process.stdout.read().strip()
 
-os.chdir(curdir)
-
 # Parse input file
-
+os.chdir(curdir)
 input = csv2rec(file(o.input_name,'U'))
 mod.check_data(input)
 
@@ -117,12 +107,11 @@ else:
     M.db._h5file.root.input_csv.attrs.input_filename = o.input_name
 
 # Run MCMC
-
 t_start = time.time()
 M.isample(o.total,0,o.thin)
 print '\nMCMC completed in %f seconds\n'%(time.time() - t_start)
 M.db._h5file.flush()
 
-# Write out
+# Plot the traces as PDF files for convenience.
 init_output_dir(o, 'plots')
 plot_variables(M)

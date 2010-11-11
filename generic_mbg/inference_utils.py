@@ -18,6 +18,7 @@ import numpy as np
 import time
 import tables as tb
 from st_cov_fun import my_st
+from init_utils import *
 from histogram_utils import iinvlogit, isinvlogit, iamul, iasq, icsum, subset_eq, iasadd, meshmatch
 from pylab import csv2rec,rec2csv
 import inspect
@@ -64,21 +65,6 @@ def close(f, **kwds):
     f_.__name__ = f.__name__
 
     return f_
-
-def maybe_convert(ra, field, dtype):
-    """
-    Tries to cast given field of given record array to given dtype. 
-    Raises helpful error on failure.
-    """
-    arr = ra[field]
-    try:
-        return arr.astype(dtype)
-    except:
-        for i in xrange(len(arr)):
-            try:
-                np.array(arr[i],dtype=dtype)
-            except:
-                raise ValueError, 'Input column %s, element %i (starting from zero) is %s,\n which cannot be cast to %s'%(field,i,arr[i],dtype)    
 
 def invlogit(x):
     """A shape-preserving, in-place, threaded inverse logit function."""
@@ -155,16 +141,11 @@ def create_model(mod,db,input=None):
         hfname = db
     
     rec2csv(input,'%s-input-data.csv'%hfname)
-        
-    lon = maybe_convert(input, 'lon', 'float')
-    lat = maybe_convert(input, 'lat', 'float')
-    mod_inputs = (lon,lat)
-    if 't' in input.dtype.names:
-        t = maybe_convert(input, 't', 'float')
-        x = combine_st_inputs(lon,lat,t)
-        mod_inputs = mod_inputs + (t,)
-    else:
-        x = combine_spatial_inputs(lon,lat)
+
+    x = get_x_from_recarray(input)
+    mod_inputs = tuple(x)
+    mod_inputs[0] *= 180./np.pi
+    mod_inputs[1] *= 180./np.pi
     
     non_cov_columns = {}
     if hasattr(mod, 'non_cov_columns'):
@@ -281,24 +262,6 @@ def uniquify(*cols):
         logp_mesh = combine_spatial_inputs(locs[:,0], locs[:,1])
 
     return data_mesh, logp_mesh, fi, ui, ti
-
-def combine_spatial_inputs(lon,lat):
-    # Convert latitude and longitude from degrees to radians.
-    lon = lon*np.pi/180.
-    lat = lat*np.pi/180.
-    
-    # Make lon, lat tuples.
-    data_mesh = np.vstack((lon, lat)).T 
-    return data_mesh
-    
-def combine_st_inputs(lon,lat,t):
-    # Convert latitude and longitude from degrees to radians.
-    lon = lon*np.pi/180.
-    lat = lat*np.pi/180.
-
-    # Make lon, lat, t triples.
-    data_mesh = np.vstack((lon, lat, t)).T 
-    return data_mesh
 
 def add_standard_metadata(M, *labels):
     """

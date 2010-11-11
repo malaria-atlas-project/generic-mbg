@@ -60,32 +60,25 @@ p.set_defaults(credible_intervals='.5 .9')
 p.set_defaults(quantile_list='.05 .25 .5 .75 .95')
 p.set_defaults(match_moments=0)
 
+# Parse command-line arguments and make imports
 o, args = p.parse_args()
-
 from generic_mbg import *
 check_args(args, 5)
-
 o.module, o.hf_name, o.burn, o.survey, o.mask_name = args
 o.burn = int(o.burn)
-
 exec(delayed_import_str)
-
 import decimal
 
 
 # Load up given module and load its relevant contents
 survey_plan = pl.csv2rec(o.survey)
 M, hf, mod, mod_name = reload_model(o.module, o.hf_name)
-
 nuggets, obs_labels = get_nuggets_and_obs(mod, mod_name, M)
-
 extra_reduce_fns, extra_finalize = get_reduce_finalize(mod)
 
 # Parse quantiles and CI's.
 bins = np.linspace(0,1,o.n_bins)
-    
 q=parse_quantiles(o)
-    
 if len(o.credible_intervals) == 0:
     pass
 else:
@@ -93,22 +86,15 @@ else:
     half = decimal.Decimal(1)/decimal.Decimal(2)
     q = np.sort(list(set(q) | set(np.hstack([(half*(1+cii), half*(1-cii)) for cii in ci]))))
     
-
 # Create predictive locations
-x, unmasked, output_type = raster_to_locs(o.mask_name, thin=o.raster_thin, bufsize=o.bufsize, path=o.raster_path)
-if not o.year is None:
-    x = np.vstack((x.T,o.year*np.ones(x.shape[0]))).T
-
+unmasked, x = get_mask_t(o, hf)
 
 # Load covariates
 covariate_dict = get_covariate_dict(M, o, unmasked)
 
 # Generate simulated datasets
 postproc = [close(mod.simdata_postproc,survey_plan=survey_plan)]
-survey_x = np.vstack((survey_plan.lon, survey_plan.lat))*np.pi/180.
-if 't' in survey_plan.dtype.names:
-    survey_x = np.vstack((survey_x, survey_plan.t))
-survey_x = survey_x.T
+survey_x = get_x_from_recarray(survey_plan)
 survey_covariate_dict = dict([(k,survey_plan[k]) for k in all_covariate_keys])
 print 'Simulating datasets at survey locations.'
 t1 = time.time()
@@ -117,22 +103,14 @@ print 'Simulated datasets generated in %s seconds.'%(time.time()-t1)
 samples = products[postproc[0]]['samples']
 
 
-# Make output dir and temporary hdf5 file to hold intermediate results
-hf_path, hf_basename  = os.path.split(o.hf_name)
-base_outname = os.path.splitext(hf_basename)[0]
-eval_dir = os.path.join(hf_path, base_outname+'-survey-eval')
-try:
-    os.mkdir(eval_dir)
-except OSError:
-    pass
-workspace_file = tb.openFile(os.path.join(eval_dir,eval_dir+'.hdf5'),'w')
-
+# Make output dir and workspace hdf5 file to hold intermediate results.
+init_output_dir(o, '-survey-eval')
+workspace_file = tb.openFile(eval_dir+'.hdf5','w')
 workspace_file.createArray('/','unmasked',unmasked)
         
-# Prepare reducing functions
+# Prepare reducing functions that use the workspace file rather than memory.
 reduce_fns = [mean_reduce_with_hdf(workspace_file, len(samples)+1), var_reduce_with_hdf(workspace_file, len(samples)+1)]
 n_arrays = 2
-
 if len(q)>0 or len(ci)>0:
     n_arrays += o.n_bins
     def binfn(arr,n_bins=o.n_bins):
@@ -141,20 +119,21 @@ if len(q)>0 or len(ci)>0:
     hsf = histogram_finalize(bins, q, hsr)
     reduce_fns = reduce_fns + [hsr]
 
+# Warn if the workspace file is going to be enormous.
 upper_gb = samples.shape[0]*x.shape[0]*n_arrays*4*len(mod.map_postproc)/1.e9
 if upper_gb > 1:
     print '\n\nUpper-bound estimate of size of intermediate results file %s.hdf5 is %f gigabytes. You can decrease this by mapping on a smaller region, by setting the -r / --raster-thin argument to a larger value or by decreasing the number of things you want to map (map_postproc functions).\n\n'%(eval_dir, upper_gb)
 
 
-# Do the predictive simulation
+# Do the predictive simulation.
 print 'Updating the posterior for each simulated dataset, and simulating on predictive raster.'
 t1 = time.time()
 actual_total, log_imp_weights = hdf5_to_survey_eval(M, x, nuggets, o.burn, o.thin, o.total, reduce_fns, mod.map_postproc, covariate_dict, survey_x, samples, survey_covariate_dict, mod.survey_likelihood, survey_plan, o.match_moments, finalize=None, continue_past_npd=False)
 print 'Posterior predictive simulations done in %s seconds'%(time.time()-t1)
 
 
-# Finalize the reduced products for each of the simulated datasets
-print 'Finalizing.'
+# Finalize the summary maps for each of the simulated datasets.
+print 'Finalizing the summary maps for each simulated dataset.'
 t1 = time.time()
 for mp in mod.map_postproc:
     
@@ -189,8 +168,6 @@ print 'Finalizing done in %s seconds'%(time.time()-t1)
 
 map_keys = ['mean','var','std','std_to_mean']+[('quantile_%s'%qi).replace('.','__') for qi in q]+[('ci_%s'%cii).replace('.','__') for cii in ci]
 
-os.chdir(eval_dir)
-
 # Visualize pickiness of simulated data
 exp_number_retained = np.zeros(len(samples))
 mass_not_in_mode = np.zeros(len(samples))
@@ -198,17 +175,25 @@ for l in xrange(len(samples)):
     imp_weights = np.exp(log_imp_weights[:,l])
     exp_number_retained[l] = np.sum(1.-(1-imp_weights)**actual_total)
     mass_not_in_mode[l] = 1-imp_weights.max()
-
+# Make histogram of expected number of MCMC samples retained.
+# If this is close to 1, the posterior given the simulated data
+# is far from the prior and the importance-resampling scheme
+# will not be successful.
 pl.clf()
 pl.hist(exp_number_retained,50)
 pl.title('Total samples = %i'%actual_total)
 pl.savefig('exp_number_retained.pdf')
-
+# Make histogram of the log of the importance mass not in the mode
+# for each simulated dataset. If this is large and negative, the
+# scheme will not be successful.
 pl.clf()
 pl.hist(np.log(mass_not_in_mode),50)
 pl.title('Number of posterior samples = %i'%imp_weights.shape[0])
 pl.savefig('log_mass_not_in_mode.pdf')
-
+# Make histogram of the importance mass non in the mode for each
+# simulated dataset. If this is near zero, the scheme will not be
+# successful. If it is near (n-1)/n, the scheme will be very 
+# successful.
 pl.clf()
 pl.hist(mass_not_in_mode,50)
 pl.title('Number of posterior samples = %i'%imp_weights.shape[0])
@@ -225,12 +210,16 @@ def make_pdf(v, out_name):
     pl.colorbar()
     pl.savefig(pdf_name)
 
+# Make accumulators to reduce over the summary maps. These can
+# use main memory rather than the workspace file.
 map_reduce_fns = [mean_reduce, var_reduce]
 if len(q)>0:
     hsr = histogram_reduce(bins, binfn)
     hsf = histogram_finalize(bins,q,hsr)
     map_reduce_fns.append(hsr)
 
+# Make finalizing functions to produce summary maps of summary
+# maps.
 def map_finalize(prod, n, q=q):
     mean = prod[mean_reduce] / n
     var = prod[var_reduce] / n - mean**2
@@ -244,17 +233,20 @@ def map_finalize(prod, n, q=q):
         out.update(hsf(prod, n))
     return out
 
+# Produce the summary summary maps and write out.
 for f in mod.map_postproc:
     for k in map_keys:
+        # Pull a summary map out of the workspace file.
         hfnode = getattr(workspace_file.root, mp.__name__+'_'+k)
+        # The last row holds the current map.
         v = hfnode[-1]
         make_pdf(v, f.__name__ + '_cur_' + k)
-        
+        # The other rows hold the simulated maps given that the
+        # survey plan will be carried out.
         products = dict([(rf, None) for rf in map_reduce_fns])
         for i in xrange(hfnode.shape[0]-1):
             for rf in map_reduce_fns:
                 products[rf] = rf(products[rf], hfnode[i], rf.__name__)
-                
         mapmaps = map_finalize(products, hfnode.shape[0]-1)
         for mk,v in mapmaps.iteritems():
             make_pdf(v, f.__name__+'_'+mk+'_of_'+k)

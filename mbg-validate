@@ -46,17 +46,14 @@ p.set_defaults(thin=50)
 p.set_defaults(continue_past_npd=0)
 p.set_defaults(total=50000)
 
+# Parse command-line arguments and make imports
 o, args = p.parse_args()
-
 from generic_mbg import *
 check_args(args, 4)
-
 o.module, o.hf_name, o.burn, o.input_name = args
 o.burn = int(o.burn)
-
 exec(delayed_import_str)
 from pylab import csv2rec    
-
 
 # Load up given module and load its relevant contents
 M, hf, mod, mod_name = reload_model(o.module, o.hf_name)
@@ -65,7 +62,6 @@ nuggets, obs_labels = get_nuggets_and_obs(mod, mod_name, M)
 # Parse input file
 input = csv2rec(file(o.input_name,'U'))
 mod.check_data(input)
-
 from numpy.ma import mrecords
 if isinstance(input, np.ma.mrecords.MaskedRecords):
     msg = 'Error, could not parse input at following rows:\n'
@@ -74,21 +70,10 @@ if isinstance(input, np.ma.mrecords.MaskedRecords):
             msg += '\t%s: %s\n'%(name, str(np.where(input[name].mask)[0]+1))
     raise ValueError, msg
 
-lon = maybe_convert(input, 'lon', 'float')
-lat = maybe_convert(input, 'lat', 'float')
-if hasattr(input, 't'):
-    t = maybe_convert(input, 't', 'float')
-    x = combine_st_inputs(lon,lat,t)
-else:
-    x = combine_spatial_inputs(lon,lat)
+# Parse the new data.
+x = get_x_from_recarray(input)
     
-non_cov_columns = {}
-if hasattr(mod, 'non_cov_columns'):
-    non_cov_coltypes = mod.non_cov_columns
-else:
-    non_cov_coltypes = {}
-non_cov_colnames = non_cov_coltypes.keys()
-
+# Get the covariates.
 covariate_dict = get_covariate_dict(M, o, unmasked)
 
 # Sort out the observed values and the postprocessing functions
@@ -102,6 +87,7 @@ for postproc_fn in mod.validate_postproc:
     vp_.__name__ = postproc_fn.__name__
     vp.append(vp_)
 
+# Do the predictive analysis.
 t1 = time.time()
 products = hdf5_to_samps(M,x,nuggets,o.burn,o.thin,o.total,[sample_reduce], vp, covariate_dict, sample_finalize, continue_past_npd=o.continue_past_npd)
 print '\nPredictive samples drawn in %f seconds\n'%(time.time() - t1)
@@ -110,7 +96,6 @@ print '\nPredictive samples drawn in %f seconds\n'%(time.time() - t1)
 init_output_dir(o, 'validation')
 samps_h5file = tb.openFile(base_outname+'-validation-samples.hdf5', 'w')
 
-# Record observed values
 samps_h5file.createTable('/','observed',np.rec.fromarrays(obs, names=','.join([f.__name__ for f in vp])))
 samps_h5file.createTable('/','n',np.rec.fromarrays(obs, names=','.join([f.__name__ for f in vp])))
 samps_h5file.createGroup('/','predicted')
@@ -121,21 +106,20 @@ for f, obs_, n_ in zip(vp, obs, n):
     if samps.shape[0] != (len(n_)):
         raise ValueError, 'Samps is wrong shape'
     samps_h5file.createCArray('/predicted',f.__name__,tb.FloatAtom(),samps.shape,filters=tb.Filters(complevel=1,complib='zlib'))[:]=samps
-    
     n_ = np.asarray(n_).astype('float')
     samps_h5file.root.n.col(f.__name__)[:]=n_
-    
     errors = np.rec.fromarrays([np.empty(len(input)) for i in (0,1,2)], names='mean error,mean abs error,RMS error')
 
+
     for i in xrange(len(input)):
-        
+        # Record point-specific errors
         obs_frequency = obs_[i] / n_[i]
         frequency_dev = samps[i] / n_[i] - obs_frequency
-
         errors['mean error'][i] = np.mean(frequency_dev)
         errors['mean abs error'][i] = np.mean(np.abs(frequency_dev))
         errors['RMS error'][i] = np.sqrt(np.mean(frequency_dev**2))
-                
+        
+        # Plot predictive histogram for each validation point        
         pl.clf()
         pdf, bins, patches = pl.hist(samps[i], 50, normed=True,facecolor='.3')
         yext = pdf.max()
@@ -147,7 +131,8 @@ for f, obs_, n_ in zip(vp, obs, n):
         pl.savefig('%i.pdf'%i)
     
     pl.rec2csv(errors,'%s-mean-errors.csv'%f.__name__)
-
+    
+    # Compute actual validation metrics and plot them.
     for vf in validation_fns:
         print 'Generating plot of %s for %s'%(vf.__name__, f.__name__)
         pl.clf()

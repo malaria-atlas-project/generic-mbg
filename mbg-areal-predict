@@ -64,27 +64,22 @@ p.set_defaults(n_bins=100)
 p.set_defaults(time_points=10)
 
 
-
+# Parse command-line arguments and make imports.
 o, args = p.parse_args()
 from generic_mbg import *
 check_args(args, 4)
-
 if o.coordinate_time:
     raise NotImplementedError, "Haven't implemented time coordination yet."
-        
 o.module, o.hf_name, o.burn, o.polyfile_name = args
 o.burn = int(o.burn)
-
 exec(delayed_import_str)
 
+# Restore model and tagged attributes.
 M, hf, mod, mod_name = reload_model(o.module, o.hf_name)
 nuggets, obs_labels = get_nuggets_and_obs(mod, mod_name, M)
 extra_reduce_fns, extra_finalize = get_reduce_finalize(mod)
 
-# Parse quantiles
 q=parse_quantiles(o)
-
-# Restore model
 temporal = ('t' in hf.root.input_csv.colnames)
 bins = np.linspace(0,1,o.n_bins)
 
@@ -115,7 +110,7 @@ if o.weight_raster is not None:
 else:
     weights, cov_lon, cov_lat = None, None, None
 
-# Create utility fns
+# Create standard accumulators and finalizers for posterior summaries
 if len(q)>0:
     def binfn(arr,n_bins=o.n_bins,qu=o.quantile_uplim,ql=o.quantile_lolim):
         return np.array(((arr-ql)/(qu-ql))*n_bins,dtype=int)
@@ -164,54 +159,21 @@ for geomcoll in gjdat['geometries']:
     mps[geomcoll['properties']['name']]=mps_
 
 
-# For each geometry collection:
-t_start = time.time()
-print '\nAreal predictions produced in %f seconds\n'%(time.time() - t_start)
 points = {}
-# def hdf5_to_areal_samps(M, x, nuggets, burn, thin, total, fns, h, g, pred_covariate_dict, finalize=None, continue_past_npd=False, joint=False):
-"""
-Parameters:
-    M : MCMC object
-        Its database should have samples in it.
-    x : dict of dicts of arrays
-        {geomname: {geomname: [lon, lat]}}
-    nuggets : dict
-        Should map the GP submodels of M to the corresponding nugget values,
-        if any.
-    burn : int
-        Burnin iterations to discard.
-    thin : int
-        Number of iterations between ones that get used in the predictions.
-    total : int
-        Total number of iterations to use in thinning.
-    fns : list of functions
-        Each function should take four arguments: sofar, next, cols and i.
-        Sofar may be None.
-        The functions will be applied according to the reduce pattern.
-    h : dict of dicts of functions.
-        {postproc: geomcoll: lambda integral1, integral2, integral3, ... : return}
-    g : dict of dict of functions
-        {postproc: geomcoll: geomcoll: lambda fs, [lon, lat, t], variables : return.}
-    pred_covariate_dict : dict of dict of dicts of arrays
-        {geomcoll: geomcoll: covariate: [val]}.
-    finalize : function (optional)
-        This function is applied to the products before returning. It should
-        take a second argument which is the actual number of realizations
-        produced.
-        
-Output is a dictionary of form {postproc: {geomcoll: {finalization: value}}}
-"""
 products = []
 def extract_covariates(x, covariate_names, path):
     if len(covariate_names)>0:
         raise NotImplementedError
     else:
         return {}
+
+t_start = time.time()
 for i in xrange(o.reps):
     s = 'Doing repetition %i of %i'%(i, o.reps)
     print s+'\n'+'='*len(s)
     covariate_dict = {}
-    # Draw points
+    
+    # Draw points and extract covariates there.
     for name, coll in mps.iteritems():
         keys = coll.keys()
         geoms = [coll[k]['geom'] for k in keys]
@@ -221,9 +183,9 @@ for i in xrange(o.reps):
             tlims = None
         
         points[name] = dict(zip(keys,draw_points(geoms, o.points, weights, cov_lon, cov_lat, tlims, o.coordinate_time, o.time_points)))
-        # covariate_dict[name] = dict(zip(keys, extract_covariates(x, k, o.raster_path)))
         covariate_dict[name] = dict(zip(keys, [extract_covariates(points[name][k], all_covariate_keys, o.raster_path) for k in keys]))
-        
+    
+    # Determine the (h,g) pairs for this geometry collection.    
     h = {}
     g = {}
     for ap in mod.areal_postproc:
@@ -232,7 +194,9 @@ for i in xrange(o.reps):
         for name, coll in mps.iteritems():
             h[ap][name], g[ap][name] = ap(coll)
     
+    # Do one areal prediction.
     products.append(hdf5_to_areal_samps(M, points, nuggets, o.burn, o.thin, o.total, reduce_fns + extra_reduce_fns, h, g, covariate_dict, finalize, o.continue_past_npd))
+print '\nAreal predictions produced in %f seconds\n'%(time.time() - t_start)
 
 # Write out.
 # Products is [{geomcoll: {postproc: {finalization: value}}}]

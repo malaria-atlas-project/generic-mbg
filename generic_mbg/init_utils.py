@@ -70,6 +70,51 @@ def get_mask_t(o, hf):
     else:
         x = np.vstack((x.T,o.year*np.ones(x.shape[0]))).T
     return unmasked, x
+    
+def combine_spatial_inputs(lon,lat):
+    # Convert latitude and longitude from degrees to radians.
+    lon = lon*np.pi/180.
+    lat = lat*np.pi/180.
+
+    # Make lon, lat tuples.
+    data_mesh = np.vstack((lon, lat)).T 
+    return data_mesh
+
+def combine_st_inputs(lon,lat,t):
+    # Convert latitude and longitude from degrees to radians.
+    lon = lon*np.pi/180.
+    lat = lat*np.pi/180.
+
+    # Make lon, lat, t triples.
+    data_mesh = np.vstack((lon, lat, t)).T 
+    return data_mesh
+
+
+def maybe_convert(ra, field, dtype):
+    """
+    Tries to cast given field of given record array to given dtype. 
+    Raises helpful error on failure.
+    """
+    arr = ra[field]
+    try:
+        return arr.astype(dtype)
+    except:
+        for i in xrange(len(arr)):
+            try:
+                np.array(arr[i],dtype=dtype)
+            except:
+                raise ValueError, 'Input column %s, element %i (starting from zero) is %s,\n which cannot be cast to %s'%(field,i,arr[i],dtype)    
+
+
+def get_x_from_recarray(input):
+    lon = maybe_convert(input, 'lon', 'float')
+    lat = maybe_convert(input, 'lat', 'float')
+    if hasattr(input, 't'):
+        t = maybe_convert(input, 't', 'float')
+        x = combine_st_inputs(lon,lat,t)
+    else:
+        x = combine_spatial_inputs(lon,lat)
+    return x
 
 def get_covariate_dict(M, o, unmasked):
     all_covariate_keys = M.covariate_keys

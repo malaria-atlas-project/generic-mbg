@@ -54,15 +54,12 @@ p.set_defaults(year=None)
 p.set_defaults(continue_past_npd=0)
 p.set_defaults(quantile_list='0.05 0.25 0.5 0.75 0.95')
 
+# Parse command-line arguments and make imports
 o, args = p.parse_args()
-
 from generic_mbg import *
 check_args(args, 4)
-
 o.module, o.hf_name, o.burn, o.mask_name = args
 o.burn = int(o.burn)
-
-
 exec(delayed_import_str)
 
 # Load up given module and load its relevant contents
@@ -72,18 +69,15 @@ extra_reduce_fns, extra_finalize = get_reduce_finalize(mod)
 
 # Parse quantiles
 q=parse_quantiles(o)
-
+bins = np.linspace(0,1,o.n_bins)
 
 # Create predictive locations
 unmasked, x = get_mask_t(o, hf)
 
-# Restore model
-bins = np.linspace(0,1,o.n_bins)
-
 # Load covariates
 covariate_dict = get_covariate_dict(M, o, unmasked)
             
-# Create utility fns
+# Create standard accumulators and finalizers for summary maps
 def binfn(arr,n_bins=o.n_bins):
     return np.array(arr*n_bins,dtype=int)
 
@@ -106,9 +100,9 @@ def finalize(prod, n):
 
 reduce_fns = [mean_reduce, hsr]
 
-# Create rasters
-t_start = time.time()
 
+t_start = time.time()
+# Do the prediction.
 products = hdf5_to_samps(M,x,nuggets,o.burn,o.thin,o.total,reduce_fns, mod.map_postproc, covariate_dict, finalize, o.continue_past_npd)
 print '\nMaps produced in %f seconds\n'%(time.time() - t_start)
 

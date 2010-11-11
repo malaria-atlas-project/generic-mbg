@@ -58,43 +58,35 @@ p.set_defaults(quantile_uplim=1.)
 p.set_defaults(quantile_lolim=0.)
 p.set_defaults(quantile_list='0.05 0.25 0.5 0.75 0.95')
 
+#Parse command-line arguments and make imports.
 o, args = p.parse_args()
-
 from generic_mbg import *
 check_args(args, 4)
-
-
 if o.raster_thin>1:
     raise NotImplementedError, """The raster_thin argument has caused too many problems 
     and is disabled until it can be implemented properly. For the time being, 
     please thin your rasters manually, and reconcile the outputs to the desired 
     rasterusing a GIS program."""
-
 o.module, o.hf_name, o.burn, o.mask_name = args
 o.burn = int(o.burn)
-
 exec(delayed_import_str)
 
 # Load up given module and load its relevant contents
 M, hf, mod, mod_name = reload_model(o.module, o.hf_name)
-
 nuggets, obs_labels = get_nuggets_and_obs(mod, mod_name, M)
-    
 extra_reduce_fns, extra_finalize = get_reduce_finalize(mod)
-# Parse quantiles
 
+# Parse quantiles
 q=parse_quantiles(o)
+bins = np.linspace(0,1,o.n_bins)
 
 # Create predictive locations
-
-# Restore model
 unmasked, x = get_mask_t(o, hf)
-bins = np.linspace(0,1,o.n_bins)
 
 # Load covariates
 covariate_dict = get_covariate_dict(M, o, unmasked)
 
-# Create utility fns
+# Create standard accumulators and finalizers for summary maps
 if len(q)>0:
     def binfn(arr,n_bins=o.n_bins,qu=o.quantile_uplim,ql=o.quantile_lolim):
         return np.array(((arr-ql)/(qu-ql))*n_bins,dtype=int)
@@ -109,8 +101,6 @@ def finalize(prod, n, q=q, ef=extra_finalize, qu=o.quantile_uplim, ql=o.quantile
     std_to_mean = std/mean
     out = {'mean': mean, 'var': var, 'std': std, 'std-to-mean':std_to_mean}
     if len(q)>0:
-        # from IPython.Debugger import Pdb
-        # Pdb(color_scheme='Linux').set_trace()   
         fin = hsf(prod, n)
         out.update(dict([(k,fin[k]*(qu-ql)+ql) for k in fin.iterkeys()]))
     if ef is not None:
@@ -121,10 +111,9 @@ reduce_fns = [mean_reduce, var_reduce]
 if len(q)>0:
     reduce_fns = reduce_fns + [hsr]
 
-# Create rasters
 
+# Do the predictive analysis
 t_start = time.time()
-# (hf, x, burn, thin, total, fns, f_labels, fs_have_nugget, x_label, nugget_labels, M_labels, C_labels, pred_cv_dicts, postproc, diags_safe, finalize=None, **non_cov_columns)
 products = hdf5_to_samps(M,x,nuggets,o.burn,o.thin,o.total,reduce_fns + extra_reduce_fns, mod.map_postproc, covariate_dict, finalize, o.continue_past_npd)
 print '\nMaps produced in %f seconds\n'%(time.time() - t_start)
 

@@ -31,25 +31,20 @@ See <http://www.gnu.org/licenses/> for the terms of the license.
 
 """
 
+# Parse command-line arguments and make imports
 p = OptionParser('usage: %prog module database-file [options]' + req_doc)
-
 p.add_option('-t','--thin',help='How much to thin the MCMC trace. Defaults to 1, meaning no  thinsing.',dest='thin',type='int')
 p.add_option('-b','--burn',help='How many burnin iterations to discard. Defaults to 0.',dest='burn',type='int')
-
 p.set_defaults(thin=1)
 p.set_defaults(burn=0)
-
 o, args = p.parse_args()
-
 from generic_mbg import *
 check_args(args, 2)
-
-M, hf, mod, mod_name = reload_model(o.module, o.hf_name)
-
 exec(delayed_import_str)
 
-
 # Load up given module and load its relevant contents
+M, hf, mod, mod_name = reload_model(o.module, o.hf_name)
+
 n = all_chain_len(hf)
 
 # Generate covariate trace
