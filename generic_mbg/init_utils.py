@@ -28,6 +28,16 @@ def get_reduce_finalize(mod):
     else:
         extra_reduce_fns = []
         extra_finalize = None
+        
+def get_mask_t(o, hf):
+    x, unmasked, output_type = raster_to_locs(o.mask_name, thin=o.raster_thin, bufsize=o.bufsize, path=o.raster_path)
+    if o.year is None:
+        if 't' in hf.root.input_csv.colnames:
+            raise ValueError, 'No year provided, but the model appears to be temporal.'
+    else:
+        x = np.vstack((x.T,o.year*np.ones(x.shape[0]))).T
+    return unmasked, x
+
 
 def get_covariate_dict(M, o, unmasked):
     all_covariate_keys = M.covariate_keys

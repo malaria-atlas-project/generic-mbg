@@ -90,13 +90,8 @@ else:
 # Create predictive locations
 
 # Restore model
-x, unmasked, output_type = raster_to_locs(o.mask_name, thin=o.raster_thin, bufsize=o.bufsize, path=o.raster_path)
-if o.year is None:
-    if 't' in hf.root.input_csv.colnames:
-        raise ValueError, 'No year provided, but the model appears to be temporal.'
-else:
-    x = np.vstack((x.T,o.year*np.ones(x.shape[0]))).T
-meta = hf.root.metadata
+unmasked, x = get_mask_t(o, hf)
+
 bins = np.linspace(0,1,o.n_bins)
 
 # Load covariates
