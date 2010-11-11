@@ -29,6 +29,17 @@ def get_reduce_finalize(mod):
         extra_reduce_fns = []
         extra_finalize = None
 
+def get_covariate_dict(M, o, unmasked):
+    all_covariate_keys = M.covariate_keys
+    covariate_dict = {}
+    for k in all_covariate_keys:
+        if k != 'm':
+            try:
+                covariate_dict[k] = raster_to_vals(k, path=o.raster_path, thin=o.raster_thin, unmasked=unmasked)
+            except IOError:
+                raise IOError, 'Covariate raster %s not found in path %s.'%(k+'.asc',o.raster_path)
+    return covariate_dict
+
 def reload_module(module):
     mod_path, mod_name = os.path.split(module)
     mod_basename, mod_ext = os.path.splitext(mod_name)

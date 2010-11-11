@@ -102,15 +102,7 @@ if not o.year is None:
 
 
 # Load covariates
-all_covariate_keys = M.covariate_keys
-covariate_dict = {}
-for k in all_covariate_keys:
-    if k != 'm':
-        try:
-            covariate_dict[k] = raster_to_vals(k, path=o.raster_path, thin=o.raster_thin, unmasked=unmasked)
-        except IOError:
-            raise IOError, 'Covariate raster %s not found in path %s.'%(k+'.asc',o.raster_path)
-
+covariate_dict = get_covariate_dict(M, o, unmasked)
 
 # Generate simulated datasets
 postproc = [close(mod.simdata_postproc,survey_plan=survey_plan)]
