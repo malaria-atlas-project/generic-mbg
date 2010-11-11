@@ -37,7 +37,9 @@ p.set_defaults(minsample=0)
 p.set_defaults(decluster=True)
 p.set_defaults(makeplot=True)
 
-o, args = parse_and_check_args(p,2)
+o, args = p.parse_args()
+from generic_mbg import *
+check_args(args, 2)
 
 o.input = args[0]
 o.prop = float(args[1])

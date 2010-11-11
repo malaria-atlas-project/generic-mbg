@@ -93,8 +93,6 @@ def reload_model(mod, hf):
     mod, mod_name = reload_module(mod)
     return create_model(mod,pm.database.hdf5.load(hf)), hf, mod, mod_name
 
-def parse_and_check_args(p, n):
-    (o, args) = p.parse_args()
+def check_args(args, n):
     if len(args) != n:
         raise ValueError, 'You must supply exactly %i positional arguments. You supplied %i.'%(n,len(args))
-    return o, args

@@ -39,11 +39,13 @@ p.add_option('-b','--burn',help='How many burnin iterations to discard. Defaults
 p.set_defaults(thin=1)
 p.set_defaults(burn=0)
 
-o, args = parse_and_check_args(p,2)
+o, args = p.parse_args()
+
+from generic_mbg import *
+check_args(args, 2)
 
 M, hf, mod, mod_name = reload_model(o.module, o.hf_name)
 
-from generic_mbg import *
 exec(delayed_import_str)
 
 

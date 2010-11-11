@@ -45,13 +45,15 @@ p.set_defaults(thin=10)
 p.set_defaults(total=100000)
 p.set_defaults(ncpus=int(os.environ['OMP_NUM_THREADS']))
 
-o, args = parse_and_check_args(p,3)
+o, args = p.parse_args()
+
+from generic_mbg import *
+check_args(args, 3)
 
 o.module, o.hf_name, o.input_name = args
 
 os.environ['OMP_NUM_THREADS']=str(o.ncpus)
 
-from generic_mbg import *
 exec(delayed_import_str)
 
 from pylab import csv2rec, rec2csvl
