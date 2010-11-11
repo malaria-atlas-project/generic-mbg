@@ -162,6 +162,7 @@ for geomcoll in gjdat['geometries']:
 points = {}
 products = []
 def extract_covariates(x, covariate_names, path):
+    # FIXME: implement this.
     if len(covariate_names)>0:
         raise NotImplementedError
     else:
