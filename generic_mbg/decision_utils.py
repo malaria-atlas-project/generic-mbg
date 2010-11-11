@@ -44,18 +44,26 @@ def find_approx_params(mu_pri, V_pri, likefn, norms, match_moments, optimfn = No
     m1 = np.sum(snorms*w)/w.sum()
     m2 = np.sum(snorms**2*w)/w.sum()
     
-    mu_init = m1
-    v_init = m2-m1**2
+    mu_post_init = m1
+    v_post_init = m2-m1**2
+    
+    mu_pri_ = np.mean(snorms)
+    V_pri_ = np.var(snorms)
+    
+    v_like_init = v_post_init*V_pri/(V_pri_ - v_post_init)
+    mu_like_init = (mu_post_init*(v_like_init+V_pri_)-mu_pri_*v_like_init)/V_pri_
+    if v_like_init<0:
+        raise RuntimeError, 'Crap.'
     
     if match_moments:
-        p = [mu_init, v_init]
+        p = [mu_like_init, v_like_init]
     else:
         f = close(kldiv, mu_pri=mu_pri, V_pri=V_pri, likefn=likefn, norms=norms)
 
         if optimfn is None:
             from scipy import optimize
             optimfn = optimize.fmin
-        p = optimfn(f, [mu_init, v_init],disp=0)
+        p = optimfn(f, [mu_like_init, v_like_init],disp=0)
 
     return p
     
@@ -137,7 +145,7 @@ def histogram_reduce_with_hdf(bins, binfn, hf, n_reps):
         return 1
     return hr
 
-def find_joint_approx_params(mu_pri, C_pri, likefns, match_moments, approx_param_fn = None, tol=1.e-3, maxiter=10000):
+def find_joint_approx_params(mu_pri, C_pri, likefns, match_moments, approx_param_fn = None, tol=1.e-3, maxiter=100):
     if approx_param_fn is None:
         norms = np.random.normal(size=1000)
     else:
@@ -249,7 +257,6 @@ def hdf5_to_survey_eval(M, x, nuggets, burn, thin, total, fns, postprocs, pred_c
             base_S_preds[s] = np.sqrt(base_V_pred + nugs[s])
             
             apply_postprocs_and_reduce(M, n_per, base_M_preds, base_S_preds, postprocs, fns, products, postproc_args, extra_postproc_args, joint=False, ind=-1, norms=norms[s])
-        
         try:
             for l in xrange(len(survey_data)):   
                 M_preds = {}
@@ -290,7 +297,9 @@ def hdf5_to_survey_eval(M, x, nuggets, burn, thin, total, fns, postprocs, pred_c
 
                     # This is the time-consuming step. Makes sense I guess.
                     # TODO: Try it with only a 3dmap reduce.
+
                     apply_postprocs_and_reduce(M, n_per, M_preds, S_preds, postprocs, fns, products, postproc_args, extra_postproc_args, joint=False, ind=l, norms=norms[s])
+                
         
         except np.linalg.LinAlgError:
             continue

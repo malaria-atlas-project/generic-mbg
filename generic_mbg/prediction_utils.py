@@ -585,7 +585,7 @@ def hdf5_to_samps(M, x, nuggets, burn, thin, total, fns, postprocs, pred_covaria
     for k in xrange(len(iter)):
         
         i = iter[k]
-        # Restore the i'th cache fram
+        # Restore the i'th cache fram trace
         all_chain_remember(M,i)
         
         # Add the covariate values on the prediction mesh to the appropriate caches.
