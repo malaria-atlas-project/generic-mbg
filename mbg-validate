@@ -46,10 +46,7 @@ p.set_defaults(thin=50)
 p.set_defaults(continue_past_npd=0)
 p.set_defaults(total=50000)
 
-
-(o, args) = p.parse_args()
-if len(args) != 4:
-    raise ValueError, 'You must supply exactly four positional arguments. You supplied %i.'%len(args)
+o, args = parse_and_check_args(p,4)
 
 o.module, o.hf_name, o.burn, o.input_name = args
 o.burn = int(o.burn)

@@ -65,9 +65,7 @@ p.set_defaults(time_points=10)
 
 
 
-(o, args) = p.parse_args()
-if len(args) != 4:
-    raise ValueError, 'You must supply exactly four positional arguments. You supplied %i.'%len(args)
+o, args = parse_and_check_args(p,4)
 
 if o.coordinate_time:
     raise NotImplementedError, "Haven't implemented time coordination yet."

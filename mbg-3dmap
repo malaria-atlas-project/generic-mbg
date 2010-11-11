@@ -54,9 +54,7 @@ p.set_defaults(year=None)
 p.set_defaults(continue_past_npd=0)
 p.set_defaults(quantile_list='0.05 0.25 0.5 0.75 0.95')
 
-(o, args) = p.parse_args()
-if len(args) != 4:
-    raise ValueError, 'You must supply exactly four positional arguments. You supplied %i.'%len(args)
+o, args = parse_and_check_args(p,4)
 
 o.module, o.hf_name, o.burn, o.mask_name = args
 o.burn = int(o.burn)

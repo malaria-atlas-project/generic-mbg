@@ -58,9 +58,7 @@ p.set_defaults(quantile_uplim=1.)
 p.set_defaults(quantile_lolim=0.)
 p.set_defaults(quantile_list='0.05 0.25 0.5 0.75 0.95')
 
-(o, args) = p.parse_args()
-if len(args) != 4:
-    raise ValueError, 'You must supply exactly four positional arguments. You supplied %i.'%len(args)
+o, args = parse_and_check_args(p,4)
 
 
 if o.raster_thin>1:

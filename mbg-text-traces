@@ -38,9 +38,7 @@ p.add_option('-b','--burn',help='How many burnin iterations to discard. Defaults
 p.set_defaults(thin=1)
 p.set_defaults(burn=0)
 
-(o, args) = p.parse_args()
-if len(args) != 1:
-    raise ValueError, 'You must supply exactly one positional argument. You supplied %i.'%len(args)
+o, args = parse_and_check_args(p,1)
 
 o.hf_name = args[0]
 

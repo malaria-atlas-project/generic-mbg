@@ -60,9 +60,7 @@ p.set_defaults(credible_intervals='.5 .9')
 p.set_defaults(quantile_list='.05 .25 .5 .75 .95')
 p.set_defaults(match_moments=0)
 
-(o, args) = p.parse_args()
-if len(args) != 5:
-    raise ValueError, 'You must supply exactly four positional arguments. You supplied %i.'%len(args)
+o, args = parse_and_check_args(p,5)
 
 o.module, o.hf_name, o.burn, o.survey, o.mask_name = args
 o.burn = int(o.burn)

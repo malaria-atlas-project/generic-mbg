@@ -93,9 +93,7 @@ p.add_option('-e','--extensions',help="Names of compiled extensions, with commas
 p.set_defaults(authors='Joe Bootystank')
 p.set_defaults(extensions='')
 
-o, args = p.parse_args()
-if len(args) != 1:
-    raise IOError, 'You must supply exactly one positional arguments. You supplied %i.'%len(args)
+o, args = parse_and_check_args(p,1)
 
 o.name = args[0]
 
