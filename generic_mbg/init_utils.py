@@ -20,6 +20,14 @@ def get_nuggets_and_obs(mod, mod_name, M):
         new_inst = cls('Could not import %s from %s. Tell Anand. Original error message:\n\n\t%s'%(n,mod_name,inst.message))
         raise cls,new_inst,tb
     return nugget_labels, obs_labels
+
+def parse_quantiles(o):
+    if len(o.quantile_list) == 0:
+        q = []
+    else:
+        q = map(float, o.quantile_list.split(' '))
+    return q
+
     
 def get_reduce_finalize(mod):
     if hasattr(mod, 'extra_reduce_fns'):
@@ -28,6 +36,7 @@ def get_reduce_finalize(mod):
     else:
         extra_reduce_fns = []
         extra_finalize = None
+    return extra_reduce_fns, extra_finalize
         
 def init_output_dir(o, suffix):
     hf_path, hf_basename  = os.path.split(o.hf_name)

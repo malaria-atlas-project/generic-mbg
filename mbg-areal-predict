@@ -81,10 +81,7 @@ nuggets, obs_labels = get_nuggets_and_obs(mod, mod_name, M)
 extra_reduce_fns, extra_finalize = get_reduce_finalize(mod)
 
 # Parse quantiles
-if len(o.quantile_list) == 0:
-    q = []
-else:
-    q = map(float, o.quantile_list.split(' '))
+q=parse_quantiles(o)
 
 # Restore model
 temporal = ('t' in hf.root.input_csv.colnames)

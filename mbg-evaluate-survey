@@ -82,10 +82,7 @@ extra_reduce_fns, extra_finalize = get_reduce_finalize(mod)
 # Parse quantiles and CI's.
 bins = np.linspace(0,1,o.n_bins)
     
-if len(o.quantile_list) == 0:
-    q = []
-else:
-    q = map(decimal.Decimal, o.quantile_list.split(' '))
+q=parse_quantiles(o)
     
 if len(o.credible_intervals) == 0:
     pass
