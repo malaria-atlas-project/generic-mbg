@@ -120,68 +120,6 @@ class zero_inflate_logp(object):
         n_zero=np.sum(x==0)
         return n_zero*np.log(p0) + (np.alen(x)-n_zero)
 
-def create_model(mod,db,input=None):
-    """
-    Takes either:
-    - A module and a database object, or:
-    - A module, a filename and a record array
-    and returns an MCMC object, with step methods assigned.
-    """
-    
-    if isinstance(db,pm.database.hdf5.Database):
-        if input is not None:
-            raise ValueError, 'Input provided with preexisting db.'
-        input = db._h5file.root.input_csv[:]
-        prev_db = db
-        hfname = db._h5file.filename
-    else:
-        if input is None:
-            raise ValueError, 'No input or preexisting db provided.'
-        prev_db=None
-        hfname = db
-    
-    rec2csv(input,'%s-input-data.csv'%hfname)
-
-    x = get_x_from_recarray(input)
-    mod_inputs = tuple(x)
-    mod_inputs[0] *= 180./np.pi
-    mod_inputs[1] *= 180./np.pi
-    
-    non_cov_columns = {}
-    if hasattr(mod, 'non_cov_columns'):
-        non_cov_coltypes = mod.non_cov_columns
-    else:
-        non_cov_coltypes = {}
-    non_cov_colnames = non_cov_coltypes.keys()
-
-    covariate_keys = []
-    for n in input.dtype.names:
-        if n not in ['lon','lat','t']:
-            if n in non_cov_colnames:
-                non_cov_columns[n] = maybe_convert(input, n, non_cov_coltypes[n])
-            else:
-                covariate_keys.append(n)
-
-    mod_inputs = mod_inputs + ('%s-input-data.csv'%hfname,covariate_keys,)
-
-    # Create MCMC object, add metadata, and assign appropriate step method.
-
-    if prev_db is None:
-        M = pm.MCMC(mod.make_model(*mod_inputs,**non_cov_columns),db='hdf5',dbname=hfname,dbcomplevel=1,dbcomplib='zlib')
-    else:
-        M = pm.MCMC(mod.make_model(*mod_inputs,**non_cov_columns),db=prev_db)
-        M.restore_sampler_state()
-        
-    # Pass MCMC object through the module's mcmc_init function.
-    mod.mcmc_init(M)
-    
-    # Restore step method state if possible.
-    M.assign_step_methods() 
-    if prev_db is not None:
-        M.restore_sm_state()
-
-    return M
-
 def spatial_mean(x, m_const):
     return m_const*np.ones(x.shape[0])
     

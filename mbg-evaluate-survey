@@ -75,6 +75,7 @@ survey_plan = pl.csv2rec(o.survey)
 M, hf, mod, mod_name = reload_model(o.module, o.hf_name)
 nuggets, obs_labels = get_nuggets_and_obs(mod, mod_name, M)
 extra_reduce_fns, extra_finalize = get_reduce_finalize(mod)
+all_covariate_keys = M.covariate_keys
 
 # Parse quantiles and CI's.
 bins = np.linspace(0,1,o.n_bins)
@@ -105,7 +106,7 @@ samples = products[postproc[0]]['samples']
 
 # Make output dir and workspace hdf5 file to hold intermediate results.
 init_output_dir(o, '-survey-eval')
-workspace_file = tb.openFile(eval_dir+'.hdf5','w')
+workspace_file = tb.openFile('workspace.hdf5','w')
 workspace_file.createArray('/','unmasked',unmasked)
         
 # Prepare reducing functions that use the workspace file rather than memory.
@@ -122,7 +123,7 @@ if len(q)>0 or len(ci)>0:
 # Warn if the workspace file is going to be enormous.
 upper_gb = samples.shape[0]*x.shape[0]*n_arrays*4*len(mod.map_postproc)/1.e9
 if upper_gb > 1:
-    print '\n\nUpper-bound estimate of size of intermediate results file %s.hdf5 is %f gigabytes. You can decrease this by mapping on a smaller region, by setting the -r / --raster-thin argument to a larger value or by decreasing the number of things you want to map (map_postproc functions).\n\n'%(eval_dir, upper_gb)
+    print '\n\nUpper-bound estimate of size of intermediate results file workspace.hdf5 is %f gigabytes. You can decrease this by mapping on a smaller region, by setting the -r / --raster-thin argument to a larger value or by decreasing the number of things you want to map (map_postproc functions).\n\n'%upper_gb
 
 
 # Do the predictive simulation.

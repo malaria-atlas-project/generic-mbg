@@ -52,7 +52,7 @@ check_args(args, 3)
 o.module, o.hf_name, o.input_name = args
 os.environ['OMP_NUM_THREADS']=str(o.ncpus)
 exec(delayed_import_str)
-from pylab import csv2rec, rec2csvl
+from pylab import csv2rec, rec2csv
 import subprocess
 pm.set_threadpool_size(o.ncpus)
 

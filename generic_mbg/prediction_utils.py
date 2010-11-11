@@ -220,6 +220,15 @@ def raster_to_vals(name, path='.', thin=1, unmasked=None):
             raise ValueError, msg
     
     return data.data[::thin,::thin][unmasked]
+
+def get_mask_t(o, hf):
+    x, unmasked, output_type = raster_to_locs(o.mask_name, thin=o.raster_thin, bufsize=o.bufsize, path=o.raster_path)
+    if o.year is None:
+        if 't' in hf.root.input_csv.colnames:
+            raise ValueError, 'No year provided, but the model appears to be temporal.'
+    else:
+        x = np.vstack((x.T,o.year*np.ones(x.shape[0]))).T
+    return unmasked, x
         
 def display_datapoints(h5file, path='', cmap=None, *args, **kwargs):
     """Adds as hdf5 archive's logp-mesh to an image."""

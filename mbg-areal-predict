@@ -158,7 +158,6 @@ for geomcoll in gjdat['geometries']:
             mps_[geom['properties']['name']]={'geom':g}
     mps[geomcoll['properties']['name']]=mps_
 
-
 points = {}
 products = []
 def extract_covariates(x, covariate_names, path):

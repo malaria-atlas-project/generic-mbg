@@ -14,6 +14,9 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import imp, os, sys
+import numpy as np
+import pymc as pm
+from pylab import csv2rec,rec2csv
 
 delayed_import_str ="""import matplotlib
 matplotlib.use('PDF')
@@ -27,14 +30,14 @@ import pylab as pl"""
 
 def get_nuggets_and_obs(mod, mod_name, M):
     try:
-        nugget_labels = getattr(mod, nugget_labels)
+        nugget_labels = getattr(mod, 'nugget_labels')
         nuggets = dict([(getattr(M,k),getattr(M,v)) for k,v in mod.nugget_labels.iteritems()])
-        obs_labels = getattr(mod, obs_labels)
+        obs_labels = getattr(mod, 'obs_labels')
     except:
         cls,inst,tb = sys.exc_info()
-        new_inst = cls('Could not import %s from %s. Tell Anand. Original error message:\n\n\t%s'%(n,mod_name,inst.message))
+        new_inst = cls('Could not import nugget_labels or obs_labels from %s. Tell Anand. Original error message:\n\n\t%s'%(mod_name,inst.message))
         raise cls,new_inst,tb
-    return nugget_labels, obs_labels
+    return nuggets, obs_labels
 
 def parse_quantiles(o):
     if len(o.quantile_list) == 0:
@@ -60,16 +63,7 @@ def init_output_dir(o, suffix):
         os.mkdir(output_dir)
     except OSError:
         pass
-    os.chdir(output_dir)
-
-def get_mask_t(o, hf):
-    x, unmasked, output_type = raster_to_locs(o.mask_name, thin=o.raster_thin, bufsize=o.bufsize, path=o.raster_path)
-    if o.year is None:
-        if 't' in hf.root.input_csv.colnames:
-            raise ValueError, 'No year provided, but the model appears to be temporal.'
-    else:
-        x = np.vstack((x.T,o.year*np.ones(x.shape[0]))).T
-    return unmasked, x
+    os.chdir(output_dir) 
     
 def combine_spatial_inputs(lon,lat):
     # Convert latitude and longitude from degrees to radians.
@@ -105,7 +99,6 @@ def maybe_convert(ra, field, dtype):
             except:
                 raise ValueError, 'Input column %s, element %i (starting from zero) is %s,\n which cannot be cast to %s'%(field,i,arr[i],dtype)    
 
-
 def get_x_from_recarray(input):
     lon = maybe_convert(input, 'lon', 'float')
     lat = maybe_convert(input, 'lat', 'float')
@@ -134,9 +127,72 @@ def reload_module(module):
     mod = imp.load_module(mod_basename, *imp.find_module(mod_basename, mod_search_path))
     return mod, mod_name
 
+def create_model(mod,db,input=None):
+    """
+    Takes either:
+    - A module and a database object, or:
+    - A module, a filename and a record array
+    and returns an MCMC object, with step methods assigned.
+    """
+    
+    if isinstance(db,pm.database.hdf5.Database):
+        if input is not None:
+            raise ValueError, 'Input provided with preexisting db.'
+        input = db._h5file.root.input_csv[:]
+        prev_db = db
+        hfname = db._h5file.filename
+    else:
+        if input is None:
+            raise ValueError, 'No input or preexisting db provided.'
+        prev_db=None
+        hfname = db
+    
+    rec2csv(input,'%s-input-data.csv'%hfname)
+
+    x = get_x_from_recarray(input)
+    x[:,:2]*=180./np.pi
+    mod_inputs = tuple(x.T)
+    
+    non_cov_columns = {}
+    if hasattr(mod, 'non_cov_columns'):
+        non_cov_coltypes = mod.non_cov_columns
+    else:
+        non_cov_coltypes = {}
+    non_cov_colnames = non_cov_coltypes.keys()
+
+    covariate_keys = []
+    for n in input.dtype.names:
+        if n not in ['lon','lat','t']:
+            if n in non_cov_colnames:
+                non_cov_columns[n] = maybe_convert(input, n, non_cov_coltypes[n])
+            else:
+                covariate_keys.append(n)
+
+    mod_inputs = mod_inputs + ('%s-input-data.csv'%hfname,covariate_keys,)
+
+    # Create MCMC object, add metadata, and assign appropriate step method.
+
+    if prev_db is None:
+        M = pm.MCMC(mod.make_model(*mod_inputs,**non_cov_columns),db='hdf5',dbname=hfname,dbcomplevel=1,dbcomplib='zlib')
+    else:
+        M = pm.MCMC(mod.make_model(*mod_inputs,**non_cov_columns),db=prev_db)
+        M.restore_sampler_state()
+        
+    # Pass MCMC object through the module's mcmc_init function.
+    mod.mcmc_init(M)
+    
+    # Restore step method state if possible.
+    M.assign_step_methods() 
+    if prev_db is not None:
+        M.restore_sm_state()
+
+    return M
+
+
 def reload_model(mod, hf):
     mod, mod_name = reload_module(mod)
-    return create_model(mod,pm.database.hdf5.load(hf)), hf, mod, mod_name
+    db = pm.database.hdf5.load(hf)
+    return create_model(mod,db), db._h5file, mod, mod_name
 
 def check_args(args, n):
     if len(args) != n:

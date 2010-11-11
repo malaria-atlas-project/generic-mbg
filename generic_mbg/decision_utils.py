@@ -15,6 +15,7 @@
 
 from prediction_utils import *
 from inference_utils import close
+import tables as tb
 
 def kldiv(p, mu_pri, V_pri, likefn, norms):
     mu_like = p[0]
