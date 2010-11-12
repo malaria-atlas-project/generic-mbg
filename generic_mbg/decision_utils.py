@@ -17,6 +17,7 @@ from prediction_utils import *
 from inference_utils import close
 import tables as tb
 import time
+import warnings
 
 def kldiv(p, mu_pri, V_pri, likefn, norms):
     """
@@ -79,7 +80,9 @@ def find_approx_params(mu_pri, V_pri, likefn, norms, match_moments, optimfn = No
     mu_like_init = (mu_post_init*(v_like_init+V_pri_)-mu_pri_*v_like_init)/V_pri_
 
     if v_like_init<0:
-        raise RuntimeError, 'Likelihood variance initialized negative, something is wrong.'
+        warnings.warn('Likelihood variance negative, setting to infinity.')
+        v_like_init = np.inf
+        mu_like_init = mu_pri_
     
     if match_moments:
         p = [mu_like_init, v_like_init]
@@ -193,7 +196,6 @@ def find_joint_approx_params(mu_pri, C_pri, likefns, match_moments, approx_param
     
     # Skip this to mock
     iter = 0
-    print 'start'
     while (np.any(np.abs(delta_m)>tol) or np.any(np.abs(delta_v/like_vars)>tol)) and iter < maxiter:
         iter += 1
         if iter % 200 == 0:
