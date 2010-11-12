@@ -216,6 +216,9 @@ def find_joint_approx_params(mu_pri, C_pri, likefns, match_moments, approx_param
             delta_v[i] = new_like_var- like_vars[i]
             like_means[i] = new_like_mean
             like_vars[i] = new_like_var
+            
+            if debug:
+                print i, delta_m[i], delta_v[i]
 
             
             norm_consts[i] = calc_norm_const(norms, like_means[i], like_vars[i], mu[i], C[i,i], likefns[i])
