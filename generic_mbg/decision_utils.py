@@ -18,6 +18,10 @@ from inference_utils import close
 import tables as tb
 
 def kldiv(p, mu_pri, V_pri, likefn, norms):
+    """
+    Approximates the Kullback-Liebler divergence
+    D( N(mu_pri,V_pri)*N(mu_like,V_like) || N(mu_pri,V_pri)*likefn )
+    """
     mu_like = p[0]
     V_like = p[1]
     if V_like < 0:
@@ -30,6 +34,26 @@ def kldiv(p, mu_pri, V_pri, likefn, norms):
     mean_logapprox_like = pm.normal_like(norms, mu_post, 1./V_post)
     
     return (mean_logapprox_like - mean_loglike)/len(norms)
+
+def plotcompare(mu_pri, V_pri, likefn, mu_like, V_like, xlo=-10, xhi=10):
+    """
+    Call from find_approx_params to check the approximation.
+    """
+    import pylab as pl
+    x = np.linspace(xlo,xhi,101)
+    pri = np.exp(-(mu_pri-x)**2/2./V_pri)
+    like = np.exp([likefn(xi) for xi in x])
+    post = like*pri
+    apost = np.exp(-(mu_like-x)**2/2./V_like)*pri
+    for p_ in [pri , like , post , apost]:
+        p_ /= p_.max()
+    pl.clf()
+    pl.plot(x,pri,'b-.')
+    pl.plot(x,like,'r-.')
+    pl.plot(x,post,'r-')
+    pl.plot(x,apost,'g-')
+    from IPython.Debugger import Pdb
+    Pdb(color_scheme='Linux').set_trace() 
     
 def find_approx_params(mu_pri, V_pri, likefn, norms, match_moments, optimfn = None):
     """
@@ -65,6 +89,9 @@ def find_approx_params(mu_pri, V_pri, likefn, norms, match_moments, optimfn = No
             from scipy import optimize
             optimfn = optimize.fmin
         p = optimfn(f, [mu_like_init, v_like_init],disp=0)
+
+    # if np.random.random()>.999:
+    #     plotcompare (mu_pri, V_pri, likefn, p[0], p[1])
 
     return p
     
@@ -146,7 +173,7 @@ def histogram_reduce_with_hdf(bins, binfn, hf, n_reps):
         return 1
     return hr
 
-def find_joint_approx_params(mu_pri, C_pri, likefns, match_moments, approx_param_fn = None, tol=1.e-3, maxiter=100):
+def find_joint_approx_params(mu_pri, C_pri, likefns, match_moments, approx_param_fn = None, tol=1.e-3, maxiter=10000):
     if approx_param_fn is None:
         norms = np.random.normal(size=1000)
     else:
@@ -168,7 +195,8 @@ def find_joint_approx_params(mu_pri, C_pri, likefns, match_moments, approx_param
     iter = 0
     while (np.any(np.abs(delta_m)>tol) or np.any(np.abs(delta_v/like_vars)>tol)) and iter < maxiter:
         iter += 1
-        
+        if iter % 200 == 0:
+            print '%i iterations...'%iter
         for i in xrange(len(mu_pri)):
             
             if not np.isinf(like_vars[i]):
