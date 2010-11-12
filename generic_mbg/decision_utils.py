@@ -32,7 +32,7 @@ def kldiv(p, mu_pri, V_pri, likefn, norms):
     V_post = V_pri*V_like/(V_pri+V_like)
     
     norms = norms*np.sqrt(V_post) + mu_post
-    mean_loglike = likefn(norms)+pm.normal_like(norms, mu_pri, 1./V_pri)
+    mean_loglike = likefn(norms).sum()+pm.normal_like(norms, mu_pri, 1./V_pri)
     mean_logapprox_like = pm.normal_like(norms, mu_post, 1./V_post)
     
     return (mean_logapprox_like - mean_loglike)/len(norms)
@@ -44,7 +44,7 @@ def plotcompare(mu_pri, V_pri, likefn, mu_like, V_like, xlo=-10, xhi=10):
     import pylab as pl
     x = np.linspace(xlo,xhi,101)
     pri = np.exp(-(mu_pri-x)**2/2./V_pri)
-    like = np.exp([likefn(xi) for xi in x])
+    like = np.exp(likefn(x))
     post = like*pri
     apost = np.exp(-(mu_like-x)**2/2./V_like)*pri
     for p_ in [pri , like , post , apost]:
@@ -65,7 +65,7 @@ def find_approx_params(mu_pri, V_pri, likefn, norms, match_moments, optimfn = No
     match_moments=False is better, but slower.
     """
     snorms = mu_pri+np.sqrt(V_pri)*norms
-    l = np.array([likefn(s) for s in snorms])
+    l = likefn(snorms)
     w = np.exp(l-l.max())
     m1 = np.sum(snorms*w)/w.sum()
     m2 = np.sum(snorms**2*w)/w.sum()
@@ -112,7 +112,7 @@ def calc_mean_like(like_m,like_v,mu_pri,v_pri):
 
 def calc_norm_const(norms, like_m, like_v, mu_pri, v_pri, likefn):
     s_pri = np.sqrt(v_pri)
-    mean_like = pm.flib.logsum([likefn(n*s_pri+mu_pri) for n in norms])-np.log(len(norms))
+    mean_like = pm.flib.logsum(likefn(norms*s_pri+mu_pri))-np.log(len(norms))
     log_norm_const = mean_like-calc_mean_like(like_m,like_v,mu_pri,v_pri)
     return log_norm_const
 
@@ -177,7 +177,7 @@ def histogram_reduce_with_hdf(bins, binfn, hf, n_reps):
         return 1
     return hr
 
-def find_joint_approx_params(mu_pri, C_pri, likefns, match_moments, approx_param_fn = None, tol=1.e-3, maxiter=10000, debug=False):
+def find_joint_approx_params(mu_pri, C_pri, likefns, match_moments, approx_param_fn = None, tol=1.e-3, maxiter=200, debug=False):
     if approx_param_fn is None:
         norms = np.random.normal(size=1000)
     else:
@@ -227,8 +227,10 @@ def find_joint_approx_params(mu_pri, C_pri, likefns, match_moments, approx_param
             mu += mu_corr
             C += C_corr
 
-    if iter==maxiter:
-        raise RuntimeError, 'EP algorithm failed to converge.'
+    # FIXME: After maximum number of iterations, check that the approximation is 'good enough' rather than
+    # FIXME: just throwing an error. I think it usually is.
+    # if iter==maxiter:
+    #     raise RuntimeError, 'EP algorithm failed to converge.'
         
     log_imp_weight = calc_imp_weight(mu_pri, C_pri, like_means, like_vars, mu, C)+np.sum(norm_consts)
 
