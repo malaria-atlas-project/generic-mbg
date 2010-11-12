@@ -16,10 +16,8 @@
 
 
       SUBROUTINE meshmatch(tempvals,mesh,cache,cacheval,nm,nc,nd)
-      
 cf2py intent(inplace) tempvals
-cf2py intent(hide) nm,nd,nc
-      
+cf2py intent(hide) nm,nd,nc      
       INTEGER nm,nc,nd,j,k,l
       DOUBLE PRECISION mesh(nm,nd), cache(nc,nd)
       DOUBLE PRECISION tempvals(nm), cacheval(nc)
@@ -44,26 +42,6 @@ cf2py intent(hide) nm,nd,nc
             continue
           end if
       end do
-
-      ! # initialise vector for extracted values
-      ! tempvals = np.repeat(np.nan,len(mesh[:,0]))
-      !     
-      ! # loop through elements of new mesh and attempt to find them in cached mesh ii
-      ! for jj in xrange(0,len(mesh[:,0])):
-      ! 
-      !     print("On element "+str(jj)+" of "+str(len(mesh[:,0])))
-      ! 
-      !     # loop through different meshes stored in cache
-      !     for ii,m in enumerate(self.meshes):
-      ! 
-      !         matchid=((m==mesh[jj,:]).sum(axis=1)==2)
-      ! 
-      !         # if we have a match in cached mesh ii..
-      !         if(sum(matchid)>0):
-      ! 
-      !             # extract value for this mesh location from cache
-      !             tempvals[jj] = self.values[ii][np.where(matchid)[0][0]]
-      !             break
 
       RETURN
       END
