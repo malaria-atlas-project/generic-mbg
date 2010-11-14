@@ -14,6 +14,154 @@
 ! along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 
+      SUBROUTINE mtcimt(m,s,nm,out)
+cf2py intent(copy) m
+cf2py intent(out) out
+cf2py intent(hide) nm
+      EXTERNAL DTRSM
+! DTRSM(SIDE,UPLO,TRANSA,DIAG,M,N,ALPHA,A,LDA,B,LDB)
+*     op( A )*X = alpha*B,   or   X*op( A ) = alpha*B,
+      DOUBLE PRECISION m(nm), s(nm,nm), out
+      INTEGER i, nm
+      EXTERNAL dtrsm
+
+      ! pm.flib.dtrsm_wrap(s,m_,side='l',transa='n',uplo='l')
+      CALL dtrsm('L','L','N','N',nm,1,1.0D0,s,nm,m,nm)
+      out = 0.0D0
+      do i=1,nm
+         out = out + m(i)*m(i)
+      end do
+
+      RETURN
+      END
+
+
+
+
+      SUBROUTINE impw(mr, cr, ml, vl, mp, cp, out, n)
+cf2py intent(out) out
+cf2py intent(hide) n
+cf2py intent(copy) cr, cp
+      DOUBLE PRECISION mr(n), cr(n,n), ml(n), vl(n), mp(n), cp(n,n), out
+      DOUBLE PRECISION sp,sr
+      INTEGER n, i, info
+      EXTERNAL DPOTRF
+
+      call DPOTRF( 'L', n, cr, n, info )
+      call DPOTRF( 'L', n, cp, n, info )
+      call mtcimt(mp,cp,n,sp)
+      call mtcimt(mr,cr,n,sr)
+      
+      out = sp-sr
+            
+      do i=1,n
+         out = out - ml(i)*ml(i)/vl(i)
+         out = out + 2.*(dlog(cp(i,i))-dlog(cr(i,i)))
+      end do
+      
+      out = out * 0.5D0
+
+      RETURN
+      END
+
+      SUBROUTINE meanl(ml, vl, mp, vp, n, out)
+cf2py intent(out) out
+cf2py intent(hide) n
+      DOUBLE PRECISION ml(n), vl(n), mp(n), vp(n), out
+      DOUBLE PRECISION a, b, one, mpi, vpi, mli, vli
+      INTEGER n, i
+
+      one = 1.0D0
+      out = 0.0D0
+
+      do i=1,n
+         mli = ml(i)
+         vli = vl(i)
+         mpi = mp(i)
+         vpi = vp(i)
+
+         a = one/vpi+one/vli
+         b = mpi/vpi+mli/vli
+         
+         out = out + DLOG(a*vpi)
+         out = out-b*b/a+mli*mli/vli+mpi*mpi/vpi
+      end do
+
+      out = -0.5D0*out
+
+      RETURN
+      END
+
+      SUBROUTINE obsc(mp, cp, ml, vl, i, n)
+cf2py intent(inplace) mp, cp
+cf2py intent(hide) n
+      
+      DOUBLE PRECISION mp(n), cp(n,n), cps(n), cpo(n)
+      DOUBLE PRECISION dm, ml, vl     
+      INTEGER n,i,j,k
+      
+      d = cp(i,i)+vl
+      dm = ml-mp(i)
+      
+      do j=1,n
+         cpo(j) = cp(i,j)
+         cps(j) = cp(i,j)/d
+         mp(j) = mp(j)+dm*cps(j)
+      end do
+
+      do j=1,n
+         do k=1,n
+            cp(j,k) = cp(j,k)-cpo(j)*cps(k)
+         end do
+      end do
+
+
+      RETURN
+      END
+
+
+
+      SUBROUTINE linit(l, norms,n, ml, vl)
+cf2py intent(out) ml, vl
+cf2py intent(hide) n
+cf2py intent(inplace) l
+      DOUBLE PRECISION l(n), norms(n), mp, vp, ml, vl
+      INTEGER n, i
+      DOUBLE PRECISION ws, wm, dn, no, no2
+      
+      wm = l(1)
+      ws = 0.0D0
+      ml = 0.0D0
+      vl = 0.0D0
+      mp = 0.0D0
+      vp = 0.0D0
+      dn = n
+
+      do i=2,n
+         wm = max(l(i), wm)
+      end do
+      do i=1,n
+         no = norms(i)
+         no2 = no*no
+         l(i) = dexp(l(i)-wm)
+         ws = ws + l(i)
+         ml = ml + l(i)*no
+         vl = vl + l(i)*no2
+         mp = mp + no
+         vp = vp + no2
+      end do
+      
+      ml = ml / ws
+      vl = vl / ws - ml*ml
+
+      mp = mp / n
+      vp = vp / n - mp*mp
+      
+      vl = vl*vp/(vp-vl)
+      ml = (ml*(vl+vp)-mp*vl)/vp
+
+      RETURN
+      END
 
       SUBROUTINE meshmatch(tempvals,mesh,cache,cacheval,nm,nc,nd)
 cf2py intent(inplace) tempvals

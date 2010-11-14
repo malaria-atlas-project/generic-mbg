@@ -18,8 +18,10 @@ from inference_utils import close
 import tables as tb
 import time
 import warnings
+from histogram_utils import impw, meanl
 
 def kldiv(p, mu_pri, V_pri, likefn, norms):
+    # TODO: Fortran, evenutally.
     """
     Approximates the Kullback-Liebler divergence
     D( N(mu_pri,V_pri)*N(mu_like,V_like) || N(mu_pri,V_pri)*likefn )
@@ -64,26 +66,12 @@ def find_approx_params(mu_pri, V_pri, likefn, norms, match_moments, optimfn = No
     minimizes KL divergence with posterior if False.
     match_moments=False is better, but slower.
     """
+    # TODO: Fortran.
     snorms = mu_pri+np.sqrt(V_pri)*norms
     l = likefn(snorms)
-    w = np.exp(l-l.max())
-    m1 = np.sum(snorms*w)/w.sum()
-    m2 = np.sum(snorms**2*w)/w.sum()
-    
-    mu_post_init = m1
-    v_post_init = m2-m1**2
 
-    mu_pri_ = np.mean(snorms)
-    V_pri_ = np.var(snorms)
-    
-    v_like_init = v_post_init*V_pri/(V_pri_ - v_post_init)
-    mu_like_init = (mu_post_init*(v_like_init+V_pri_)-mu_pri_*v_like_init)/V_pri_
+    mu_like_init, v_like_init = linit(l,snorms)
 
-    if v_like_init<0:
-        warnings.warn('Likelihood variance negative, setting to infinity.')
-        v_like_init = np.inf
-        mu_like_init = mu_pri_
-    
     if match_moments:
         p = [mu_like_init, v_like_init]
     else:
@@ -99,38 +87,11 @@ def find_approx_params(mu_pri, V_pri, likefn, norms, match_moments, optimfn = No
 
     return p
     
-def obs_corrections(mu_pri, C_pri, like_m, like_v, i):
-    C_pri_scale = C_pri[i,:]/(C_pri[i,i]+like_v)
-    C_corr = - np.outer(C_pri[i,:], C_pri_scale)
-    mu_corr = (like_m-mu_pri[i])*C_pri_scale
-    return np.ravel(mu_corr), C_corr
-
-def calc_mean_like(like_m,like_v,mu_pri,v_pri):
-    A = 1./v_pri + 1./like_v
-    B = mu_pri/v_pri + like_m/like_v
-    return -.5*(-B**2/A+like_m**2/like_v+mu_pri**2/v_pri)-.5*np.log(A*v_pri)
-
 def calc_norm_const(norms, like_m, like_v, mu_pri, v_pri, likefn):
     s_pri = np.sqrt(v_pri)
     mean_like = pm.flib.logsum(likefn(norms*s_pri+mu_pri))-np.log(len(norms))
-    log_norm_const = mean_like-calc_mean_like(like_m,like_v,mu_pri,v_pri)
+    log_norm_const = mean_like-meanl(like_m,like_v,mu_pri,v_pri)
     return log_norm_const
-
-def mTcImT(m,s):
-    m_ = np.asarray(m.copy('F')).squeeze()
-    pm.flib.dtrsm_wrap(s,m_,side='l',transa='n',uplo='l')
-    return np.dot(m_,m_)
-
-def logdet(s):
-    return np.sum(np.log(np.diag(s)))*2
-
-def calc_imp_weight(m_pri, c_pri, m_like, v_like, m_post, c_post):
-    s_pri = np.linalg.cholesky(c_pri)
-    s_post = np.linalg.cholesky(c_post)
-
-    log_weight = -.5*(mTcImT(m_pri,s_pri)+np.sum(m_like*m_like/v_like)-mTcImT(m_post,s_post))+.5*(logdet(s_post)-logdet(s_pri))
-
-    return log_weight
 
 def mean_reduce_with_hdf(hf, n_reps):
     def mean_reduce_(sofar, next, name, ind, hf=hf, n_reps=n_reps):
@@ -178,6 +139,7 @@ def histogram_reduce_with_hdf(bins, binfn, hf, n_reps):
     return hr
 
 def find_joint_approx_params(mu_pri, C_pri, likefns, match_moments, approx_param_fn = None, tol=1.e-3, maxiter=200, debug=False):
+
     if approx_param_fn is None:
         norms = np.random.normal(size=1000)
     else:
@@ -191,8 +153,8 @@ def find_joint_approx_params(mu_pri, C_pri, likefns, match_moments, approx_param
     
     norm_consts = np.ones_like(mu_pri)
 
-    mu = mu_pri.copy()
-    C = C_pri.copy()
+    mu = mu_pri.copy('F')
+    C = C_pri.copy('F')
     
     # Skip this to mock
     iter = 0
@@ -202,16 +164,15 @@ def find_joint_approx_params(mu_pri, C_pri, likefns, match_moments, approx_param
         #     print '200 iterations, dropping you into debugger next time.'
         #     debug = True
         for i in xrange(len(mu_pri)):
+            
             if not np.isinf(like_vars[i]):
-                mu_corr, C_corr = obs_corrections(mu, C, like_means[i], -like_vars[i], i)            
-                mu += mu_corr
-                C += C_corr
+                obsc(mu, C, like_means[i], -like_vars[i], i+1)
             
             if approx_param_fn is None:
                 new_like_mean, new_like_var = find_approx_params(mu[i], C[i,i], likefns[i], norms, match_moments, debug=debug)
             else:
                 new_like_mean, new_like_var = approx_param_fn(mu[i], C[i,i], likefns[i])
-    
+            
             delta_m[i] = new_like_mean-like_means[i]
             delta_v[i] = new_like_var- like_vars[i]
             like_means[i] = new_like_mean
@@ -219,21 +180,20 @@ def find_joint_approx_params(mu_pri, C_pri, likefns, match_moments, approx_param
             
             if debug:
                 print i, delta_m[i], delta_v[i]
-
-            
+        
             norm_consts[i] = calc_norm_const(norms, like_means[i], like_vars[i], mu[i], C[i,i], likefns[i])
 
-            mu_corr, C_corr = obs_corrections(mu, C, like_means[i], like_vars[i], i)
-            mu += mu_corr
-            C += C_corr
+            obsc(mu, C, like_means[i], like_vars[i], i+1)
+
 
     # FIXME: After maximum number of iterations, check that the approximation is 'good enough.'
     if iter==maxiter:
         warnings.warn('Maximum iterations used.')
-        
-    log_imp_weight = calc_imp_weight(mu_pri, C_pri, like_means, like_vars, mu, C)+np.sum(norm_consts)
-
+    
+    log_imp_weight = impw(mu_pri,C_pri,like_means,like_vars,mu,C) + np.sum(norm_consts)
+    
     return like_means, like_vars, norm_consts, mu, C, log_imp_weight
+
 
 def hdf5_to_survey_eval(M, x, nuggets, burn, thin, total, fns, postprocs, pred_covariate_dict, survey_x, survey_data, survey_covariate_dict, survey_likelihood, survey_plan, match_moments, finalize=None, continue_past_npd=False):
     
@@ -299,13 +259,14 @@ def hdf5_to_survey_eval(M, x, nuggets, burn, thin, total, fns, postprocs, pred_c
             apply_postprocs_and_reduce(M, n_per, base_M_preds, base_S_preds, postprocs, fns, products, postproc_args, extra_postproc_args, joint=False, ind=-1, norms=norms[s])
 
         try:
-
             for l in xrange(len(survey_data)):   
+
                 M_preds = {}
                 S_preds = {}
                 
 
                 for s in gp_submods:
+
                     mu_pri = M_obs[s](survey_x)
                     C_pri = C_obs[s](survey_x, survey_x)+nugs[s]*np.eye(len(survey_x))
                     
@@ -318,7 +279,7 @@ def hdf5_to_survey_eval(M, x, nuggets, burn, thin, total, fns, postprocs, pred_c
                         closure_dict_ = {'i':ii}
                         closure_dict_.update(closure_dict)
                         optim_fns.append(close(survey_likelihood,**closure_dict_))
-                    
+
                     like_means, like_vars, norm_consts, mu_post, C_post, log_imp_weight = find_joint_approx_params(mu_pri, C_pri, optim_fns, match_moments)
                     
                     log_imp_weights[k,l]=log_imp_weight
@@ -338,12 +299,14 @@ def hdf5_to_survey_eval(M, x, nuggets, burn, thin, total, fns, postprocs, pred_c
                             raise np.linalg.LinAlgError
                     S_preds[s] = np.sqrt(V_pred + nugs[s])    
 
+
                     # TODO: Try it with only a 3dmap reduce.
                     apply_postprocs_and_reduce(M, n_per, M_preds, S_preds, postprocs, fns, products, postproc_args, extra_postproc_args, joint=False, ind=l, norms=norms[s])
+
         
         except np.linalg.LinAlgError:
             continue
-    
+
     for l in xrange(len(survey_data)):
         # Normalize importance weights
         log_imp_weights[:,l] -= pm.flib.logsum(log_imp_weights[:,l])        
