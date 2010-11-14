@@ -211,6 +211,7 @@ def make_pdf(v, out_name):
     pl.colorbar()
     pl.savefig(pdf_name)
 
+
 # Make accumulators to reduce over the summary maps. These can
 # use main memory rather than the workspace file.
 map_reduce_fns = [mean_reduce, var_reduce]

@@ -227,10 +227,9 @@ def find_joint_approx_params(mu_pri, C_pri, likefns, match_moments, approx_param
             mu += mu_corr
             C += C_corr
 
-    # FIXME: After maximum number of iterations, check that the approximation is 'good enough' rather than
-    # FIXME: just throwing an error. I think it usually is.
-    # if iter==maxiter:
-    #     raise RuntimeError, 'EP algorithm failed to converge.'
+    # FIXME: After maximum number of iterations, check that the approximation is 'good enough.'
+    if iter==maxiter:
+        warnings.warn('Maximum iterations used.')
         
     log_imp_weight = calc_imp_weight(mu_pri, C_pri, like_means, like_vars, mu, C)+np.sum(norm_consts)
 
