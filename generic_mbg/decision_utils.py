@@ -198,9 +198,9 @@ def find_joint_approx_params(mu_pri, C_pri, likefns, match_moments, approx_param
     iter = 0
     while (np.any(np.abs(delta_m)>tol) or np.any(np.abs(delta_v/like_vars)>tol)) and iter < maxiter:
         iter += 1
-        if iter % 200 == 0:
-            print '200 iterations, dropping you into debugger next time.'
-            debug = True
+        # if iter % 200 == 0:
+        #     print '200 iterations, dropping you into debugger next time.'
+        #     debug = True
         for i in xrange(len(mu_pri)):
             if not np.isinf(like_vars[i]):
                 mu_corr, C_corr = obs_corrections(mu, C, like_means[i], -like_vars[i], i)            
