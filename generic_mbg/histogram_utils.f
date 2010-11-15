@@ -36,8 +36,6 @@ cf2py intent(hide) nm
       END
 
 
-
-
       SUBROUTINE impw(mr, cr, ml, vl, mp, cp, out, n)
 cf2py intent(out) out
 cf2py intent(hide) n
@@ -97,11 +95,14 @@ cf2py intent(inplace) mp, cp
 cf2py intent(hide) n
       
       DOUBLE PRECISION mp(n), cp(n,n), cps(n), cpo(n)
-      DOUBLE PRECISION dm, ml, vl     
+      DOUBLE PRECISION dm, ml, vl, d     
       INTEGER n,i,j,k
+      
+      i=i+1
       
       d = cp(i,i)+vl
       dm = ml-mp(i)
+      
       
       do j=1,n
          cpo(j) = cp(i,j)

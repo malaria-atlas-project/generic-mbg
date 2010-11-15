@@ -18,13 +18,15 @@ from inference_utils import close
 import tables as tb
 import time
 import warnings
-from histogram_utils import impw, meanl
+from histogram_utils import impw, meanl, obsc, linit
+import scipy
+from scipy import stats
 
 def kldiv(p, mu_pri, V_pri, likefn, norms):
-    # TODO: Fortran, evenutally.
     """
     Approximates the Kullback-Liebler divergence
     D( N(mu_pri,V_pri)*N(mu_like,V_like) || N(mu_pri,V_pri)*likefn )
+    up to a constant of proportionality.
     """
     mu_like = p[0]
     V_like = p[1]
@@ -38,6 +40,28 @@ def kldiv(p, mu_pri, V_pri, likefn, norms):
     mean_logapprox_like = pm.normal_like(norms, mu_post, 1./V_post)
     
     return (mean_logapprox_like - mean_loglike)/len(norms)
+    
+def kld2(like_mean, like_var, mu_pri, v_pri, likefn, norms):
+    """
+    Approximates the Kullback-Liebler divergence
+    D( N(mu_pri,V_pri)*N(mu_like,V_like) || N(mu_pri,V_pri)*likefn ).
+    """
+    mu_post = (mu_pri*like_var + like_mean*v_pri)/(like_var+v_pri)
+    v_post = v_pri*like_var/(v_pri+like_var)
+    
+    h = .5*np.log(2.*np.pi*np.exp(1)*v_post)
+    
+    pri_norms = norms*np.sqrt(v_pri)+mu_pri
+    post_norms = norms*np.sqrt(v_post)+mu_post
+    
+    lr = likefn(pri_norms)
+    lp = likefn(post_norms)
+    pri_logdens = -(post_norms-mu_pri)**2/2./v_pri
+    
+    t1 = pm.flib.logsum(lr)-np.log(len(norms))
+    t2 = np.mean(lp)
+    t3 = np.log(1./np.sqrt(2.*np.pi*v_pri))+np.mean(pri_logdens)
+    return h-t1+t2+t3
 
 def plotcompare(mu_pri, V_pri, likefn, mu_like, V_like, xlo=-10, xhi=10):
     """
@@ -88,14 +112,23 @@ def find_approx_params(mu_pri, V_pri, likefn, norms, match_moments, optimfn = No
     return p
     
 def calc_norm_const(norms, like_m, like_v, mu_pri, v_pri, likefn):
-    s_pri = np.sqrt(v_pri)
-    mean_like = pm.flib.logsum(likefn(norms*s_pri+mu_pri))-np.log(len(norms))
-    log_norm_const = mean_like-meanl(like_m,like_v,mu_pri,v_pri)
-    return log_norm_const
+    """
+    Finds the normalizing constant associated with the exponentiated quadratic
+    approximation to the likelihood.
+    """
+    if v_pri <= 0:
+        # This is evidence of extreme lack of fit.
+        warnings.warn('Got a negative v_pri in calc_norm_const.')
+        return -np.inf
+    else:
+        s_pri = np.sqrt(v_pri)
+        mean_like = pm.flib.logsum(likefn(norms*s_pri+mu_pri))-np.log(len(norms))
+        log_norm_const = mean_like-meanl(like_m,like_v,mu_pri,v_pri)
+        return log_norm_const
 
 def mean_reduce_with_hdf(hf, n_reps):
+    """Produces an accumulator to be used with hdf5_to_samps"""    
     def mean_reduce_(sofar, next, name, ind, hf=hf, n_reps=n_reps):
-        """A function to be used with hdf5_to_samps"""
         if hasattr(hf.root, name+'_mean'):
             hfa = getattr(hf.root, name+'_mean')
         else:
@@ -108,8 +141,8 @@ def mean_reduce_with_hdf(hf, n_reps):
     return mean_reduce_
 
 def var_reduce_with_hdf(hf, n_reps):
+    """Produces an accumulator to be used with hdf5_to_samps"""
     def var_reduce_(sofar, next, name, ind, hf=hf, n_reps=n_reps):
-        """A function to be used with hdf5_to_samps"""
         if hasattr(hf.root, name+'_var'):
             hfa = getattr(hf.root, name+'_var')
         else:
@@ -138,12 +171,12 @@ def histogram_reduce_with_hdf(bins, binfn, hf, n_reps):
         return 1
     return hr
 
-def find_joint_approx_params(mu_pri, C_pri, likefns, match_moments, approx_param_fn = None, tol=1.e-3, maxiter=200, debug=False):
+def find_joint_approx_params(mu_pri, C_pri, likefns, match_moments, approx_param_fn = None, tol=1.e-3, maxiter=100, debug=False):
 
-    if approx_param_fn is None:
-        norms = np.random.normal(size=1000)
-    else:
+    if approx_param_fn is not None:
         raise NotImplementedError
+        
+    norms = np.random.normal(size=1000)
 
     delta_m = np.ones_like(mu_pri)*np.inf
     delta_v = np.ones_like(mu_pri)*np.inf
@@ -156,43 +189,105 @@ def find_joint_approx_params(mu_pri, C_pri, likefns, match_moments, approx_param
     mu = mu_pri.copy('F')
     C = C_pri.copy('F')
     
-    # Skip this to mock
-    iter = 0
-    while (np.any(np.abs(delta_m)>tol) or np.any(np.abs(delta_v/like_vars)>tol)) and iter < maxiter:
-        iter += 1
-        # if iter % 200 == 0:
-        #     print '200 iterations, dropping you into debugger next time.'
-        #     debug = True
-        for i in xrange(len(mu_pri)):
-            
-            if not np.isinf(like_vars[i]):
-                obsc(mu, C, like_means[i], -like_vars[i], i+1)
-            
-            if approx_param_fn is None:
-                new_like_mean, new_like_var = find_approx_params(mu[i], C[i,i], likefns[i], norms, match_moments, debug=debug)
-            else:
-                new_like_mean, new_like_var = approx_param_fn(mu[i], C[i,i], likefns[i])
-            
-            delta_m[i] = new_like_mean-like_means[i]
-            delta_v[i] = new_like_var- like_vars[i]
-            like_means[i] = new_like_mean
-            like_vars[i] = new_like_var
-            
-            if debug:
-                print i, delta_m[i], delta_v[i]
-        
-            norm_consts[i] = calc_norm_const(norms, like_means[i], like_vars[i], mu[i], C[i,i], likefns[i])
+    # Estimate the probability of this simulated dataset given this MCMC sample.
+    # If it is radically improbable, the importance weight will be set to zero
+    # and the algorithm for finding the exponentiated quadratic approximation
+    # will be skipped.
+    init_norm_consts = np.empty_like(mu_pri)
+    init_like_means = np.empty_like(mu_pri)
+    init_like_vars = np.empty_like(mu_pri)
+    for i in xrange(len(mu_pri)):
+        init_like_means[i], init_like_vars[i] = find_approx_params(mu[i], C[i,i], likefns[i], norms, match_moments, debug=debug)
+        init_norm_consts[i] = calc_norm_const(norms, init_like_means[i], init_like_vars[i], mu[i], C[i,i], likefns[i])
 
-            obsc(mu, C, like_means[i], like_vars[i], i+1)
-
-
-    # FIXME: After maximum number of iterations, check that the approximation is 'good enough.'
-    if iter==maxiter:
-        warnings.warn('Maximum iterations used.')
+    if init_norm_consts.min()>-20:
     
-    log_imp_weight = impw(mu_pri,C_pri,like_means,like_vars,mu,C) + np.sum(norm_consts)
+        for iter in xrange(maxiter):
+            # Break the loop at convergence.
+            if (np.all(np.abs(delta_m)<tol) and np.any(np.abs(delta_v/like_vars)<tol)):
+                break
+            # if iter % 200 == 0:
+            #     print '200 iterations, dropping you into debugger next time.'
+            #     debug = True
+            for i in xrange(len(mu_pri)):
+                
+                # 'Unobserve' simulated datapoint i.
+                if not np.isinf(like_vars[i]):
+                    obsc(mu, C, like_means[i], -like_vars[i], i)
+                if np.any(np.diag(C)<0):
+                    warnings.warn('Negative element in diagonal of C, returning early')
+                    return init_like_means, init_like_vars, -np.inf
+            
+                # Find the exponentiated quadratic approximation for datapoint i.
+                if approx_param_fn is None:
+                    new_like_mean, new_like_var = find_approx_params(mu[i], C[i,i], likefns[i], norms, match_moments, debug=debug)
+                else:
+                    new_like_mean, new_like_var = approx_param_fn(mu[i], C[i,i], likefns[i])
+                
+                if np.isnan(new_like_var) or np.isnan(new_like_mean):
+                    raise RuntimeError, 'Nan in like mean or var. Norm consts from prior are %s'%init_norm_consts
+                
+                delta_m[i] = new_like_mean-like_means[i]
+                delta_v[i] = new_like_var- like_vars[i]
+                like_means[i] = new_like_mean
+                like_vars[i] = new_like_var
+            
+                # Compute the normalizing constant of the exponentiated quadratic approximation.
+                norm_consts[i] = calc_norm_const(norms, like_means[i], like_vars[i], mu[i], C[i,i], likefns[i])
+            
+                # 'Re-observe' simulated datapoint i.
+                if not np.isinf(like_vars[i]):
+                    obsc(mu, C, like_means[i], like_vars[i], i)
+                    for i in xrange(len(mu_pri)):
+                        mu_ = mu.copy('F')
+                        C_ = C.copy('F')
+                        obsc(mu_, C_, like_means[i], -like_vars[i], i)
+                        if np.any(np.diag(C_)<0):
+                            raise RuntimeError
+
+        # After maximum number of iterations, check that the approximation is 'good enough.'
+        if iter==maxiter:        
+            klds = []
+            for i in xrange(len(mu_pri)):
+                obsc(mu,C,like_means[i],-like_vars[i],i)
+                klds.append(kld2(like_means[i], like_vars[i], mu[i], C[i,i], likefns[i], norms))
+                obsc(mu,C,like_means[i],like_vars[i],i)
+            # A KL divergence of 0.1 is about OK.
+            max_kld = np.max(klds)
+            if max_kld > 0.2:
+                warnings.warn('Maximum iterations used. Maximum KL divergence %f'%np.max(klds))
     
-    return like_means, like_vars, norm_consts, mu, C, log_imp_weight
+        log_imp_weight = impw(mu_pri,C_pri,like_means,like_vars,mu,C) + np.sum(norm_consts)    
+    else:
+        # This simulated observation is radically improbable given
+        # this MCMC sample, so assign it an importance weight of zero.
+        # It will have no role to play in predictions, and the algorithm
+        # for finding the exponentiated quadratic approximation is likely
+        # to fail, so don't bother.
+        log_imp_weight = -np.inf
+    
+    if np.isnan(log_imp_weight):
+        raise RuntimeError
+    
+    return like_means, like_vars, log_imp_weight
+
+
+def kloop_init(iter, k, M, x, pred_covariate_dict, survey_x, survey_covariate_dict, time_count, time_start):
+     i = iter[k]
+     # Restore the i'th cache fram
+     all_chain_remember(M,i)
+
+     # Add the covariate values on the prediction mesh to the appropriate caches.
+     covariate_covariances = []
+     for d in M.deterministics:
+         if isinstance(d.value, pm.gp.Covariance):
+             if isinstance(d.value.eval_fun,CovarianceWithCovariates):
+                 d.value.eval_fun.add_values_to_cache(x,pred_covariate_dict)
+                 d.value.eval_fun.add_values_to_cache(survey_x,survey_covariate_dict)
+                 d.value.eval_fun.add_values_to_cache(np.vstack((d.value.eval_fun.meshes[0], survey_x[:,:2])), dict([(key, np.hstack((d.value.eval_fun.dicts[0][key], survey_covariate_dict[key]))) for key in survey_covariate_dict.iterkeys()])) 
+
+     # Print a message about how much remains to be done.
+     return time_msg(time_count, k, iter, time_start)
 
 
 def hdf5_to_survey_eval(M, x, nuggets, burn, thin, total, fns, postprocs, pred_covariate_dict, survey_x, survey_data, survey_covariate_dict, survey_likelihood, survey_plan, match_moments, finalize=None, continue_past_npd=False):
@@ -220,35 +315,22 @@ def hdf5_to_survey_eval(M, x, nuggets, burn, thin, total, fns, postprocs, pred_c
     actual_total = n_per * len(iter)
     time_count = -np.inf
     time_start = time.time()
+    like_means = np.zeros((len(iter),)+survey_data.shape)
+    like_vars = np.zeros((len(iter),)+survey_data.shape)
     log_imp_weights = np.zeros((len(iter), len(survey_data)))
     
+    print 'Looping through and getting the exponentiated quadratic approximations.'
     for k in xrange(len(iter)):
         
-        i = iter[k]
-        # Restore the i'th cache fram
-        all_chain_remember(M,i)
-        
-        # Add the covariate values on the prediction mesh to the appropriate caches.
-        covariate_covariances = []
-        for d in M.deterministics:
-            if isinstance(d.value, pm.gp.Covariance):
-                if isinstance(d.value.eval_fun,CovarianceWithCovariates):
-                    d.value.eval_fun.add_values_to_cache(x,pred_covariate_dict)
-                    d.value.eval_fun.add_values_to_cache(survey_x,survey_covariate_dict)
-                    d.value.eval_fun.add_values_to_cache(np.vstack((d.value.eval_fun.meshes[0], survey_x[:,:2])), dict([(key, np.hstack((d.value.eval_fun.dicts[0][key], survey_covariate_dict[key]))) for key in survey_covariate_dict.iterkeys()])) 
-        
-        if time.time() - time_count > 10:
-            print ((k*100)/len(iter)), '% complete',
-            time_count = time.time()      
-            if k > 0:      
-                print 'expect results %s (in %s hours)'%(time.ctime((time_count-time_start)*len(iter)/float(k)+time_start),(time_count-time_start)*(len(iter)-float(k))/float(k)/3600)
-            else:
-                print
+        time_count = kloop_init(iter, k, M, x, pred_covariate_dict, survey_x, survey_covariate_dict, time_count, time_start)
 
         base_M_preds = {}
         base_S_preds = {}
-        norms = dict([(s, np.random.normal(size=n_per)) for s in gp_submods])
+        # Draw some normal variates to use 
+        # norms = dict([(s, scipy.stats.norm.ppf(np.linspace(1e-3,1-1e-3,1000))) for s in gp_submods])
+        norms = dict([(s, np.random.normal(size=1000)) for s in gp_submods])
 
+        # Accumulate for the 'current' maps.
         for s in gp_submods:
             M_obs[s] = pm.utils.value(s.M_obs)
             C_obs[s] = pm.utils.value(s.C_obs)
@@ -256,17 +338,19 @@ def hdf5_to_survey_eval(M, x, nuggets, burn, thin, total, fns, postprocs, pred_c
             base_M_preds[s], base_V_pred = pm.gp.point_eval(M_obs[s], C_obs[s], x)
             base_S_preds[s] = np.sqrt(base_V_pred + nugs[s])
             
-            apply_postprocs_and_reduce(M, n_per, base_M_preds, base_S_preds, postprocs, fns, products, postproc_args, extra_postproc_args, joint=False, ind=-1, norms=norms[s])
+        # The 'ind=-1' means 'given current data only'.
+        apply_postprocs_and_reduce(M, n_per, base_M_preds, base_S_preds, postprocs, fns, products, postproc_args, extra_postproc_args, joint=False, ind=-1, norms=norms[s])
 
         try:
-            for l in xrange(len(survey_data)):   
+            
+            for l in xrange(len(survey_data)):
 
                 M_preds = {}
                 S_preds = {}
-                
 
                 for s in gp_submods:
 
+                    # Assimilate this simulated dataset.
                     mu_pri = M_obs[s](survey_x)
                     C_pri = C_obs[s](survey_x, survey_x)+nugs[s]*np.eye(len(survey_x))
                     
@@ -280,14 +364,41 @@ def hdf5_to_survey_eval(M, x, nuggets, burn, thin, total, fns, postprocs, pred_c
                         closure_dict_.update(closure_dict)
                         optim_fns.append(close(survey_likelihood,**closure_dict_))
 
-                    like_means, like_vars, norm_consts, mu_post, C_post, log_imp_weight = find_joint_approx_params(mu_pri, C_pri, optim_fns, match_moments)
-                    
-                    log_imp_weights[k,l]=log_imp_weight
+                    # The importance weight expresses how probable simulated dataset l is
+                    # given MCMC iteration k.
+                    like_means[k,l], like_vars[k,l], log_imp_weights[k,l] = find_joint_approx_params(mu_pri, C_pri, optim_fns, match_moments)
+        
+        except np.linalg.LinAlgError:
+            continue
+
+    for l in xrange(len(survey_data)):
+        # Normalize importance weights
+        log_imp_weights[:,l] -= pm.flib.logsum(log_imp_weights[:,l])
+
+    print 'Having resampled according to importance weights, producing maps conditional on execution of survey plan.'
+    time_start = time.time()
+    for k in xrange(len(iter)):        
+        time_count = kloop_init(iter, k, M, x, pred_covariate_dict, survey_x, survey_covariate_dict, time_count, time_start)
+
+        # Accumulate for the 'current' maps.
+        for s in gp_submods:
+            M_obs[s] = pm.utils.value(s.M_obs)
+            C_obs[s] = pm.utils.value(s.C_obs)
+            nugs[s] = pm.utils.value(nuggets[s])
+
+        try:
+            for l in xrange(len(survey_data)):
+
+                M_preds = {}
+                S_preds = {}
+
+                for s in gp_submods:
 
                     M_obs_ = copy.copy(M_obs[s])
                     C_obs_ = copy.copy(C_obs[s])
                     
-                    pm.gp.observe(M_obs_, C_obs_, obs_mesh=survey_x, obs_vals = like_means, obs_V = like_vars)
+                    # Accumulate for the 'conditional' maps.
+                    pm.gp.observe(M_obs_, C_obs_, obs_mesh=survey_x, obs_vals = like_means[k,l], obs_V = like_vars[k,l])
 
                     M_preds[s], V_pred = pm.gp.point_eval(M_obs_, C_obs_, x)
 
@@ -297,18 +408,14 @@ def hdf5_to_survey_eval(M, x, nuggets, burn, thin, total, fns, postprocs, pred_c
                             actual_total -= n_per
                             log_imp_weights[k,:] = -np.inf
                             raise np.linalg.LinAlgError
-                    S_preds[s] = np.sqrt(V_pred + nugs[s])    
-
-
-                    # TODO: Try it with only a 3dmap reduce.
-                    apply_postprocs_and_reduce(M, n_per, M_preds, S_preds, postprocs, fns, products, postproc_args, extra_postproc_args, joint=False, ind=l, norms=norms[s])
+                    S_preds[s] = np.sqrt(V_pred + nugs[s])
+                    
+                # The 'ind=l' means 'given simulated dataset l'.
+                apply_postprocs_and_reduce(M, n_per, M_preds, S_preds, postprocs, fns, products, postproc_args, extra_postproc_args, joint=False, ind=l, norms=norms[s])
 
         
         except np.linalg.LinAlgError:
             continue
-
-    for l in xrange(len(survey_data)):
-        # Normalize importance weights
-        log_imp_weights[:,l] -= pm.flib.logsum(log_imp_weights[:,l])        
+    
 
     return actual_total, log_imp_weights

@@ -36,6 +36,16 @@ def all_chain_len(hf):
 def all_chain_trace(hf, name):
     return np.concatenate([np.ravel(chain.PyMCsamples.col(name)) for chain in chains(hf)])
 
+def time_msg(time_count, k, iter, time_start):
+    if time.time() - time_count > 10:
+        print ((k*100)/len(iter)), '% complete',
+        time_count = time.time()      
+        if k > 0:      
+            print 'expect results %s (in %s hours)'%(time.ctime((time_count-time_start)*len(iter)/float(k)+time_start),(time_count-time_start)*(len(iter)-float(k))/float(k)/3600)
+        else:
+            print
+    return time.time()
+
 def plot_variables(M):
     import pylab as pl
     for s in M._variables_to_tally:
@@ -444,21 +454,13 @@ def hdf5_to_areal_samps(M, x, nuggets, burn, thin, total, fns, h, g, pred_covari
 
         i = iter[k]
         
-        if time.time() - time_count > 10:
-            print ((k*100)/len(iter)), '% complete'
-            time_count=time.time()
+        time_count = time_msg(time_count, k, iter, time_start)        
 
-            if k > 0:      
-                print 'expect results %s (in %s hours)'%(time.ctime((time_count-time_start)*len(iter)/float(k)+time_start),(time_count-time_start)*(len(iter)-float(k))/float(k)/3600)
-            else:
-                print
-        
         # Restore the i'th cache fram
         all_chain_remember(M,i)
         
         fs = {}
         for outercoll in x.iterkeys():
-
         
             # Add the covariate values on the prediction mesh to the appropriate caches.
             covariate_covariances = []
@@ -595,14 +597,7 @@ def hdf5_to_samps(M, x, nuggets, burn, thin, total, fns, postprocs, pred_covaria
                 if isinstance(d.value.eval_fun,CovarianceWithCovariates):
                     d.value.eval_fun.add_values_to_cache(x,pred_covariate_dict)
         
-        if time.time() - time_count > 10:
-            print ((k*100)/len(iter)), '% complete'
-            time_count=time.time()
-            
-            if k > 0:      
-                print 'expect results %s (in %s hours)'%(time.ctime((time_count-time_start)*len(iter)/float(k)+time_start),(time_count-time_start)*(len(iter)-float(k))/float(k)/3600)
-            else:
-                print
+        time_count=time_msg(time_count, k, iter, time_start)
         
         try:
             for s in gp_submods:
