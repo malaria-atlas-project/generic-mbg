@@ -379,6 +379,8 @@ def hdf5_to_survey_eval(M, x, nuggets, burn, thin, total, fns, postprocs, pred_c
     time_start = time.time()
     for k in xrange(len(iter)):        
         time_count = kloop_init(iter, k, M, x, pred_covariate_dict, survey_x, survey_covariate_dict, time_count, time_start)
+        
+        norms = dict([(s, np.random.normal(size=1000)) for s in gp_submods])
 
         # Accumulate for the 'current' maps.
         for s in gp_submods:
