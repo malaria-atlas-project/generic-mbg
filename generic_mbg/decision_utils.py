@@ -193,14 +193,14 @@ def find_joint_approx_params(mu_pri, C_pri, likefns, match_moments, approx_param
     # If it is radically improbable, the importance weight will be set to zero
     # and the algorithm for finding the exponentiated quadratic approximation
     # will be skipped.
-    init_norm_consts = np.empty_like(mu_pri)
+    init_evidences = np.empty_like(mu_pri)
     init_like_means = np.empty_like(mu_pri)
     init_like_vars = np.empty_like(mu_pri)
     for i in xrange(len(mu_pri)):
         init_like_means[i], init_like_vars[i] = find_approx_params(mu[i], C[i,i], likefns[i], norms, match_moments, debug=debug)
-        init_norm_consts[i] = calc_norm_const(norms, init_like_means[i], init_like_vars[i], mu[i], C[i,i], likefns[i])
+        init_evidences[i] = pm.flib.logsum(likefns[i](mu[i]+C[i,i]*norms))-np.log(len(mu[i]))
 
-    if init_norm_consts.min()>-20:
+    if init_evidences.min()>-20:
     
         for iter in xrange(maxiter):
             # Break the loop at convergence.
@@ -214,8 +214,9 @@ def find_joint_approx_params(mu_pri, C_pri, likefns, match_moments, approx_param
                 # 'Unobserve' simulated datapoint i.
                 if not np.isinf(like_vars[i]):
                     obsc(mu, C, like_means[i], -like_vars[i], i)
+
                 if np.any(np.diag(C)<0):
-                    warnings.warn('Negative element in diagonal of C, returning early')
+                    warnings.warn('Negative element in diagonal of C. Assuming nonconvergence and returning early')
                     return init_like_means, init_like_vars, -np.inf
             
                 # Find the exponentiated quadratic approximation for datapoint i.
@@ -225,7 +226,8 @@ def find_joint_approx_params(mu_pri, C_pri, likefns, match_moments, approx_param
                     new_like_mean, new_like_var = approx_param_fn(mu[i], C[i,i], likefns[i])
                 
                 if np.isnan(new_like_var) or np.isnan(new_like_mean):
-                    raise RuntimeError, 'Nan in like mean or var. Norm consts from prior are %s'%init_norm_consts
+                    warnings.warn('Nan in like mean or var. Assuming nonconvergence and returning early.')
+                    return init_like_means, init_like_vars, -np.inf
                 
                 delta_m[i] = new_like_mean-like_means[i]
                 delta_v[i] = new_like_var- like_vars[i]
@@ -238,12 +240,6 @@ def find_joint_approx_params(mu_pri, C_pri, likefns, match_moments, approx_param
                 # 'Re-observe' simulated datapoint i.
                 if not np.isinf(like_vars[i]):
                     obsc(mu, C, like_means[i], like_vars[i], i)
-                    for i in xrange(len(mu_pri)):
-                        mu_ = mu.copy('F')
-                        C_ = C.copy('F')
-                        obsc(mu_, C_, like_means[i], -like_vars[i], i)
-                        if np.any(np.diag(C_)<0):
-                            raise RuntimeError
 
         # After maximum number of iterations, check that the approximation is 'good enough.'
         if iter==maxiter:        
@@ -255,8 +251,9 @@ def find_joint_approx_params(mu_pri, C_pri, likefns, match_moments, approx_param
             # A KL divergence of 0.1 is about OK.
             max_kld = np.max(klds)
             if max_kld > 0.2:
-                warnings.warn('Maximum iterations used. Maximum KL divergence %f'%np.max(klds))
-    
+                warnings.warn('Maximum iterations used. Maximum KL divergence %f. Assuming nonconvergence and returning early.'%np.max(klds))
+                return init_like_means, init_like_vars, -np.inf
+                    
         log_imp_weight = impw(mu_pri,C_pri,like_means,like_vars,mu,C) + np.sum(norm_consts)    
     else:
         # This simulated observation is radically improbable given
@@ -264,7 +261,8 @@ def find_joint_approx_params(mu_pri, C_pri, likefns, match_moments, approx_param
         # It will have no role to play in predictions, and the algorithm
         # for finding the exponentiated quadratic approximation is likely
         # to fail, so don't bother.
-        log_imp_weight = -np.inf
+        warnings.warn('Evidence very low (%f), returning early.'%init_evidences.min())
+        return init_like_means, init_like_vars, -np.inf
     
     if np.isnan(log_imp_weight):
         raise RuntimeError
