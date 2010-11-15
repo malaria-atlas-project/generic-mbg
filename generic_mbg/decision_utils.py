@@ -198,7 +198,7 @@ def find_joint_approx_params(mu_pri, C_pri, likefns, match_moments, approx_param
     init_like_vars = np.empty_like(mu_pri)
     for i in xrange(len(mu_pri)):
         init_like_means[i], init_like_vars[i] = find_approx_params(mu[i], C[i,i], likefns[i], norms, match_moments, debug=debug)
-        init_evidences[i] = pm.flib.logsum(likefns[i](mu[i]+C[i,i]*norms))-np.log(len(mu[i]))
+        init_evidences[i] = pm.flib.logsum(likefns[i](mu[i]+np.sqrt(C[i,i])*norms))-np.log(len(mu))
 
     if init_evidences.min()>-20:
     
@@ -261,7 +261,7 @@ def find_joint_approx_params(mu_pri, C_pri, likefns, match_moments, approx_param
         # It will have no role to play in predictions, and the algorithm
         # for finding the exponentiated quadratic approximation is likely
         # to fail, so don't bother.
-        warnings.warn('Evidence very low (%f), returning early.'%init_evidences.min())
+        warnings.warn('Evidence very low (%f), assuming importance weight will be very low and returning early.'%init_evidences.min())
         return init_like_means, init_like_vars, -np.inf
     
     if np.isnan(log_imp_weight):
