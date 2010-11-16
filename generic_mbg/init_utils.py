@@ -15,14 +15,15 @@
 
 import imp, os, sys
 import numpy as np
+import matplotlib
+matplotlib.use('PDF')
+matplotlib.interactive(False)
 import pymc as pm
 from pylab import csv2rec,rec2csv
 import decimal
 
-delayed_import_str ="""import matplotlib
-matplotlib.use('PDF')
-matplotlib.interactive(False)
-
+delayed_import_str ="""
+import matplotlib
 from map_utils import *
 import tables as tb
 import numpy as np
