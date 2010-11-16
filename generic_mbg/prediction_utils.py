@@ -24,6 +24,7 @@ import time
 import os
 import warnings
 import copy
+import decimal
 
 memmax = 2.5e8
 
@@ -299,16 +300,20 @@ def histogram_reduce(bins, binfn):
         return sofar
     return hr
         
-def histogram_finalize(bins, q, hr):
+def histogram_finalize(bins, q, hr, ci=None):
     """Converts accumulated histogram raster to desired quantiles"""
-    def fin(products, n, bins=bins, q=q, hr=hr):
+    def fin(products, n, bins=bins, q=q, hr=hr, ci=ci):
         out = {}
         hist = products[hr]
         # Call to Fortran function qextract
         quantile_surfs = qextract(hist,n,q,bins)
         for i in xrange(len(q)):
             out['quantile-%s'%q[i]] = quantile_surfs[i]
-
+        if ci:
+            for cii in ci:
+                q_lo = (decimal.Decimal(1)-cii)*decimal.Decimal('0.5')
+                q_hi = decimal.Decimal(1)-q_lo
+                out['ci-%s'%cii] = out['quantile-%s'%q_hi]-out['quantile-%s'%q_lo]
         return out
     return fin    
 

@@ -167,7 +167,7 @@ for mp in mod.map_postproc:
                 ci_arrs[cii][i,:] = hist_info['quantile-%s'%(half*(1+cii))]-hist_info['quantile-%s'%(half*(1-cii))]
 print 'Finalizing done in %s seconds'%(time.time()-t1)
 
-map_keys = ['mean','var','std','std_to_mean']+[('quantile_%s'%qi).replace('.','__') for qi in q]+[('ci_%s'%cii).replace('.','__') for cii in ci]
+map_keys = ['mean','var','std','std_to_mean']+[('quantile-%s'%qi).replace('.','__') for qi in q]+[('ci-%s'%cii).replace('.','__') for cii in ci]
 
 # Visualize pickiness of simulated data
 exp_number_retained = np.zeros(len(samples))
@@ -202,8 +202,8 @@ pl.savefig('mass_not_in_mode.pdf')
 
 
 def make_pdf(v, out_name):
-    pdf_name = out_name + '.pdf'
-    print 'Generating output file %s'%(out_name.replace('__','.'))
+    pdf_name = out_name.replace('.','__') + '.pdf'
+    print 'Generating output file %s'%(pdf_name)
 
     lon,lat,data=vec_to_raster(v,o.mask_name,o.raster_path,out_name,unmasked)
     pl.clf()
@@ -217,7 +217,7 @@ def make_pdf(v, out_name):
 map_reduce_fns = [mean_reduce, var_reduce]
 if len(q)>0:
     hsr = histogram_reduce(bins, binfn)
-    hsf = histogram_finalize(bins,q,hsr)
+    hsf = histogram_finalize(bins,q,hsr,ci=ci)
     map_reduce_fns.append(hsr)
 
 # Make finalizing functions to produce summary maps of summary
@@ -239,7 +239,7 @@ def map_finalize(prod, n, q=q):
 for f in mod.map_postproc:
     for k in map_keys:
         # Pull a summary map out of the workspace file.
-        hfnode = getattr(workspace_file.root, mp.__name__+'_'+k)
+        hfnode = getattr(workspace_file.root, (mp.__name__+'_'+k).replace('-','_'))
         # The last row holds the current map.
         v = hfnode[-1]
         make_pdf(v, f.__name__ + '_cur_' + k)
