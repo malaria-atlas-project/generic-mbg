@@ -198,7 +198,9 @@ def find_joint_approx_params(mu_pri, C_pri, likefns, match_moments, approx_param
     init_like_vars = np.empty_like(mu_pri)
     for i in xrange(len(mu_pri)):
         init_like_means[i], init_like_vars[i] = find_approx_params(mu[i], C[i,i], likefns[i], norms, match_moments, debug=debug)
-        init_evidences[i] = pm.flib.logsum(likefns[i](mu[i]+np.sqrt(C[i,i])*norms))-np.log(len(mu))
+        init_evidences[i] = pm.flib.logsum(likefns[i](mu_pri[i]+np.sqrt(C_pri[i,i])*norms))-np.log(len(norms))
+
+    # print init_evidences.min()
 
     if init_evidences.min()>-20:
     
@@ -216,7 +218,8 @@ def find_joint_approx_params(mu_pri, C_pri, likefns, match_moments, approx_param
                     obsc(mu, C, like_means[i], -like_vars[i], i)
 
                 if np.any(np.diag(C)<0):
-                    warnings.warn('Negative element in diagonal of C. Assuming nonconvergence and returning early')
+                    # warnings.warn('Negative element in diagonal of C. Assuming nonconvergence and returning early')
+                    print 'Negative element in diagonal of C. Assuming nonconvergence and returning early. Min evidence: %f'%init_evidences.min()
                     return init_like_means, init_like_vars, -np.inf
             
                 # Find the exponentiated quadratic approximation for datapoint i.
@@ -226,7 +229,8 @@ def find_joint_approx_params(mu_pri, C_pri, likefns, match_moments, approx_param
                     new_like_mean, new_like_var = approx_param_fn(mu[i], C[i,i], likefns[i])
                 
                 if np.isnan(new_like_var) or np.isnan(new_like_mean):
-                    warnings.warn('Nan in like mean or var. Assuming nonconvergence and returning early.')
+                    # warnings.warn('Nan in like mean or var. Assuming nonconvergence and returning early.')
+                    print 'Nan in like mean or var. Assuming nonconvergence and returning early. Min evidence: %f'%init_evidences.min()
                     return init_like_means, init_like_vars, -np.inf
                 
                 delta_m[i] = new_like_mean-like_means[i]
@@ -251,7 +255,8 @@ def find_joint_approx_params(mu_pri, C_pri, likefns, match_moments, approx_param
             # A KL divergence of 0.1 is about OK.
             max_kld = np.max(klds)
             if max_kld > 0.2:
-                warnings.warn('Maximum iterations used. Maximum KL divergence %f. Assuming nonconvergence and returning early.'%np.max(klds))
+                # warnings.warn('Maximum iterations used. Maximum KL divergence %f. Assuming nonconvergence and returning early.'%np.max(klds))
+                print 'Maximum iterations used. Maximum KL divergence %f. Assuming nonconvergence and returning early.'%np.max(klds)
                 return init_like_means, init_like_vars, -np.inf
                     
         log_imp_weight = impw(mu_pri,C_pri,like_means,like_vars,mu,C) + np.sum(norm_consts)    
@@ -261,7 +266,8 @@ def find_joint_approx_params(mu_pri, C_pri, likefns, match_moments, approx_param
         # It will have no role to play in predictions, and the algorithm
         # for finding the exponentiated quadratic approximation is likely
         # to fail, so don't bother.
-        warnings.warn('Evidence very low (%f), assuming importance weight will be very low and returning early.'%init_evidences.min())
+        # warnings.warn('Evidence very low (%f), assuming importance weight will be very low and returning early.'%init_evidences.min())
+        print 'Evidence very low (%f), assuming importance weight will be very low and returning early.'%init_evidences.min()
         return init_like_means, init_like_vars, -np.inf
     
     if np.isnan(log_imp_weight):
@@ -310,7 +316,9 @@ def hdf5_to_survey_eval(M, x, nuggets, burn, thin, total, fns, postprocs, pred_c
     if len(iter)==0:
         raise ValueError, 'You asked for %i burnin iterations with thinnnig %i but the chains are only %i iterations long.'%(burn, thin, all_chain_len(hf))
     n_per = total/len(iter)+1
-    actual_total = n_per * len(iter)
+    actual_totals=np.zeros(len(survey_data)+1,dtype='int')
+    actual_totals[-1] = len(iter)*n_per
+    
     time_count = -np.inf
     time_start = time.time()
     like_means = np.zeros((len(iter),)+survey_data.shape)
@@ -328,18 +336,26 @@ def hdf5_to_survey_eval(M, x, nuggets, burn, thin, total, fns, postprocs, pred_c
         # norms = dict([(s, scipy.stats.norm.ppf(np.linspace(1e-3,1-1e-3,1000))) for s in gp_submods])
         norms = dict([(s, np.random.normal(size=1000)) for s in gp_submods])
 
-        # Accumulate for the 'current' maps.
-        for s in gp_submods:
-            M_obs[s] = pm.utils.value(s.M_obs)
-            C_obs[s] = pm.utils.value(s.C_obs)
-            nugs[s] = pm.utils.value(nuggets[s])
-            base_M_preds[s], base_V_pred = pm.gp.point_eval(M_obs[s], C_obs[s], x)
-            base_S_preds[s] = np.sqrt(base_V_pred + nugs[s])
-            
-        # The 'ind=-1' means 'given current data only'.
-        apply_postprocs_and_reduce(M, n_per, base_M_preds, base_S_preds, postprocs, fns, products, postproc_args, extra_postproc_args, joint=False, ind=-1, norms=norms[s])
-
         try:
+            
+            # Accumulate for the 'current' maps.
+            for s in gp_submods:
+                M_obs[s] = pm.utils.value(s.M_obs)
+                C_obs[s] = pm.utils.value(s.C_obs)
+                nugs[s] = pm.utils.value(nuggets[s])
+                base_M_preds[s], base_V_pred = pm.gp.point_eval(M_obs[s], C_obs[s], x)
+                if np.any(base_V_pred<0):
+                    if continue_past_npd:
+                        warnings.warn('Some elements of V_pred were negative. Not using this MCMC iteration with this simulated dataset.')
+                        actual_totals[-1] -= n_per                    
+                        raise np.linalg.LinAlgError
+                    else: 
+                        raise RuntimeError, 'Some elements of V_pred were negative.'
+                
+                base_S_preds[s] = np.sqrt(base_V_pred + nugs[s])
+            
+            # The 'ind=-1' means 'given current data only'.
+            apply_postprocs_and_reduce(M, n_per, base_M_preds, base_S_preds, postprocs, fns, products, postproc_args, extra_postproc_args, joint=False, ind=-1, norms=norms[s])
             
             for l in xrange(len(survey_data)):
 
@@ -367,15 +383,27 @@ def hdf5_to_survey_eval(M, x, nuggets, burn, thin, total, fns, postprocs, pred_c
                     like_means[k,l], like_vars[k,l], log_imp_weights[k,l] = find_joint_approx_params(mu_pri, C_pri, optim_fns, match_moments)
         
         except np.linalg.LinAlgError:
-            continue
+            if continue_past_npd:
+                # If any MCMC sample leads to NPD at the survey locations, discard it.
+                warnings.warn('LinAlgError when trying to find exponentiated quadratic approximation. Discarding MCMC iteration.')
+                log_imp_weights[k,:]=-np.inf
+                continue
+            else:
+                raise RuntimeError, 'LinAlgError when trying to find exponentiated quadratic approximation.'
 
+    # Figure out how many copies of each MCMC iteration to use for each simulated dataset.
+    samp_multiplicities = np.zeros_like(log_imp_weights).astype('int')
     for l in xrange(len(survey_data)):
         # Normalize importance weights
         log_imp_weights[:,l] -= pm.flib.logsum(log_imp_weights[:,l])
+        samp_multiplicities[:,l] = pm.rmultinomial(len(iter)*n_per, np.exp(log_imp_weights[:,l]))
+        
 
     print 'Having resampled according to importance weights, producing maps conditional on execution of survey plan.'
     time_start = time.time()
+    
     for k in xrange(len(iter)):        
+
         time_count = kloop_init(iter, k, M, x, pred_covariate_dict, survey_x, survey_covariate_dict, time_count, time_start)
         
         norms = dict([(s, np.random.normal(size=1000)) for s in gp_submods])
@@ -386,9 +414,11 @@ def hdf5_to_survey_eval(M, x, nuggets, burn, thin, total, fns, postprocs, pred_c
             C_obs[s] = pm.utils.value(s.C_obs)
             nugs[s] = pm.utils.value(nuggets[s])
 
-        try:
-            for l in xrange(len(survey_data)):
-
+        
+        for l in xrange(len(survey_data)):
+            if samp_multiplicities[k,l]==0:
+                continue
+            try:
                 M_preds = {}
                 S_preds = {}
 
@@ -404,18 +434,19 @@ def hdf5_to_survey_eval(M, x, nuggets, burn, thin, total, fns, postprocs, pred_c
 
                     if np.any(V_pred<0):
                         if continue_past_npd:
-                            warnings.warn('Some elements of V_pred were negative. Assuming non-positive definiteness but not checking yet.')
-                            actual_total -= n_per
-                            log_imp_weights[k,:] = -np.inf
+                            warnings.warn('Some elements of V_pred were negative. Not using this MCMC iteration with this simulated dataset.')
                             raise np.linalg.LinAlgError
+                        else: 
+                            raise RuntimeError, 'Some elements of V_pred were negative.'
                     S_preds[s] = np.sqrt(V_pred + nugs[s])
                     
                 # The 'ind=l' means 'given simulated dataset l'.
-                apply_postprocs_and_reduce(M, n_per, M_preds, S_preds, postprocs, fns, products, postproc_args, extra_postproc_args, joint=False, ind=l, norms=norms[s])
+                apply_postprocs_and_reduce(M, samp_multiplicities[k,l], M_preds, S_preds, postprocs, fns, products, postproc_args, extra_postproc_args, joint=False, ind=l, norms=norms[s])
+                actual_totals[l] += samp_multiplicities[k,l]
 
         
-        except np.linalg.LinAlgError:
-            continue
-    
+            except np.linalg.LinAlgError:
+                continue
 
-    return actual_total, log_imp_weights
+    # FIXME
+    return actual_totals, log_imp_weights

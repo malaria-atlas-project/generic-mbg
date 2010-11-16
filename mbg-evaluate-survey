@@ -129,7 +129,7 @@ if upper_gb > 1:
 # Do the predictive simulation.
 print 'Updating the posterior for each simulated dataset, and simulating on predictive raster.'
 t1 = time.time()
-actual_total, log_imp_weights = hdf5_to_survey_eval(M, x, nuggets, o.burn, o.thin, o.total, reduce_fns, mod.map_postproc, covariate_dict, survey_x, samples, survey_covariate_dict, mod.survey_likelihood, survey_plan, o.match_moments, finalize=None, continue_past_npd=False)
+actual_totals, log_imp_weights = hdf5_to_survey_eval(M, x, nuggets, o.burn, o.thin, o.total, reduce_fns, mod.map_postproc, covariate_dict, survey_x, samples, survey_covariate_dict, mod.survey_likelihood, survey_plan, o.match_moments, finalize=None, continue_past_npd=False)
 print 'Posterior predictive simulations done in %s seconds'%(time.time()-t1)
 
 
@@ -152,13 +152,13 @@ for mp in mod.map_postproc:
         ci_arrs = dict([(cii, workspace_file.createCArray('/',(mp.__name__ + '_ci_%s'%cii).replace('.','__'), shape=mean_arr.shape,atom=tb.FloatAtom(),filters=tb.Filters(complevel=1,complib='zlib'))) for cii in ci])
     
     for i in xrange(mean_arr.shape[0]):
-        mean_arr[i] = mean_arr[i]/actual_total
-        var_arr[i] = var_arr[i]/actual_total - mean_arr[i]**2
+        mean_arr[i] = mean_arr[i]/actual_totals[i]
+        var_arr[i] = var_arr[i]/actual_totals[i] - mean_arr[i]**2
         std_arr[i] = np.sqrt(var_arr[i])
         std_to_mean_arr[i] = std_arr[i] / mean_arr[i]
         
         if len(q)>0:
-            hist_info = hsf({hsr: hist_arr[i,:]}, actual_total)
+            hist_info = hsf({hsr: hist_arr[i,:]}, actual_totals[i])
             for qi in q:
                 quantile_arrs[qi][i,:] = hist_info['quantile-%s'%qi]
 
@@ -174,7 +174,7 @@ exp_number_retained = np.zeros(len(samples))
 mass_not_in_mode = np.zeros(len(samples))
 for l in xrange(len(samples)):
     imp_weights = np.exp(log_imp_weights[:,l])
-    exp_number_retained[l] = np.sum(1.-(1-imp_weights)**actual_total)
+    exp_number_retained[l] = np.sum(1.-(1-imp_weights)**actual_totals[-1])
     mass_not_in_mode[l] = 1-imp_weights.max()
 # Make histogram of expected number of MCMC samples retained.
 # If this is close to 1, the posterior given the simulated data
@@ -182,7 +182,7 @@ for l in xrange(len(samples)):
 # will not be successful.
 pl.clf()
 pl.hist(exp_number_retained,50)
-pl.title('Total samples = %i'%actual_total)
+pl.title('Total samples = %i'%actual_totals[-1])
 pl.savefig('exp_number_retained.pdf')
 # Make histogram of the log of the importance mass not in the mode
 # for each simulated dataset. If this is large and negative, the
