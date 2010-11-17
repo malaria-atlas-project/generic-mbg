@@ -472,7 +472,7 @@ def hdf5_to_areal_samps(M, x, nuggets, burn, thin, total, fns, h, g, pred_covari
             for d in M.deterministics:
                 if isinstance(d.value, pm.gp.Covariance):
                     if isinstance(d.value.eval_fun,CovarianceWithCovariates):
-                        for innercoll, x_ in x[outercoll].itervalues():
+                        for innercoll, x_ in x[outercoll].iteritems():
                             d.value.eval_fun.add_values_to_cache(x_, pred_covariate_dict[outercoll][innercoll])
 
             for s in gp_submods:
