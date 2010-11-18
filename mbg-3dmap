@@ -73,6 +73,13 @@ bins = np.linspace(0,1,o.n_bins)
 
 # Create predictive locations
 unmasked, x = get_mask_t(o, hf)
+i_where = np.where(np.sum(unmasked,axis=1))[0]
+j_where = np.where(np.sum(unmasked,axis=0))[0]
+# TODO: Compute bounding box, warn if it's too big.
+i_min, i_max = i_where[0],i_where[-1]
+j_min, j_max = j_where[0],j_where[-1]
+mem_est = o.n_bins*(i_max-i_min+1)*(j_max-j_min+1)*8
+print 'Estimated memory requirement %f gigabytes'%(mem_est/1.e9)
 
 # Load covariates
 covariate_dict = get_covariate_dict(M, o, unmasked)
@@ -83,18 +90,18 @@ def binfn(arr,n_bins=o.n_bins):
 
 hsr = histogram_reduce(bins, binfn)
 
-def finalize(prod, n):
+def finalize(prod, n, bbox=(i_min,i_max,j_min,j_max)):
     # Use unmasked here...
     n_ = float(n)
     mean = np.zeros(unmasked.shape)
     mean[unmasked] = prod[mean_reduce] / n_
     
-    density_field = np.zeros(unmasked.shape+(o.n_bins,))
+    i_min,i_max,j_min,j_max = bbox
+    density_field = np.zeros((i_max-i_min+1,j_max-j_min+1,o.n_bins,))
+    unmasked_ = unmasked[i_min:i_max+1,j_min:j_max+1]
+    # This should work even within the cutout.
     for i in xrange(o.n_bins):
-        density_field[:,:,i][unmasked] = prod[hsr][:,i]/n_
-    
-    # from IPython.Debugger import Pdb
-    # Pdb(color_scheme='LightBG').set_trace() 
+        density_field[:,:,i][unmasked_] = prod[hsr][:,i]/n_
     
     return {'density_field': density_field, 'mean': mean}
 
@@ -117,5 +124,5 @@ for f in mp:
     output_hdf5.createTable('/','input_csv',hf.root.input_csv[:])
     output_hdf5.createCArray('/','density_field',tb.FloatAtom(),unmasked.shape+(o.n_bins,),filters=tb.Filters(complevel=1, complib='zlib'))
     output_hdf5.createArray('/','unmasked',unmasked)
-    output_hdf5.root.density_field[:] = products[f]['density_field'][:]
+    output_hdf5.root.density_field[i_min:i_max+1,j_min:j_max+1,:] = products[f]['density_field'][:]
     output_hdf5.close()
