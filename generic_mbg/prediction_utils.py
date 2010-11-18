@@ -289,7 +289,7 @@ def sample_finalize(prod, n):
 
 def histogram_reduce(bins, binfn):
     """Produces an accumulator to be used with hdf5_to_samps"""
-    def hr(sofar, next, name):
+    def hr(sofar, next, name, bins=bins, binfn=binfn):
         next = np.atleast_1d(next)
         if sofar is None:
             sofar = np.zeros(next.shape+(len(bins),), dtype=int, order='F')

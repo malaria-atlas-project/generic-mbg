@@ -78,7 +78,7 @@ extra_reduce_fns, extra_finalize = get_reduce_finalize(mod)
 
 # Parse quantiles
 q=parse_quantiles(o)
-bins = np.linspace(0,1,o.n_bins)
+bins = np.linspace(0,1,o.n_bins+1)
 
 # Create predictive locations
 unmasked, x = get_mask_t(o, hf)

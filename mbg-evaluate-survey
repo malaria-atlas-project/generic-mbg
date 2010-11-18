@@ -78,7 +78,7 @@ extra_reduce_fns, extra_finalize = get_reduce_finalize(mod)
 all_covariate_keys = M.covariate_keys
 
 # Parse quantiles and CI's.
-bins = np.linspace(0,1,o.n_bins)
+bins = np.linspace(0,1,o.n_bins+1)
 q=parse_quantiles(o)
 if len(o.credible_intervals) == 0:
     pass

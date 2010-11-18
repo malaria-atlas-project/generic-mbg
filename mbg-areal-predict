@@ -81,7 +81,7 @@ extra_reduce_fns, extra_finalize = get_reduce_finalize(mod)
 
 q=parse_quantiles(o)
 temporal = ('t' in hf.root.input_csv.colnames)
-bins = np.linspace(0,1,o.n_bins)
+bins = np.linspace(0,1,o.n_bins+1)
 
 # Create covariate locations
 ck = copy.copy(M.covariate_keys)
