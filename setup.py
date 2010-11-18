@@ -15,6 +15,7 @@
 
 from setuptools import setup
 from numpy.distutils.misc_util import Configuration
+from numpy.distutils.system_info import get_info
 import os
 import subprocess
 import sys
@@ -27,8 +28,10 @@ for v in sys.argv:
         
 
 config = Configuration('generic_mbg',parent_package=None,top_path=None)
-
-config.add_extension(name='histogram_utils',sources=['generic_mbg/histogram_utils.f'])
+lapack_info = get_info('lapack_opt',1)
+if not lapack_info:
+    raise RuntimeError, 'Cannot locate BLAS/LAPACK libraries.'
+config.add_extension(name='histogram_utils',sources=['generic_mbg/histogram_utils.f'],extra_info=lapack_info)
 
 def get_syscall_output(str):
     process = subprocess.Popen(str, stdout=subprocess.PIPE, shell=True)
