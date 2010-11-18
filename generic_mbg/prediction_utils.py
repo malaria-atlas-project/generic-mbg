@@ -461,7 +461,7 @@ def hdf5_to_areal_samps(M, x, nuggets, burn, thin, total, fns, h, g, pred_covari
         
         time_count = time_msg(time_count, k, iter, time_start)        
 
-        # Restore the i'th cache fram
+        # Restore the i'th cache from trace
         all_chain_remember(M,i)
         
         fs = {}

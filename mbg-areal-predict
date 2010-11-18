@@ -123,7 +123,8 @@ def finalize(prod, n, q=q, ef=extra_finalize, qu=o.quantile_uplim, ql=o.quantile
     var = prod[var_reduce] / n - mean**2
     std = np.sqrt(var)
     std_to_mean = std/mean
-    out = {'mean': mean, 'var': var, 'std': std, 'std-to-mean':std_to_mean}
+    samps = np.array(prod[sample_reduce])
+    out = {'mean': mean, 'var': var, 'std': std, 'std-to-mean':std_to_mean,'samples':samps}
     if len(q)>0:
         fin = hsf(prod, n)
         out.update(dict([(k,fin[k]*(qu-ql)+ql) for k in fin.iterkeys()]))
@@ -131,7 +132,7 @@ def finalize(prod, n, q=q, ef=extra_finalize, qu=o.quantile_uplim, ql=o.quantile
         out.update(ef(prod, n))
     return out
 
-reduce_fns = [mean_reduce, var_reduce]
+reduce_fns = [mean_reduce, var_reduce, sample_reduce]
 if len(q)>0:
     reduce_fns = reduce_fns + [hsr]
 
@@ -201,3 +202,19 @@ print '\nAreal predictions produced in %f seconds\n'%(time.time() - t_start)
 # Write out.
 # Products is [{geomcoll: {postproc: {finalization: value}}}]
 # Want to write out in order {geomcoll: {postproc: {finalization: [value]}}}
+
+init_output_dir(o,'areal-predictions')
+hf_out = tb.openFile('areal-predictions.hdf5','w')
+desc = {}
+finalizations = products[0].values()[0].values()[0]
+for k,v in finalizations.iteritems():
+    desc[k] = tb.Float64Col(shape=np.shape(v))
+for geomcoll in products[0].iterkeys():
+    g=hf_out.createGroup('/',geomcoll)
+    for k,v in products[0][geomcoll].iteritems():
+    	t=hf_out.createTable('/'+geomcoll,k.__name__,desc)
+	row = t.row
+	for i in xrange(o.reps):
+	    for k_,v_ in v.iteritems():
+	    	row[k_]=v_
+	    row.append()
