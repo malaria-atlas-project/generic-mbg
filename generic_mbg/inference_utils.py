@@ -289,8 +289,6 @@ class CovarianceWithCovariates(object):
         self.file = file
         self.keys = keys
         self.ui = ui
-        from IPython.Debugger import Pdb
-        Pdb(color_scheme='Linux').set_trace() 
         self.meshes = [mesh]
         self.dicts = [dict([(k,ra[k][ui]) for k in self.labels])]
         self.evaluators = dict([(k,CachingCovariateEvaluator(mesh, ra[k][ui])) for k in self.labels])
