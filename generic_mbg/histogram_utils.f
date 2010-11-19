@@ -177,7 +177,7 @@ cf2py intent(hide) nm,nd,nc
               do k=1,nc
                   match=.TRUE.
                   do l=1,nd
-                      if (mesh(j,l).NE.cache(k,l)) then
+                      if (DABS(mesh(j,l)-cache(k,l)).GE.1.0D-10) then
                           match=.FALSE.
                           go to 101
                        end if
@@ -237,7 +237,7 @@ cf2py intent(out) start,stopp
         do j=1,nd
           do i=1,n1
 !           If they're the same size, no mismatch is tolerated.
-            if (m1(i,j).NE.m2(i,j)) then
+            if (DABS(m1(i,j)-m2(i,j)).GE.1.0D-10) then
               start = -1
               stopp = -1
               RETURN
@@ -253,7 +253,7 @@ cf2py intent(out) start,stopp
         do i=1,(n1-n2+1)
           all=.TRUE.
           do j=1,nd
-            if (m1(i,j).NE.m2(1,j)) then
+            if (DABS(m1(i,j)-m2(1,j)).GE.1.0D-10) then
               all=.FALSE.
             end if
           end do
@@ -264,7 +264,7 @@ cf2py intent(out) start,stopp
               all = .TRUE.
 !             Check the next n2 rows. If any mismatch is found, drop out of the loop.
               do k=1,n2-1
-                if (m1(i+k,j).NE.m2(k+1,j)) then
+                if (DABS(m1(i+k,j)-m2(k+1,j)).GE.1.0D-10) then
                   all = .FALSE.
 !                   print *,'Mismatch at ',k
                   goto 1

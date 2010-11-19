@@ -233,8 +233,6 @@ class CachingCovariateEvaluator(object):
     def add_value_to_cache(self, mesh, value):
         if np.any(np.isnan(value)):
             raise ValueError, 'NaN in covariate values'
-        # elif len(set(value))==1:
-        #     raise ValueError, 'Only one value in covariate. Not going to learn much here.'
         self.meshes.append(mesh)
         self.values.append(((value-self.shift)/self.scale).astype('float'))
 
@@ -247,33 +245,10 @@ class CachingCovariateEvaluator(object):
                     raise ValueError
                 return self.values[i][start:stop]
 
-        # raise RuntimeError, 'The given mesh is not present as a contiguous block in cache.'
-        # print( "The given mesh is not present as contiguous block in cache, checking if present in non-contiguous blocks")
-
         tempvals = np.empty(mesh.shape[0])
         tempvals.fill(np.nan)
         for m,v in zip(self.meshes, self.values):
             meshmatch(tempvals,mesh,m,v)
-
-        # # initialise vector for extracted values
-        # tempvals = np.repeat(np.nan,len(mesh[:,0]))
-        #     
-        # # loop through elements of new mesh and attempt to find them in cached mesh ii
-        # for jj in xrange(0,len(mesh[:,0])):
-        # 
-        #     print("On element "+str(jj)+" of "+str(len(mesh[:,0])))
-        # 
-        #     # loop through different meshes stored in cache
-        #     for ii,m in enumerate(self.meshes):
-        # 
-        #         matchid=((m==mesh[jj,:]).sum(axis=1)==2)
-        # 
-        #         # if we have a match in cached mesh ii..
-        #         if(sum(matchid)>0):
-        # 
-        #             # extract value for this mesh location from cache
-        #             tempvals[jj] = self.values[ii][np.where(matchid)[0][0]]
-        #             break
 
         # check all mesh locations have been identified in cache
         notfound = np.sum(np.isnan(tempvals)) 
@@ -314,9 +289,11 @@ class CovarianceWithCovariates(object):
         self.file = file
         self.keys = keys
         self.ui = ui
+        from IPython.Debugger import Pdb
+        Pdb(color_scheme='Linux').set_trace() 
         self.meshes = [mesh]
         self.dicts = [dict([(k,ra[k][ui]) for k in self.labels])]
-        self.evaluators = dict([(k,CachingCovariateEvaluator(mesh[:,:2], ra[k][ui])) for k in self.labels])
+        self.evaluators = dict([(k,CachingCovariateEvaluator(mesh, ra[k][ui])) for k in self.labels])
         self.cov_fun = cov_fun
         self.fac = fac
         self.ampsq_is_diag = ampsq_is_diag
