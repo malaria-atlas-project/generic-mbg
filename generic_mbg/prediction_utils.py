@@ -20,6 +20,7 @@ from map_utils import import_raster, export_raster
 from scipy import ndimage, mgrid
 from histogram_utils import *
 from inference_utils import invlogit, fast_inplace_mul, fast_inplace_square, crossmul_and_sum, CovarianceWithCovariates
+from init_utils import grid_convert
 import time
 import os
 import warnings
@@ -128,119 +129,7 @@ def all_chain_remember(M, i):
             M.remember(k,j)
         else:
             j -= lens[k]
-    
-def validate_format_str(st):
-    for i in [0,2]:
-        if not st[i] in ['x','y']:
-            raise ValueError, 'Directions must be x or y'
-    for j in [1,3]:
-        if not st[j] in ['-', '+']:
-            raise ValueError, 'Orders must be + or -'
-            
-    if st[0]==st[2]:
-        raise ValueError, 'Directions must be different'
-    
-    
-def grid_convert(g, frm, to, validate=False):
-    """Converts a grid to a new layout.
-      - g : 2d array
-      - frm : format string
-      - to : format string
-      
-      Example format strings:
-        - x+y+ (the way Anand does it) means that 
-            - g[i+1,j] is west of g[i,j]
-            - g[i,j+1] is north of g[i,j]
-        - y-x+ (map view) means that 
-            - g[i+1,j] is south of g[i,j]
-            - g[i,j+1] is west of g[i,j]"""
-    
-    # Validate format strings
-    if validate:
-        for st in [frm, to]:
-            validate_format_str(st)
-        
-    # Transpose if necessary
-    if not frm[0]==to[0]:
-        g = g.T
-                
-    first_dir = to[1]
-    if not first_dir == frm[frm.find(to[0])+1]:
-        g=g[::-1,:]
-        
-    sec_dir = to[3]
-    if not sec_dir == frm[frm.find(to[2])+1]:
-        g=g[:,::-1]
-        
-    # print first_dir, sec_dir
-    return g
-
-def get_circle(n):
-    cover = np.arange(-n,n+1)
-    coversq = np.dstack(np.meshgrid(cover,cover))
-    covercirc = np.where(np.sum(coversq**2, axis=-1)<=n**2)
-    out =  coversq[covercirc]
-    return out
-
-def buffer(arr, n=5):
-    """Creates an n-pixel buffer in all directions."""
-    arr = np.asarray(arr,order='F',dtype='bool')
-    if n > 0:
-        circ_ind = get_circle(n)
-        out = bufster(arr, circ_ind)
-    else:
-        out = arr.copy('F')
-    return out.astype('bool')
-
-def raster_to_locs(name, path='.', thin=1, bufsize=1):
-    """Converts a raster grid to a list of locations where prediction is desired."""
-    lon,lat,data,type = import_raster(name,path)
-    data = grid_convert(data,'y-x+','x+y+')
-    unmasked = buffer(True-data[::thin,::thin].mask, n=bufsize)
-    
-    # unmasked = None
-    lat,lon = [dir[unmasked] for dir in np.meshgrid(lat[::thin],lon[::thin])]
-    if np.any(np.abs(lon)>180.) or np.any(np.abs(lat)>90.):
-        raise ValueError, 'Ascii file %s has incorrect header. Lower left corner is (%f,%f); upper right corner is (%f,%f).'%(fname,lat.min(),lon.min(),lat.max(),lon.max())
-    # lon,lat = [dir.ravel() for dir in np.meshgrid(lon[::thin],lat[::thin])]
-    return np.vstack((lon,lat)).T*np.pi/180., unmasked, type
-
-def raster_to_vals(name, path='.', thin=1, unmasked=None):
-    """
-    Converts a raster grid to a list of values where prediction is desired.
-    If the unmasked argument is provided, the mask of the ascii grid is
-    checked against that mask.
-    """
-    lon,lat,data,type = import_raster(name, path)
-    data = grid_convert(data,'y-x+','x+y+')    
-    if unmasked is not None:
-        input_unmasked = True-data[::thin,::thin].mask
-        if not np.all(unmasked == input_unmasked):
-            if unmasked.shape == input_unmasked.shape:
-                where_mismatch = np.where(input_unmasked != unmasked)
-                import pylab as pl
-                pl.clf()
-                pl.plot(lon[where_mismatch[0]],lat[where_mismatch[1]],'k.',markersize=2)
-                pl.savefig('mismatch.pdf')
-                msg = '%s: covariate raster\'s mask does not match mask at the following pixels (in decimal degrees):\n'%name
-                for i,j in zip(*where_mismatch):
-                    msg += "\t%f, %f\n"%(lon[i],lat[j])
-                msg += 'Image of mismatched points saved as mismatch.pdf'
-            else:
-                msg = '%s: covariate raster is not same shape as mask.'%name
-            raise ValueError, msg
-    
-    return data.data[::thin,::thin][unmasked]
-
-def get_mask_t(o, hf):
-    x, unmasked, output_type = raster_to_locs(o.mask_name, thin=o.raster_thin, bufsize=o.bufsize, path=o.raster_path)
-    if o.year is None:
-        if 't' in hf.root.input_csv.colnames:
-            raise ValueError, 'No year provided, but the model appears to be temporal.'
-    else:
-        x = np.vstack((x.T,o.year*np.ones(x.shape[0]))).T
-    return unmasked, x
-        
+                    
 def display_datapoints(h5file, path='', cmap=None, *args, **kwargs):
     """Adds as hdf5 archive's logp-mesh to an image."""
     import tables as tb
