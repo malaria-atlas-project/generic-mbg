@@ -110,13 +110,14 @@ workspace_file = tb.openFile('workspace.hdf5','w')
 workspace_file.createArray('/','unmasked',unmasked)
         
 # Prepare reducing functions that use the workspace file rather than memory.
-reduce_fns = [mean_reduce_with_hdf(workspace_file, len(samples)+1), var_reduce_with_hdf(workspace_file, len(samples)+1)]
+reduce_fns = [wrap_reduction_with_hdf(mean_reduce, workspace_file, len(samples)+1, 'mean'), 
+                wrap_reduction_with_hdf(var_reduce, workspace_file, len(samples)+1, 'var')]
 n_arrays = 2
 if len(q)>0 or len(ci)>0:
     n_arrays += o.n_bins
     def binfn(arr,n_bins=o.n_bins):
         return np.array(arr*n_bins,dtype=int)
-    hsr = histogram_reduce_with_hdf(bins, binfn, workspace_file, len(samples)+1)
+    hsr = wrap_reduction_with_hdf(histogram_reduce(bins, binfn), workspace_file, len(samples)+1, 'histogram')
     hsf = histogram_finalize(bins, q, hsr)
     reduce_fns = reduce_fns + [hsr]
 

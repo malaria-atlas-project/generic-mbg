@@ -126,50 +126,20 @@ def calc_norm_const(norms, like_m, like_v, mu_pri, v_pri, likefn):
         log_norm_const = mean_like-meanl(like_m,like_v,mu_pri,v_pri)
         return log_norm_const
 
-def mean_reduce_with_hdf(hf, n_reps):
+def wrap_reduction_with_hdf(reduce_fn, hf, n_reps, product_name):
     """Produces an accumulator to be used with hdf5_to_samps"""    
-    def mean_reduce_(sofar, next, name, ind, hf=hf, n_reps=n_reps):
-        if hasattr(hf.root, name+'_mean'):
-            hfa = getattr(hf.root, name+'_mean')
+    def f_(sofar, next, name, ind, hf=hf, n_reps=n_reps, reduce_fn=reduce_fn, product_name=product_name):
+        if sofar is not None:
+            hfa = getattr(hf.root, name+'_'+product_name)
+            hfa[ind] = reduce_fn(hfa[ind], next, name)
         else:
-            hfa = hf.createCArray('/',name+'_mean',shape=(n_reps,)+next.shape,atom=tb.FloatAtom(),filters=tb.Filters(complevel=1,complib='zlib'))
-        if sofar is None:
-            hfa[ind] = next
-        else:
-            hfa[ind] = hfa[ind] + next
+            output = reduce_fn(None, next, name)
+            # FIXME: Autodetect atom.
+            hfa = hf.createCArray('/',name+'_'+product_name,shape=(n_reps,)+output.shape,atom=tb.FloatAtom(),filters=tb.Filters(complevel=1,complib='zlib'))
+            hfa[ind] = output
         return 1
-    return mean_reduce_
-
-def var_reduce_with_hdf(hf, n_reps):
-    """Produces an accumulator to be used with hdf5_to_samps"""
-    def var_reduce_(sofar, next, name, ind, hf=hf, n_reps=n_reps):
-        if hasattr(hf.root, name+'_var'):
-            hfa = getattr(hf.root, name+'_var')
-        else:
-            hfa = hf.createCArray('/',name+'_var',shape=(n_reps,)+next.shape,atom=tb.FloatAtom(),filters=tb.Filters(complevel=1,complib='zlib'))
-        if sofar is None:
-            hfa[ind] = next**2
-        else:
-            hfa[ind] = hfa[ind] + next**2
-        return 1
-    return var_reduce_
-
-def histogram_reduce_with_hdf(bins, binfn, hf, n_reps):
-    """Produces an accumulator to be used with hdf5_to_samps"""
-    def hr(sofar, next, name, ind, hf=hf, n_reps=n_reps):
-        if hasattr(hf.root, name+'_histogram'):
-            hfa = getattr(hf.root, name+'_histogram')
-        else:
-            hfa = hf.createCArray('/',name+'_histogram',shape=(n_reps,)+next.shape+(len(bins),),atom=tb.FloatAtom(),filters=tb.Filters(complevel=1,complib='zlib'))
-        if sofar is None:
-            hfa[ind] = 0.
-        # Call to Fortran function multiinc
-        hist_ind = binfn(next)
-        sofar = hfa[ind]
-        multiinc(sofar,hist_ind)
-        hfa[ind] = sofar
-        return 1
-    return hr
+    f_.__name__ = reduce_fn.__name__+'_with_hdf'
+    return f_
 
 def find_joint_approx_params(mu_pri, C_pri, likefns, match_moments, approx_param_fn = None, tol=1.e-3, maxiter=100, debug=False):
 
