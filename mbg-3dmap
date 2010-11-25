@@ -45,7 +45,7 @@ p.add_option('-y','--year',help='The decimal year at which the map should be pro
 p.add_option('-d','--ignore-npd',help='Whether to discard and continue past non-positive-definite iterations.',dest='continue_past_npd',type='int')
 
 p.set_defaults(n_bins=100)
-p.set_defaults(raster_path='.')
+p.set_defaults(raster_path=os.getcwd())
 p.set_defaults(raster_thin=1)
 p.set_defaults(thin=50)
 p.set_defaults(total=50000)
@@ -117,7 +117,7 @@ print '\nMaps produced in %f seconds\n'%(time.time() - t_start)
 init_output_dir(o, '3dmap')
 lon,lat,mask_data,mask_type = import_raster(o.mask_name, path=o.raster_path)
 bbox = [lon.min(), lat.min(), lon.max(), lat.max()]
-for f in mp:
+for f in mod.map_postproc:
     output_hdf5 = tb.openFile('3dmap-%s-data.hdf5'%f.__name__,'w')
     output_hdf5.createArray('/','mean',products[f]['mean'])
     output_hdf5.createArray('/','bbox',bbox)

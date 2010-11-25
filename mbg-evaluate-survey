@@ -49,7 +49,7 @@ p.add_option('-d','--ignore-npd',help='Whether to discard and continue past non-
 p.add_option('-m','--match_moments',help='Whether to approximate the likelihood by matching posterior moments rather than minimizing KL divergence between true and approximate posterior. Defaults t 0.',dest='match_moments',type='int')
 
 p.set_defaults(n_bins=100)
-p.set_defaults(raster_path='.')
+p.set_defaults(raster_path=os.getcwd())
 p.set_defaults(raster_thin=1)
 p.set_defaults(thin=50)
 p.set_defaults(total=1000)

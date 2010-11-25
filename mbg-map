@@ -47,7 +47,7 @@ p.add_option('-u','--quantile-uplim',help='The upper limit of the mapped quantil
 p.add_option('-l','--quantile-lolim',help='The lower limit of the mapped quantiles',type='float',dest='quantile_lolim')
 
 p.set_defaults(n_bins=100)
-p.set_defaults(raster_path='.')
+p.set_defaults(raster_path=os.getcwd())
 p.set_defaults(raster_thin=1)
 p.set_defaults(thin=50)
 p.set_defaults(total=50000)
