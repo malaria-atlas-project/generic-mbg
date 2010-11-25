@@ -121,6 +121,9 @@ if len(q)>0 or len(ci)>0:
     hsf = histogram_finalize(bins, q, hsr)
     reduce_fns = reduce_fns + [hsr]
 
+if hasattr(mod,'extra_reduce_fns'):
+    reduce_fns = reduce_fns + [wrap_reduction_with_hdf(f, workspace_file, len(samples)+1,f.__name__+'_'+str(id(f))) for f in mod.extra_reduce_fns]
+
 # Warn if the workspace file is going to be enormous.
 upper_gb = samples.shape[0]*x.shape[0]*n_arrays*4*len(mod.map_postproc)/1.e9
 if upper_gb > 1:
@@ -137,6 +140,7 @@ print 'Posterior predictive simulations done in %s seconds'%(time.time()-t1)
 # Finalize the summary maps for each of the simulated datasets.
 print 'Finalizing the summary maps for each simulated dataset.'
 t1 = time.time()
+extra_keys = []
 for mp in mod.map_postproc:
     
     mean_arr = getattr(workspace_file.root, mp.__name__+'_mean')
@@ -166,10 +170,23 @@ for mp in mod.map_postproc:
         if len(ci)>0:
             for cii in ci:
                 ci_arrs[cii][i,:] = hist_info['quantile-%s'%(half*(1+cii))]-hist_info['quantile-%s'%(half*(1-cii))]
+        
+        if hasattr(mod, 'extra_finalize'):
+            fin_info = dict([(f, getattr(workspace_file.root, mp.__name__+'_'+f.__name__+'_'+str(id(f)))[i]) for f in mod.extra_reduce_fns])
+            extra_output = mod.extra_finalize(fin_info, actual_totals[i])
+            for k in extra_output.iterkeys():
+                nodename = mp.__name__ + '_' + k.replace('.','__')
+                if not hasattr(workspace_file.root, nodename):
+                    extra_keys.append(k.replace('.','__'))
+                    workspace_file.createCArray('/',nodename,shape=(mean_arr.shape[0],)+extra_output[k].shape,atom=tb.FloatAtom(),filters=tb.Filters(complevel=1,complib='zlib'))
+                getattr(workspace_file.root, nodename)[i]=extra_output[k]
+                    
+            
 print 'Finalizing done in %s seconds'%(time.time()-t1)
+            
 
-map_keys = ['mean','var','std','std_to_mean']+[('quantile-%s'%qi).replace('.','__') for qi in q]+[('ci-%s'%cii).replace('.','__') for cii in ci]
-
+map_keys = ['mean','var','std','std_to_mean']+[('quantile-%s'%qi).replace('.','__') for qi in q]+[('ci-%s'%cii).replace('.','__') for cii in ci]+extra_keys
+print map_keys
 # Visualize pickiness of simulated data
 exp_number_retained = np.zeros(len(samples))
 mass_not_in_mode = np.zeros(len(samples))
