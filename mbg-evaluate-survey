@@ -175,7 +175,7 @@ for mp in mod.map_postproc:
             fin_info = dict([(f, getattr(workspace_file.root, mp.__name__+'_'+f.__name__+'_'+str(id(f)))[i]) for f in mod.extra_reduce_fns])
             extra_output = mod.extra_finalize(fin_info, actual_totals[i])
             for k in extra_output.iterkeys():
-                nodename = mp.__name__ + '_' + k.replace('.','__')
+                nodename = (mp.__name__ + '_' + k.replace('.','__')).replace('-','_')
                 if not hasattr(workspace_file.root, nodename):
                     extra_keys.append(k.replace('.','__'))
                     workspace_file.createCArray('/',nodename,shape=(mean_arr.shape[0],)+extra_output[k].shape,atom=tb.FloatAtom(),filters=tb.Filters(complevel=1,complib='zlib'))
