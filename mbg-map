@@ -62,11 +62,6 @@ p.set_defaults(quantile_list='0.05 0.25 0.5 0.75 0.95')
 o, args = p.parse_args()
 from generic_mbg import *
 check_args(args, 4)
-if o.raster_thin>1:
-    raise NotImplementedError, """The raster_thin argument has caused too many problems 
-    and is disabled until it can be implemented properly. For the time being, 
-    please thin your rasters manually, and reconcile the outputs to the desired 
-    rasterusing a GIS program."""
 o.module, o.hf_name, o.burn, o.mask_name = args
 o.burn = int(o.burn)
 exec(delayed_import_str)

@@ -570,7 +570,7 @@ def vec_to_raster(vec, fname, raster_path, out_name, unmasked, path='.'):
     if data_thin.shape == data.shape:
         out = np.ma.masked_array(data_thin, mask=data.mask)
     else:
-        out = np.ma.masked_array(ndimage.map_coordinates(data_thin, mapgrid), mask=data.mask)
+        out = np.ma.masked_array(ndimage.map_coordinates(data_thin, mapgrid,order=0), mask=data.mask)
         
     if np.any(np.isnan(out)):
         warnings.warn('NaN in output')

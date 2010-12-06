@@ -172,73 +172,73 @@ def find_joint_approx_params(mu_pri, C_pri, likefns, match_moments, approx_param
 
     # print init_evidences.min()
 
-    if init_evidences.min()>-20:
+    # if init_evidences.min()>-20:
     
-        for iter in xrange(maxiter):
-            # Break the loop at convergence.
-            if (np.all(np.abs(delta_m)<tol) and np.any(np.abs(delta_v/like_vars)<tol)):
-                break
-            # if iter % 200 == 0:
-            #     print '200 iterations, dropping you into debugger next time.'
-            #     debug = True
-            for i in xrange(len(mu_pri)):
-                
-                # 'Unobserve' simulated datapoint i.
-                if not np.isinf(like_vars[i]):
-                    obsc(mu, C, like_means[i], -like_vars[i], i)
+    for iter in xrange(maxiter):
+        # Break the loop at convergence.
+        if (np.all(np.abs(delta_m)<tol) and np.any(np.abs(delta_v/like_vars)<tol)):
+            break
+        # if iter % 200 == 0:
+        #     print '200 iterations, dropping you into debugger next time.'
+        #     debug = True
+        for i in xrange(len(mu_pri)):
+            
+            # 'Unobserve' simulated datapoint i.
+            if not np.isinf(like_vars[i]):
+                obsc(mu, C, like_means[i], -like_vars[i], i)
 
-                if np.any(np.diag(C)<0):
-                    # warnings.warn('Negative element in diagonal of C. Assuming nonconvergence and returning early')
-                    print 'Negative element in diagonal of C. Assuming nonconvergence and returning early. Min evidence: %f'%init_evidences.min()
-                    return init_like_means, init_like_vars, -np.inf
-            
-                # Find the exponentiated quadratic approximation for datapoint i.
-                if approx_param_fn is None:
-                    new_like_mean, new_like_var = find_approx_params(mu[i], C[i,i], likefns[i], norms, match_moments, debug=debug)
-                else:
-                    new_like_mean, new_like_var = approx_param_fn(mu[i], C[i,i], likefns[i])
-                
-                if np.isnan(new_like_var) or np.isnan(new_like_mean):
-                    # warnings.warn('Nan in like mean or var. Assuming nonconvergence and returning early.')
-                    print 'Nan in like mean or var. Assuming nonconvergence and returning early. Min evidence: %f'%init_evidences.min()
-                    return init_like_means, init_like_vars, -np.inf
-                
-                delta_m[i] = new_like_mean-like_means[i]
-                delta_v[i] = new_like_var- like_vars[i]
-                like_means[i] = new_like_mean
-                like_vars[i] = new_like_var
-            
-                # Compute the normalizing constant of the exponentiated quadratic approximation.
-                norm_consts[i] = calc_norm_const(norms, like_means[i], like_vars[i], mu[i], C[i,i], likefns[i])
-            
-                # 'Re-observe' simulated datapoint i.
-                if not np.isinf(like_vars[i]):
-                    obsc(mu, C, like_means[i], like_vars[i], i)
-
-        # After maximum number of iterations, check that the approximation is 'good enough.'
-        if iter==maxiter:        
-            klds = []
-            for i in xrange(len(mu_pri)):
-                obsc(mu,C,like_means[i],-like_vars[i],i)
-                klds.append(kld2(like_means[i], like_vars[i], mu[i], C[i,i], likefns[i], norms))
-                obsc(mu,C,like_means[i],like_vars[i],i)
-            # A KL divergence of 0.1 is about OK.
-            max_kld = np.max(klds)
-            if max_kld > 0.2:
-                # warnings.warn('Maximum iterations used. Maximum KL divergence %f. Assuming nonconvergence and returning early.'%np.max(klds))
-                print 'Maximum iterations used. Maximum KL divergence %f. Assuming nonconvergence and returning early.'%np.max(klds)
+            if np.any(np.diag(C)<0):
+                # warnings.warn('Negative element in diagonal of C. Assuming nonconvergence and returning early')
+                print 'Negative element in diagonal of C. Assuming nonconvergence and returning early. Min evidence: %f'%init_evidences.min()
                 return init_like_means, init_like_vars, -np.inf
-                    
-        log_imp_weight = impw(mu_pri,C_pri,like_means,like_vars,mu,C) + np.sum(norm_consts)    
-    else:
-        # This simulated observation is radically improbable given
-        # this MCMC sample, so assign it an importance weight of zero.
-        # It will have no role to play in predictions, and the algorithm
-        # for finding the exponentiated quadratic approximation is likely
-        # to fail, so don't bother.
-        # warnings.warn('Evidence very low (%f), assuming importance weight will be very low and returning early.'%init_evidences.min())
-        print 'Evidence very low (%f), assuming importance weight will be very low and returning early.'%init_evidences.min()
-        return init_like_means, init_like_vars, -np.inf
+        
+            # Find the exponentiated quadratic approximation for datapoint i.
+            if approx_param_fn is None:
+                new_like_mean, new_like_var = find_approx_params(mu[i], C[i,i], likefns[i], norms, match_moments, debug=debug)
+            else:
+                new_like_mean, new_like_var = approx_param_fn(mu[i], C[i,i], likefns[i])
+            
+            if np.isnan(new_like_var) or np.isnan(new_like_mean):
+                # warnings.warn('Nan in like mean or var. Assuming nonconvergence and returning early.')
+                print 'Nan in like mean or var. Assuming nonconvergence and returning early. Min evidence: %f'%init_evidences.min()
+                return init_like_means, init_like_vars, -np.inf
+            
+            delta_m[i] = new_like_mean-like_means[i]
+            delta_v[i] = new_like_var- like_vars[i]
+            like_means[i] = new_like_mean
+            like_vars[i] = new_like_var
+        
+            # Compute the normalizing constant of the exponentiated quadratic approximation.
+            norm_consts[i] = calc_norm_const(norms, like_means[i], like_vars[i], mu[i], C[i,i], likefns[i])
+        
+            # 'Re-observe' simulated datapoint i.
+            if not np.isinf(like_vars[i]):
+                obsc(mu, C, like_means[i], like_vars[i], i)
+
+    # After maximum number of iterations, check that the approximation is 'good enough.'
+    if iter==maxiter:        
+        klds = []
+        for i in xrange(len(mu_pri)):
+            obsc(mu,C,like_means[i],-like_vars[i],i)
+            klds.append(kld2(like_means[i], like_vars[i], mu[i], C[i,i], likefns[i], norms))
+            obsc(mu,C,like_means[i],like_vars[i],i)
+        # A KL divergence of 0.1 is about OK.
+        max_kld = np.max(klds)
+        if max_kld > 0.2:
+            # warnings.warn('Maximum iterations used. Maximum KL divergence %f. Assuming nonconvergence and returning early.'%np.max(klds))
+            print 'Maximum iterations used. Maximum KL divergence %f. Assuming nonconvergence and returning early.'%np.max(klds)
+            return init_like_means, init_like_vars, -np.inf
+                
+    log_imp_weight = impw(mu_pri,C_pri,like_means,like_vars,mu,C) + np.sum(norm_consts)    
+    # else:
+    #     # This simulated observation is radically improbable given
+    #     # this MCMC sample, so assign it an importance weight of zero.
+    #     # It will have no role to play in predictions, and the algorithm
+    #     # for finding the exponentiated quadratic approximation is likely
+    #     # to fail, so don't bother.
+    #     # warnings.warn('Evidence very low (%f), assuming importance weight will be very low and returning early.'%init_evidences.min())
+    #     print 'Evidence very low (%f), assuming importance weight will be very low and returning early.'%init_evidences.min()
+    #     return init_like_means, init_like_vars, -np.inf
     
     if np.isnan(log_imp_weight):
         raise RuntimeError
@@ -376,7 +376,7 @@ def hdf5_to_survey_eval(M, x, nuggets, burn, thin, total, fns, postprocs, pred_c
 
         time_count = kloop_init(iter, k, M, x, pred_covariate_dict, survey_x, survey_covariate_dict, time_count, time_start)
         
-        norms = dict([(s, np.random.normal(size=1000)) for s in gp_submods])
+        norms = dict([(s, np.random.normal(size=samp_multiplicities.max())) for s in gp_submods])
 
         # Accumulate for the 'current' maps.
         for s in gp_submods:

@@ -31,6 +31,7 @@ import numpy as np
 import pymc as pm
 import pylab as pl"""
 
+# FIXME: obs_labels is no longer needed by anything.
 def get_nuggets_and_obs(mod, mod_name, M):
     try:
         nugget_labels = getattr(mod, 'nugget_labels')
