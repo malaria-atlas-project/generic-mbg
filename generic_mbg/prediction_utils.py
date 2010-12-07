@@ -366,7 +366,7 @@ def hdf5_to_areal_samps(M, x, nuggets, burn, thin, total, fns, h, g, pred_covari
 
             for s in gp_submods:
                 # Copy out the realization to avoid dependencies between outer collections.
-                f_ = np.asscalar(copy.copy(s.f.value))
+                f_ = s.f.rand()
                 fs[s] = lambda x, f=f_, V=pm.utils.value(nuggets[s]): f(x) + np.sqrt(V)*np.random.normal(size=x.shape[0])
 
 
