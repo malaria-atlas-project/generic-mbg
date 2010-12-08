@@ -21,6 +21,7 @@ from scipy import ndimage, mgrid
 from histogram_utils import *
 from inference_utils import invlogit, fast_inplace_mul, fast_inplace_square, crossmul_and_sum, CovarianceWithCovariates
 from init_utils import grid_convert
+import datetime
 import time
 import os
 import warnings
@@ -43,7 +44,7 @@ def time_msg(time_count, k, iter, time_start):
         print ((k*100)/len(iter)), '% complete',
         time_count = time.time()      
         if k > 0:      
-            print 'expect results %s (in %s hours)'%(time.ctime((time_count-time_start)*len(iter)/float(k)+time_start),(time_count-time_start)*(len(iter)-float(k))/float(k)/3600)
+            print 'expect results %s (%s from now)'%(time.ctime((time_count-time_start)*len(iter)/float(k)+time_start),datetime.timedelta(seconds=(time_count-time_start)*(len(iter)-float(k))/float(k)))
         else:
             print
     return time.time()
