@@ -93,9 +93,9 @@ def draw_points(geoms, n_points, weight=None, weight_lon=None, weight_lat=None, 
         lonlat = [map_utils.multipoly_sample(np_, g) for np_,g in zip(n_per, geoms)]
 
     if tlims:
-        return [np.vstack((l[0],l[1],t_)).T for l,t in zip(lonlat, times)]
+        return [np.vstack((l[0],l[1],t_)).T*np.pi/180. for l,t in zip(lonlat, times)]
     else:
-        return [np.vstack((l[0],l[1])).T for l in lonlat]
+        return [np.vstack((l[0],l[1])).T*np.pi/180. for l in lonlat]
     
 def all_chain_getitem(hf, name, i, vl=False):
     c = chains(hf)
@@ -372,7 +372,7 @@ def hdf5_to_areal_samps(M, x, nuggets, burn, thin, total, fns, h, g, pred_covari
 
             try:
                 for j in xrange(n_per):
-
+                    
                     # Evaluate fields, and store them in argument dict for postproc
                     for postproc in postprocs:
                         g_vals = {}
@@ -382,11 +382,9 @@ def hdf5_to_areal_samps(M, x, nuggets, burn, thin, total, fns, h, g, pred_covari
                             for s in gp_submods:
                                 g_kwds[s.name]=fs[s]
                         
-                            # Pull any extra variables needed for postprocessing out of trace
-                    
+                            # Pull any extra variables needed for postprocessing out of trace                    
                             for extra_arg in extra_g_args[g_]:
                                 g_kwds[extra_arg] = pm.utils.value(getattr(M, extra_arg))
-
                             try:
                                 g_vals[innercoll] = np.mean(g_(**g_kwds), axis=0)
                             except np.linalg.LinAlgError:
@@ -395,7 +393,6 @@ def hdf5_to_areal_samps(M, x, nuggets, burn, thin, total, fns, h, g, pred_covari
                                     raise np.linalg.LinAlgError
                                 else:
                                     raise ValueError, 'The observed covariance was not positive definite at the prediction locations.'
-                        
                         
                         h_kwds = copy.copy(g_vals)
                         for extra_arg in extra_h_args[outercoll][postproc]:
