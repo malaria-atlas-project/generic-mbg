@@ -21,6 +21,7 @@ from scipy import ndimage, mgrid
 from histogram_utils import *
 from inference_utils import invlogit, fast_inplace_mul, fast_inplace_square, crossmul_and_sum, CovarianceWithCovariates
 from init_utils import grid_convert
+from map_utils import box_inside_box
 import datetime
 import time
 import os
@@ -94,9 +95,121 @@ def draw_points(geoms, n_points, weight=None, weight_lon=None, weight_lat=None, 
         lonlat = [map_utils.multipoly_sample(np_, g) for np_,g in zip(n_per, geoms)]
 
     if tlims:
-        return [np.vstack((l[0],l[1],t_)).T*np.pi/180. for l,t in zip(lonlat, times)]
+        return [np.vstack((l[0],l[1],t_)).T*np.pi/180. for l,t_ in zip(lonlat, t)]
     else:
         return [np.vstack((l[0],l[1])).T*np.pi/180. for l in lonlat]
+
+def check_geom_with_raster(g, cov_bbox, innername, outername, cov_lon, cov_lat, cov_mask):
+    if not box_inside_box(np.array(g.envelope.bounds)*np.pi/180., cov_bbox):
+        raise ValueError, 'Multipolygon "%s" in geometry collection "%s" is not inside the covariate raster.'%(innername, outername)
+    # Report the number of missing pixels inside the unit.
+    mask_in_unit = rastervals_in_unit(g, cov_lon.min(), cov_lat.min(), cov_lon[1]-cov_lon[0], cov_mask, view='y-x+')
+    frac_masked = np.sum(mask_in_unit)/float(len(mask_in_unit))
+    if frac_masked>0:
+        warnings.warn('%f of the pixels in multipolygon "%s" in geometry collection "%s" are missing.'%(frac_masked,innername, outername))
+    return mask_in_unit, frac_masked
+
+def parsefile(xml_file):
+    from xml.etree import ElementTree as ET
+    tree = ET.parse(file(xml_file))
+    return tree.getroot()
+
+def extract_text(node):
+    if node.text:
+        if node.text.isspace():
+            return np.array([])
+        else:
+            return np.fromstring(node.text.replace(',',' '),sep=' ')
+    else:
+        return np.array([])
+
+def str_to_coords(text):
+    pairs = text.split(' ')
+    return np.array([np.fromstring(p,sep=',') for p in pairs])
+
+
+def tagcheck(n, tag):
+    if not n.tag==tag:
+        raise TypeError, 'Unexpected XML tag %s'%node.tag
+        
+def keycheck(d, keys):
+    weird_keys =  set(d.keys())-set(keys)
+    if len(weird_keys)>0:
+        raise TypeError, 'Unexpected attributes %s, expected only %s'%(list(weird_keys), keys)
+
+def make_polygon(node):
+    import shapely.geometry as geom
+    tagcheck(node,'Polygon')
+    tagcheck(node[0],'outerBoundaryIs')
+    shell = str_to_coords(node[0][0][0].text)
+    holes = []
+    for h in node[1:]:
+        # NOTE: This might not be the right syntax for holes, we have
+        # no examples yet.
+        tagcheck(h,'innerBoundaryIs')
+        holes.append(str_to_coords(h[0][0].text))
+    return geom.Polygon(shell=shell, holes=holes)
+
+def make_multipolygon(node):
+    import shapely.geometry as geom
+    tagcheck(node,'MultiGeometry')
+    return geom.MultiPolygon([make_polygon(p) for p in node])
+    
+def make_unit(node, temporal, raster_data, multiunit_name):
+    tagcheck(node,'adminunit')
+    if temporal:
+        keycheck(node, ['name','tmin','tmax'])    
+    else:
+        keycheck(node, ['name'])    
+    cov_bbox, cov_lon, cov_lat, cov_mask = raster_data
+    out = dict(node.items())
+    out['geom'] = make_multipolygon(node[0][0])
+    if cov_bbox is not None:
+        check_geom_with_raster(out['geom'], cov_bbox, out['name'], multiunit_name, cov_lon, cov_lat, cov_mask)
+    return out
+    
+def make_multiunit(node, temporal, raster_data):
+    tagcheck(node, 'multiunit')
+    keycheck(node,['name'])
+    my_name = dict(node.items())['name']
+    out = {}
+    for a in node:
+        d = make_unit(a, temporal, raster_data, my_name)
+        out[d.pop('name')] = d
+    return my_name, out
+    
+def make_multimultiunit(node, temporal, raster_data):
+    tagcheck(node, 'multimultiunit')
+    return dict([make_multiunit(m, temporal, raster_data) for m in node])
+        
+def slurp_xml(xmlfile, temporal, cov_bbox, cov_lon, cov_lat, cov_mask):
+    raster_data = (cov_bbox, cov_lon, cov_lat, cov_mask)
+    return make_multimultiunit(parsefile(xmlfile), temporal, raster_data)
+
+def get_all_mps(obj):
+    out = []
+    for i in obj.values():
+        for a in i.values():
+           out.append(a['geom']) 
+    return out
+
+def slurp_geojson(jsonfile, temporal, cov_bbox, cov_lon, cov_lat, cov_mask):
+    import geojson
+    from shapely.geometry import asShape
+    gjdat = geojson.loads(file(jsonfile).read())
+    mps = {}
+    for geomcoll in gjdat['geometries']:
+        mps_ = {}
+        for geom in geomcoll['geometries']:
+            g = asShape(geom)
+            if cov_bbox is not None:
+                mask_in_unit, frac_masked = check_geom_with_raster(g, cov_bbox, geom['properties']['name'], geomcoll['properties']['name'], cov_lon, cov_lat, cov_mask)
+            if temporal:
+                mps_[geom['properties']['name']]={'geom':g,'tmin':geom['properties']['tmin'],'tmax':geom['properties']['tmax']}
+            else:
+                mps_[geom['properties']['name']]={'geom':g}
+        mps[geomcoll['properties']['name']]=mps_
+    return mps
     
 def all_chain_getitem(hf, name, i, vl=False):
     c = chains(hf)

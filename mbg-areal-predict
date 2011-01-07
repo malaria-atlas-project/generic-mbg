@@ -31,7 +31,7 @@ See the PDF documentation of generic-mbg.
   burn                  The number of initial MCMC iterations to discard. 
                         You must provide this argument.
   polyfile              A file containing the regions to consider in GeoJSON
-                        format. See the PDF documentation.
+                        or XML format. See the PDF documentation.
 """
 p = OptionParser('usage: %prog module database-file burn mask [options]' + req_doc)
 p.add_option('-r','--reps',help='The number of repetitions to do, for purposes of computing Monte Carlo standard error. Defaults to 10.',dest='reps',type='int')
@@ -108,7 +108,7 @@ if o.weight_raster is not None:
         cov_bbox = x[:,0].min(), x[:,1].min(), x[:,0].max(), x[:,1].max()        
     weights = raster_to_vals(o.weight_raster, path=o.raster_path, thin=1, unmasked=unmasked)
 else:
-    weights, cov_lon, cov_lat = None, None, None
+    weights, cov_lon, cov_lat, cov_mask = None, None, None, None
 
 # Create standard accumulators and finalizers for posterior summaries
 if len(q)>0:
@@ -136,28 +136,12 @@ reduce_fns = [mean_reduce, var_reduce, sample_reduce]
 if len(q)>0:
     reduce_fns = reduce_fns + [hsr]
 
-# Slurp the polyfile
-import geojson
-from shapely.geometry import asShape
-gjdat = geojson.loads(file(o.polyfile_name).read())
-mps = {}
-for geomcoll in gjdat['geometries']:
-    mps_ = {}
-    for geom in geomcoll['geometries']:
-        g = asShape(geom)
-        if cov_bbox is not None:
-            if not box_inside_box(np.array(g.envelope.bounds)*np.pi/180., cov_bbox):
-                raise ValueError, 'Multipolygon "%s" in geometry collection "%s" is not inside the covariate raster.'%(geom['properties']['name'],geomcoll['properties']['name'])
-            # Report the number of missing pixels inside the unit.
-            mask_in_unit = rastervals_in_unit(g, cov_lon.min(), cov_lat.min(), cov_lon[1]-cov_lon[0], cov_mask, view='y-x+')
-            frac_masked = np.sum(mask_in_unit)/float(len(mask_in_unit))
-            if frac_masked>0:
-                warnings.warn('%f of the pixels in multipolygon "%s" in geometry collection "%s" are missing.'%(frac_masked,geom['properties']['name'],geomcoll['properties']['name']))
-        if temporal:
-            mps_[geom['properties']['name']]={'geom':g,'tmin':geom['properties']['tmin'],'tmax':geom['properties']['tmax']}
-        else:
-            mps_[geom['properties']['name']]={'geom':g}
-    mps[geomcoll['properties']['name']]=mps_
+polyfile_ext = os.path.splitext(o.polyfile_name)[1]
+if polyfile_ext=='.json':
+    mps = slurp_geojson(o.polyfile_name, temporal, cov_bbox, cov_lon, cov_lat, cov_mask)
+elif polyfile_ext=='.xml':
+    temporal=True
+    mps = slurp_xml(o.polyfile_name, temporal, cov_bbox, cov_lon, cov_lat, cov_mask)
 
 points = {}
 products = []
@@ -179,7 +163,7 @@ for i in xrange(o.reps):
         keys = coll.keys()
         geoms = [coll[k]['geom'] for k in keys]
         if temporal:
-            tlims = [(coll[k]['tmin'], coll[k][tmax]) for k in keys]
+            tlims = [(coll[k]['tmin'], coll[k]['tmax']) for k in keys]
         else:
             tlims = None
         
@@ -218,3 +202,4 @@ for geomcoll in products[0].iterkeys():
 	    for k_,v_ in v.iteritems():
 	    	row[k_]=v_
 	    row.append()
+
