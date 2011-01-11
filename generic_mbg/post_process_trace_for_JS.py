@@ -94,31 +94,31 @@ def collapse_trace_to_chain0(hf_path):
         hf.root.chain0.PyMCsamples.flush()
 
 
-#        # next deal with group0 table
-#        group0=chain.group0
-#
-#        # check nodes matches those of Chain0.group0
-#        if(group0._v_children.keys()!=hf.root.chain0.group0._v_children.keys()):
-#            raise ValueError ('children of '+extra_chain_name+' do not match chain0')
-#
-#        # loop through nodes of this chain's group0 group, appending to those of chain0
-#        for nodename in group0._v_children.keys():
-#
-#            # get this column of chain0
-#            node_0=hf.root.chain0.group0._f_getChild(nodename) 
-#
-#            # get this column of this additional chain
-#            node_new=group0._f_getChild(nodename)
-#
-#            # check columns have same dimensionality
-#            if( len(node_0.shape) != len(node_new.shape) ):
-#                raise ValueError ('node '+nodename+' dimension mis-match: chain0 = '+str(node_0.shape)+'; '+extra_chain_name+' = '+str(node_new.shape))
-#
-#            # append contents of this node on this chain to that on chain0
-#            for index in np.arange(0,node_0.nrows):
-#                node_0.append(node_new[index])
-#
-#        # remove chain from tracefile
-#        chain._f_remove(recursive=True)
+        # next deal with group0 table
+        group0=chain.group0
+
+        # check nodes matches those of Chain0.group0
+        if(group0._v_children.keys()!=hf.root.chain0.group0._v_children.keys()):
+            raise ValueError ('children of '+extra_chain_name+' do not match chain0')
+
+        # loop through nodes of this chain's group0 group, appending to those of chain0
+        for nodename in group0._v_children.keys():
+
+            # get this column of chain0
+            node_0=hf.root.chain0.group0._f_getChild(nodename) 
+
+            # get this column of this additional chain
+            node_new=group0._f_getChild(nodename)
+
+            # check columns have same dimensionality
+            if( len(node_0.shape) != len(node_new.shape) ):
+                raise ValueError ('node '+nodename+' dimension mis-match: chain0 = '+str(node_0.shape)+'; '+extra_chain_name+' = '+str(node_new.shape))
+
+            # append contents of this node on this chain to that on chain0
+            for index in np.arange(0,node_0.nrows):
+                node_0.append(node_new[index])
+
+        # remove chain from tracefile
+        chain._f_remove(recursive=True)
 
 #############################################################################################
