@@ -118,7 +118,7 @@ def collapse_trace_to_chain0(hf_path):
             except IOError:
                 print "IOError when invoking group0.C: running mbg-describe-tracefile"
                 cmd = 'mbg-describe-tracefile '+hf_path
-                os.sytem(cmd)
+                os.system(cmd)
                 time.sleep(10)
                 temp=group0.C[0]
 
