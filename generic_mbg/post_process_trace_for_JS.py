@@ -79,7 +79,7 @@ def collapse_trace_to_chain0(hf_path):
         # loop through number of rows (realisations) in this additional Chain PyMCsamples table
         
         jj=0
-        for ii in xrange(0,100):        #PyMCsamples.nrows
+        for ii in xrange(0,PyMCsamples.nrows):        #PyMCsamples.nrows
             jj=jj+1
             if (jj==10):
                 print('copying PyMCsamples  on row '+str(ii)+' of '+str(PyMCsamples.nrows))
@@ -128,10 +128,10 @@ def collapse_trace_to_chain0(hf_path):
 
             # append contents of this node on this chain to that on chain0
             jj=0
-            for index in np.arange(0,100):  #
+            for index in np.arange(0,node_new.nrows):  #node_new.nrows
                 jj=jj+1
                 if (jj==10):
-                    print('copying group0  on row '+str(ii)+' of '+str(PyMCsamples.nrows))
+                    print('copying group0  on row '+str(index)+' of '+str(node_new.nrows))
                     jj=0
                 node_0.append(node_new[index])
 
