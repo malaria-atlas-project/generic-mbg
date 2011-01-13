@@ -1,5 +1,7 @@
 import tables as tb
 import numpy as np
+import os
+import time
 
 ##############################################################################################
 # utiliy function
@@ -109,6 +111,16 @@ def collapse_trace_to_chain0(hf_path):
 
             # get this column of this additional chain
             node_new=group0._f_getChild(nodename)
+            
+            # check that the ..input-data.csv file exists (necessary to invoke group0.C or group0.sp_sub_f) and if not run mbg-describe-tracefile
+            try:
+                temp=group0.C[0]
+            except IOError:
+                print "IOError when invoking group0.C: running mbg-describe-tracefile"
+                cmd = 'mbg-describe-tracefile '+hf_path
+                os.sytem(cmd)
+                time.sleep(10)
+                temp=group0.C[0]
 
             # check columns have same dimensionality
             if( len(node_0.shape) != len(node_new.shape) ):
