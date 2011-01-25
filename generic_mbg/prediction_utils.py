@@ -28,6 +28,7 @@ import os
 import warnings
 import copy
 import decimal
+import codecs
 
 memmax = 2.5e8
 
@@ -131,7 +132,14 @@ def str_to_coords(text):
 def tagcheck(n, tag):
     if not n.tag==tag:
         raise TypeError, 'Unexpected XML tag %s'%node.tag
-        
+
+def namecheck(n):
+    try:
+        codecs.ascii_encode(n)
+    except UnicodeEncodeError:
+        print u'\n\nSorry, cannot use name %s because of the accents. Please replace it with a plain Ascii name.\n\n'%n
+        raise ValueError, 'Name contained accents. See above.'
+
 def keycheck(d, keys):
     weird_keys =  set(d.keys())-set(keys)
     if len(weird_keys)>0:
@@ -161,6 +169,7 @@ def make_unit(node, temporal, raster_data, multiunit_name):
         keycheck(node, ['name','tmin','tmax'])    
     else:
         keycheck(node, ['name'])    
+    namecheck(node.get('name'))
     cov_bbox, cov_lon, cov_lat, cov_mask = raster_data
     out = dict(node.items())
     out['geom'] = make_multipolygon(node[0][0])
@@ -171,6 +180,7 @@ def make_unit(node, temporal, raster_data, multiunit_name):
 def make_multiunit(node, temporal, raster_data):
     tagcheck(node, 'multiunit')
     keycheck(node,['name'])
+    namecheck(node.get('name'))
     my_name = dict(node.items())['name']
     out = {}
     for a in node:
@@ -200,8 +210,10 @@ def slurp_geojson(jsonfile, temporal, cov_bbox, cov_lon, cov_lat, cov_mask):
     mps = {}
     for geomcoll in gjdat['geometries']:
         mps_ = {}
+        namecheck(geomcoll['properties']['name'])
         for geom in geomcoll['geometries']:
             g = asShape(geom)
+            namecheck(geom['properties']['name'])
             if cov_bbox is not None:
                 mask_in_unit, frac_masked = check_geom_with_raster(g, cov_bbox, geom['properties']['name'], geomcoll['properties']['name'], cov_lon, cov_lat, cov_mask)
             if temporal:

@@ -63,25 +63,24 @@ def kld2(like_mean, like_var, mu_pri, v_pri, likefn, norms):
     t3 = np.log(1./np.sqrt(2.*np.pi*v_pri))+np.mean(pri_logdens)
     return h-t1+t2+t3
 
-def plotcompare(mu_pri, V_pri, likefn, mu_like, V_like, xlo=-10, xhi=10):
+def plotcompare(mu_pri, V_pri, likefn, mu_like, V_like, xlo=-10, xhi=10, **kwds):
     """
     Call from find_approx_params to check the approximation.
     """
     import pylab as pl
-    x = np.linspace(xlo,xhi,101)
-    pri = np.exp(-(mu_pri-x)**2/2./V_pri)
-    like = np.exp(likefn(x))
-    post = like*pri
-    apost = np.exp(-(mu_like-x)**2/2./V_like)*pri
-    for p_ in [pri , like , post , apost]:
-        p_ /= p_.max()
-    pl.clf()
-    pl.plot(x,pri,'b-.')
-    pl.plot(x,like,'r-.')
-    pl.plot(x,post,'r-')
-    pl.plot(x,apost,'g-')
-    from IPython.Debugger import Pdb
-    Pdb(color_scheme='Linux').set_trace() 
+    x = np.linspace(xlo,xhi,501)
+    pri = -(mu_pri-x)**2/2./V_pri
+    like = likefn(x)
+    alike = -(mu_like-x)**2/2./V_like
+    post = like+pri
+    apost = alike+pri
+    for p_ in [pri , like , alike , post , apost]:
+        p_ -= p_.max()
+    pl.plot(x,np.exp(pri),'k-', **kwds)
+    pl.plot(x,np.exp(like),'r-.', **kwds)
+    pl.plot(x,np.exp(alike),'b-.', **kwds)
+    pl.plot(x,np.exp(post),'r-', **kwds)
+    pl.plot(x,np.exp(apost),'b-', **kwds)
     
 def find_approx_params(mu_pri, V_pri, likefn, norms, match_moments, optimfn = None, debug=False):
     """
