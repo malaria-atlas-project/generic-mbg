@@ -196,9 +196,11 @@ for geomcoll in products[0].iterkeys():
     g=hf_out.createGroup('/',geomcoll)
     for k,v in products[0][geomcoll].iteritems():
     	t=hf_out.createTable('/'+geomcoll,k.__name__,desc)
-	row = t.row
-	for i in xrange(o.reps):
-	    for k_,v_ in v.iteritems():
-	    	row[k_]=v_
-	    row.append()
+    	hf_out.flush()
+    	row = t.row
+    	for i in xrange(o.reps):
+    	    for k_,v_ in products[i][geomcoll][k].iteritems():
+    	    	row[k_]=v_
+    	    row.append()
+    	    hf_out.flush()
 
