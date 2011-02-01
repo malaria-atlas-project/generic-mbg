@@ -153,7 +153,7 @@ def buffer(arr, n=5):
 def raster_to_locs(name, path='.', thin=1, bufsize=1):
     """Converts a raster grid to a list of locations where prediction is desired."""
     lon,lat,data,type = import_raster(name,path)
-    data = grid_convert(data,'y-x+','x+y+')
+    data = grid_convert(data,type,'x+y+')
     unmasked = buffer(True-data[::thin,::thin].mask, n=bufsize)
     
     # unmasked = None
@@ -163,14 +163,14 @@ def raster_to_locs(name, path='.', thin=1, bufsize=1):
     # lon,lat = [dir.ravel() for dir in np.meshgrid(lon[::thin],lat[::thin])]
     return np.vstack((lon,lat)).T*np.pi/180., unmasked, type
 
-def raster_to_vals(name, path='.', thin=1, unmasked=None):
+def raster_to_vals(name, path='.', thin=1, unmasked=None, raw=False):
     """
     Converts a raster grid to a list of values where prediction is desired.
     If the unmasked argument is provided, the mask of the ascii grid is
     checked against that mask.
     """
     lon,lat,data,type = import_raster(name, path)
-    data = grid_convert(data,'y-x+','x+y+')    
+    data = grid_convert(data,type,'x+y+')    
     if unmasked is not None:
         input_unmasked = True-data[::thin,::thin].mask
         if not np.all(unmasked == input_unmasked):
@@ -187,8 +187,10 @@ def raster_to_vals(name, path='.', thin=1, unmasked=None):
             else:
                 msg = '%s: covariate raster is not same shape as mask.'%name
             raise ValueError, msg
-    
-    return data.data[::thin,::thin][unmasked]
+    if raw:
+        return data
+    else:
+        return data.data[::thin,::thin][unmasked]
 
 def get_mask_t(o, hf):
     x, unmasked, output_type = raster_to_locs(o.mask_name, thin=o.raster_thin, bufsize=o.bufsize, path=o.raster_path)
