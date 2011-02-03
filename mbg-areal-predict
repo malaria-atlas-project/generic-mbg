@@ -111,7 +111,7 @@ if o.weight_raster is not None:
         weights = raster_to_vals(o.weight_raster, path=o.raster_path, thin=1, unmasked=unmasked, raw=True)
                 
 else:
-    weights, cov_lon, cov_lat, cov_mask, weights_in_unit, points_in_unit = None, None, None, None, None, None
+    weights, cov_lon, cov_lat, cov_mask, cov_type, weights_in_unit, points_in_unit = None, None, None, None, None, None, None
     unmasked = None
 
 # Create standard accumulators and finalizers for posterior summaries
