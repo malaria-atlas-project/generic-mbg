@@ -156,6 +156,8 @@ if weights is not None:
         geoms = [coll[k]['geom'] for k in keys]
         for geom in geoms:
             weights_in_geom[geom], points_in_geom[geom] = get_weights_in_geom(geom, weights, cov_lon, cov_lat)
+else:
+    weights_in_geom, points_in_geom = None, None
 print 'Clipping done in %f seconds'%(time.time()-t1)
 
 points = {}
