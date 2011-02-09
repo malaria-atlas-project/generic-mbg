@@ -698,7 +698,7 @@ def vec_to_raster(vec, fname, raster_path, out_name, unmasked, path='.'):
         print ("warning!! "+str(np.sum(np.isnan(vec)))+" of "+str()+" NaN values in vec - check output: "+out_name)
     
     lon,lat,data,type = map_utils.import_raster(fname, os.path.join('..',raster_path))
-    data = grid_convert(data,type,'x+y+')
+    data = grid_convert(data,'y-x+','x+y+')
     data_thin = np.zeros(unmasked.shape)
     data_thin[unmasked] = vec
     
