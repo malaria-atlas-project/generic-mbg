@@ -225,7 +225,7 @@ def make_pdf(v, out_name):
 
     lon,lat,data=vec_to_raster(v,o.mask_name,o.raster_path,out_name,unmasked)
     pl.clf()
-    pl.imshow(grid_convert(data,'y+x+','y-x+'), extent=[lon.min(), lon.max(), lat.min(), lat.max()], interpolation='nearest')
+    pl.imshow(grid_convert(data,'y+x+','y-x+'), extent=[lon.min(), lon.max(), lat.min(), lat.max()], interpolation='nearest', origin='lower')
     pl.colorbar()
     pl.savefig(pdf_name)
 
