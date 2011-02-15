@@ -134,6 +134,8 @@ if upper_gb > 1:
 print 'Updating the posterior for each simulated dataset, and simulating on predictive raster.'
 t1 = time.time()
 actual_totals, log_imp_weights = hdf5_to_survey_eval(M, x, nuggets, o.burn, o.thin, o.total, reduce_fns, mod.map_postproc, covariate_dict, survey_x, samples, survey_covariate_dict, mod.survey_likelihood, survey_plan, o.match_moments, finalize=None, continue_past_npd=False)
+workspace_file.createArray('/','log_imp_weights',log_imp_weights)
+workspace_file.createArray('/','actual_totals',actual_totals)
 print 'Posterior predictive simulations done in %s seconds'%(time.time()-t1)
 
 
