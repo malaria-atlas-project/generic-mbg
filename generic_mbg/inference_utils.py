@@ -17,7 +17,6 @@ import pymc as pm
 import numpy as np
 import time
 import tables as tb
-from st_cov_fun import my_st
 from init_utils import *
 from histogram_utils import iinvlogit, isinvlogit, iamul, iasq, icsum, subset_eq, iasadd, meshmatch
 from pylab import csv2rec,rec2csv
