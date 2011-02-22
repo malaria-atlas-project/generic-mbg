@@ -113,11 +113,11 @@ def draw_points(geoms, n_points, weights_in_geom, pts_in_geom, tlims=None, coord
     else:
         return [np.vstack((l[0],l[1])).T*np.pi/180. for l in lonlat]
 
-def check_geom_with_raster(g, cov_bbox, innername, outername, cov_lon, cov_lat, cov_mask, cov_type):
+def check_geom_with_raster(g, cov_bbox, innername, outername, cov_lon, cov_lat, cov_mask):
     if not map_utils.box_inside_box(np.array(g.envelope.bounds)*np.pi/180., cov_bbox):
         raise ValueError, 'Multipolygon "%s" in geometry collection "%s" is not inside the covariate raster.'%(innername, outername)
     # Report the number of missing pixels inside the unit.
-    mask_in_unit = map_utils.rastervals_in_unit(g, cov_lon.min(), cov_lat.min(), cov_lon[1]-cov_lon[0], cov_mask, view=cov_type)
+    mask_in_unit = map_utils.rastervals_in_unit(g, cov_lon.min(), cov_lat.min(), cov_lon[1]-cov_lon[0], cov_mask, view='y-x+')
     frac_masked = np.sum(mask_in_unit)/float(len(mask_in_unit))
     if frac_masked>0:
         warnings.warn('%f of the pixels in multipolygon "%s" in geometry collection "%s" are missing.'%(frac_masked,innername, outername))
@@ -186,11 +186,11 @@ def make_unit(node, temporal, raster_data, multiunit_name):
     else:
         keycheck(node, ['name'])    
     namecheck(node.get('name'))
-    cov_bbox, cov_lon, cov_lat, cov_mask, cov_type = raster_data
+    cov_bbox, cov_lon, cov_lat, cov_mask = raster_data
     out = dict(node.items())
     out['geom'] = make_multipolygon(node[0][0])
     if cov_bbox is not None:
-        check_geom_with_raster(out['geom'], cov_bbox, out['name'], multiunit_name, cov_lon, cov_lat, cov_mask, cov_type)
+        check_geom_with_raster(out['geom'], cov_bbox, out['name'], multiunit_name, cov_lon, cov_lat, cov_mask)
     return out
     
 def make_multiunit(node, temporal, raster_data):
@@ -208,8 +208,8 @@ def make_multimultiunit(node, temporal, raster_data):
     tagcheck(node, 'multimultiunit')
     return dict([make_multiunit(m, temporal, raster_data) for m in node])
         
-def slurp_xml(xmlfile, temporal, cov_bbox, cov_lon, cov_lat, cov_mask, cov_type):
-    raster_data = (cov_bbox, cov_lon, cov_lat, cov_mask, cov_type)
+def slurp_xml(xmlfile, temporal, cov_bbox, cov_lon, cov_lat, cov_mask):
+    raster_data = (cov_bbox, cov_lon, cov_lat, cov_mask)
     return make_multimultiunit(parsefile(xmlfile), temporal, raster_data)
 
 def get_all_mps(obj):

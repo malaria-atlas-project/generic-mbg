@@ -142,9 +142,9 @@ if len(q)>0:
 
 polyfile_ext = os.path.splitext(o.polyfile_name)[1]
 if polyfile_ext=='.json':
-    mps = slurp_geojson(o.polyfile_name, temporal, cov_bbox, cov_lon, cov_lat, cov_mask, cov_type)
+    mps = slurp_geojson(o.polyfile_name, temporal, cov_bbox, cov_lon, cov_lat, cov_mask)
 elif polyfile_ext=='.xml':
-    mps = slurp_xml(o.polyfile_name, temporal, cov_bbox, cov_lon, cov_lat, cov_mask, cov_type)
+    mps = slurp_xml(o.polyfile_name, temporal, cov_bbox, cov_lon, cov_lat, cov_mask)
 
 print 'Clipping weight raster to units.'
 t1 = time.time()
