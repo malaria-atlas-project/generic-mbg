@@ -108,7 +108,7 @@ samples = products[postproc[0]]['samples']
 init_output_dir(o, 'survey-eval')
 workspace_file = tb.openFile('workspace.hdf5','w')
 workspace_file.createArray('/','unmasked',unmasked)
-workspace_file.createArray('/','simulated-data',samples)
+workspace_file.createArray('/','simulated_data',samples)
         
 # Prepare reducing functions that use the workspace file rather than memory.
 reduce_fns = [wrap_reduction_with_hdf(mean_reduce, workspace_file, len(samples)+1, 'mean'), 
