@@ -211,9 +211,10 @@ finalizations = products[0].values()[0].values()[0]
 for k,v in finalizations.iteritems():
     desc[k] = tb.Float64Col(shape=np.shape(v))
 for geomcoll in products[0].iterkeys():
-    g=hf_out.createGroup('/',geomcoll.replace('/','_or_'))
+    sanitized_geomcoll = geomcoll.replace('/','_or_')
+    g=hf_out.createGroup('/',sanitized_geomcoll)
     for k,v in products[0][geomcoll].iteritems():
-    	t=hf_out.createTable('/'+geomcoll,k.__name__,desc)
+    	t=hf_out.createTable(sanitized_geomcoll,k.__name__,desc)
     	hf_out.flush()
     	row = t.row
     	for i in xrange(o.reps):
