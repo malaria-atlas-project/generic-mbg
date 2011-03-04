@@ -60,16 +60,31 @@ def plot_variables(M):
             pl.title(s.__name__)
             pl.savefig(s.__name__+'.pdf')
 
-def get_weights_in_geom(geom, weight, weight_lon, weight_lat):
+def get_weights_in_geom(geom, innername, outername, weight, weight_lon, weight_lat):
     import shapely
+    from shapely import geometry
 
     X = map_utils.lonlat_to_meshgrid(weight_lon, weight_lat, 'x+y+')
     weight = grid_convert(weight,'y-x+','x+y+')
     X = np.dstack((X,weight.data, weight.mask))
 
-    all_in_geom = map_utils.rastervals_in_unit(geom, weight_lon.min(), weight_lat.min(), weight_lon[1]-weight_lon[0], X, view='x+y+')
+    print 'Clipping the weighting raster to multipolygon %s in geometry collection %s.'%(innername, outername)
+    if isinstance(geom, shapely.geometry.multipolygon.MultiPolygon):
+        t_start = time.time()
+        t_count = t_start
+        n_geoms = len(geom.geoms)
+        for k, g in enumerate(geom.geoms):
+            all_in_geom = np.hstack((all_in_geom, map_utils.rastervals_in_unit(g, weight_lon.min(), weight_lat.min(), weight_lon[1]-weight_lon[0], X, view='x+y+')))
+            time_msg(t_count, k, n_geoms, time_start)
+    else:
+        all_in_geom = map_utils.rastervals_in_unit(g, weight_lon.min(), weight_lat.min(), weight_lon[1]-weight_lon[0], X, view='x+y+')
 
     mask_in_geom = all_in_geom[:,3]
+    frac_masked = np.sum(mask_in_geom)/float(len(mask_in_geom))
+    print '%f of the pixels in multipolygon "%s" in geometry collection "%s" are missing.'%(frac_masked,innername, outername)
+    if frac_masked == 1:
+        raise RuntimeError, 'All of the pixels in multipolygon "%s" in geometry collection "%s" are missing.'%(frac_masked,innername, outername)
+    
     unmasked = np.where(True-mask_in_geom)
     weights_in_geom = all_in_geom[:,2][unmasked].astype('float')
     X_in_geom = all_in_geom[:,:2][unmasked]
@@ -113,18 +128,18 @@ def draw_points(geoms, n_points, weights_in_geom, pts_in_geom, tlims=None, coord
     else:
         return [np.vstack((l[0],l[1])).T*np.pi/180. for l in lonlat]
 
-def check_geom_with_raster(g, cov_bbox, innername, outername, cov_lon, cov_lat, cov_mask):
-    if not map_utils.box_inside_box(np.array(g.envelope.bounds)*np.pi/180., cov_bbox):
-        raise ValueError, 'Multipolygon "%s" in geometry collection "%s" is not inside the covariate raster.'%(innername, outername)
-    # Report the number of missing pixels inside the unit.
-    mask_in_unit = map_utils.rastervals_in_unit(g, cov_lon.min(), cov_lat.min(), cov_lon[1]-cov_lon[0], cov_mask, view='y-x+')
-    frac_masked = np.sum(mask_in_unit)/float(len(mask_in_unit))
-    if frac_masked>0:
-        warnings.warn('%f of the pixels in multipolygon "%s" in geometry collection "%s" are missing.'%(frac_masked,innername, outername))
-        # raise ValueError, '%f of the pixels in multipolygon "%s" in geometry collection "%s" are missing.'%(frac_masked,innername, outername)
-    if frac_masked == 1:
-        raise RuntimeError, 'All of the pixels in multipolygon "%s" in geometry collection "%s" are missing.'%(frac_masked,innername, outername)
-    return mask_in_unit, frac_masked
+# def check_geom_with_raster(g, cov_bbox, innername, outername, cov_lon, cov_lat, cov_mask):
+#     if not map_utils.box_inside_box(np.array(g.envelope.bounds)*np.pi/180., cov_bbox):
+#         raise ValueError, 'Multipolygon "%s" in geometry collection "%s" is not inside the covariate raster.'%(innername, outername)
+#     # Report the number of missing pixels inside the unit.
+#     mask_in_unit = map_utils.rastervals_in_unit(g, cov_lon.min(), cov_lat.min(), cov_lon[1]-cov_lon[0], cov_mask, view='y-x+')
+#     frac_masked = np.sum(mask_in_unit)/float(len(mask_in_unit))
+#     if frac_masked>0:
+#         warnings.warn('%f of the pixels in multipolygon "%s" in geometry collection "%s" are missing.'%(frac_masked,innername, outername))
+#         # raise ValueError, '%f of the pixels in multipolygon "%s" in geometry collection "%s" are missing.'%(frac_masked,innername, outername)
+#     if frac_masked == 1:
+#         raise RuntimeError, 'All of the pixels in multipolygon "%s" in geometry collection "%s" are missing.'%(frac_masked,innername, outername)
+#     return mask_in_unit, frac_masked
 
 def parsefile(xml_file):
     from xml.etree import ElementTree as ET
@@ -189,8 +204,8 @@ def make_unit(node, temporal, raster_data, multiunit_name):
     cov_bbox, cov_lon, cov_lat, cov_mask = raster_data
     out = dict(node.items())
     out['geom'] = make_multipolygon(node[0][0])
-    if cov_bbox is not None:
-        check_geom_with_raster(out['geom'], cov_bbox, out['name'], multiunit_name, cov_lon, cov_lat, cov_mask)
+    # if cov_bbox is not None:
+    #     check_geom_with_raster(out['geom'], cov_bbox, out['name'], multiunit_name, cov_lon, cov_lat, cov_mask)
     return out
     
 def make_multiunit(node, temporal, raster_data):
@@ -230,8 +245,8 @@ def slurp_geojson(jsonfile, temporal, cov_bbox, cov_lon, cov_lat, cov_mask):
         for geom in geomcoll['geometries']:
             g = asShape(geom)
             namecheck(geom['properties']['name'])
-            if cov_bbox is not None:
-                mask_in_unit, frac_masked = check_geom_with_raster(g, cov_bbox, geom['properties']['name'], geomcoll['properties']['name'], cov_lon, cov_lat, cov_mask)
+            # if cov_bbox is not None:
+            #     mask_in_unit, frac_masked = check_geom_with_raster(g, cov_bbox, geom['properties']['name'], geomcoll['properties']['name'], cov_lon, cov_lat, cov_mask)
             if temporal:
                 mps_[geom['properties']['name']]={'geom':g,'tmin':geom['properties']['tmin'],'tmax':geom['properties']['tmax']}
             else:

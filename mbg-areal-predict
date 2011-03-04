@@ -153,9 +153,9 @@ if weights is not None:
     points_in_geom = {}
     for name, coll in mps.iteritems():
         keys = coll.keys()
-        geoms = [coll[k]['geom'] for k in keys]
-        for geom in geoms:
-            weights_in_geom[geom], points_in_geom[geom] = get_weights_in_geom(geom, weights, cov_lon, cov_lat)
+        geoms, geomnames = [(coll[k]['geom'], coll[k]['name']) for k in keys]
+        for geom, geomname in zip(geoms, geomnames):
+            weights_in_geom[geom], points_in_geom[geom] = get_weights_in_geom(geom, geomname, name, weights, cov_lon, cov_lat)
 else:
     weights_in_geom, points_in_geom = None, None
 print 'Clipping done in %f seconds'%(time.time()-t1)
