@@ -75,9 +75,9 @@ def get_weights_in_geom(geom, innername, outername, weight, weight_lon, weight_l
         all_in_geom = np.empty((0,4))
         for k, g in enumerate(geom.geoms):
             all_in_geom = np.vstack((all_in_geom, map_utils.rastervals_in_unit(g, weight_lon.min(), weight_lat.min(), weight_lon[1]-weight_lon[0], X, view='x+y+')))
-            if time.time()-time_count>10:
+            if time.time()-t_count>10:
                 print '%i of %i polygons clipped for multipolygon %s in geometry collection %s.'%(k,len(geom.geoms,innername,outername))
-            time_count=time.time()
+            t_count=time.time()
     else:
         all_in_geom = map_utils.rastervals_in_unit(g, weight_lon.min(), weight_lat.min(), weight_lon[1]-weight_lon[0], X, view='x+y+')
 
