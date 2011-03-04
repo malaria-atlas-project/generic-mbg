@@ -73,6 +73,9 @@ def get_weights_in_geom(geom, innername, outername, weight, weight_lon, weight_l
         t_start = time.time()
         t_count = t_start
         all_in_geom = np.empty((0,4))
+        if innername=='Canada':
+            from IPython.Debugger import Pdb
+            Pdb(color_scheme='Linux').set_trace()   
         for k, g in enumerate(geom.geoms):
             all_in_geom = np.vstack((all_in_geom, map_utils.rastervals_in_unit(g, weight_lon.min(), weight_lat.min(), weight_lon[1]-weight_lon[0], X, view='x+y+')))
             if time.time()-t_count>10:
