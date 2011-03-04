@@ -76,7 +76,7 @@ def get_weights_in_geom(geom, innername, outername, weight, weight_lon, weight_l
         all_in_geom = np.empty((0,4))
         for k, g in enumerate(geom.geoms):
             all_in_geom = np.vstack((all_in_geom, map_utils.rastervals_in_unit(g, weight_lon.min(), weight_lat.min(), weight_lon[1]-weight_lon[0], X, view='x+y+')))
-            time_msg(t_count, k, n_geoms, time_start)
+            time_msg(t_count, k, n_geoms, t_start)
     else:
         all_in_geom = map_utils.rastervals_in_unit(g, weight_lon.min(), weight_lat.min(), weight_lon[1]-weight_lon[0], X, view='x+y+')
 
