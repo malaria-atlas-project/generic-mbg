@@ -80,8 +80,7 @@ def get_weights_in_geom(geom, innername, outername, weight, weight_lon, weight_l
         all_in_geom = map_utils.rastervals_in_unit(g, weight_lon.min(), weight_lat.min(), weight_lon[1]-weight_lon[0], X, view='x+y+')
 
     mask_in_geom = all_in_geom[:,3]
-    from IPython.Debugger import Pdb
-    Pdb(color_scheme='Linux').set_trace()   
+
     frac_masked = np.sum(mask_in_geom)/float(len(mask_in_geom))
     print '%f of the pixels in multipolygon "%s" in geometry collection "%s" are missing.'%(frac_masked,innername, outername)
     if frac_masked == 1:
