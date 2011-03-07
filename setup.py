@@ -20,7 +20,7 @@ import os
 import subprocess
 import sys
 
-prefix=sys.prefix
+prefix=os.path.join(sys.prefix,'bin')
 for v in sys.argv:
     if v.find('--prefix')>-1:
         sys.argv.remove(v)
