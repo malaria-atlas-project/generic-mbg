@@ -47,7 +47,7 @@ p.add_option('-q','--quantiles',help="The quantile maps to generate. Should be i
 p.add_option('-p','--raster-path',help="The path to the covariate rasters. Defaults to the current working directory.",dest='raster_path')
 p.add_option('-u','--quantile-uplim',help='The upper limit of the mapped quantiles',type='float',dest='quantile_uplim')
 p.add_option('-l','--quantile-lolim',help='The lower limit of the mapped quantiles',type='float',dest='quantile_lolim')
-
+p.add_option('-e','--continue-past-empty',help='Whether to warn and continue if a multipolygon contains no raster points',type='int',dest='continue_past_empty')
 
 p.set_defaults(reps=10)
 p.set_defaults(points=100)
@@ -62,7 +62,7 @@ p.set_defaults(quantile_uplim=1.)
 p.set_defaults(quantile_lolim=0.)
 p.set_defaults(n_bins=100)
 p.set_defaults(time_points=10)
-
+p.set_defaults(continue_past_empty=0)
 
 # Parse command-line arguments and make imports.
 o, args = p.parse_args()
@@ -151,11 +151,20 @@ t1 = time.time()
 if weights is not None:
     weights_in_geom = {}
     points_in_geom = {}
-    for name, coll in mps.iteritems():
+    for name, coll in mps.items():
         keys = coll.keys()
         for geomname in keys:
             geom = coll[geomname]['geom']
-            weights_in_geom[geom], points_in_geom[geom] = get_weights_in_geom(geom, geomname, name, weights, cov_lon, cov_lat)
+            weights_, points_ = get_weights_in_geom(geom, geomname, name, weights, cov_lon, cov_lat)
+            if points_.shape[0]>0:
+                weights_in_geom[geom], points_in_geom[geom] = weights_, points_
+            else:
+                if o.continue_past_empty:
+                    print '\n\nDisregarding geometry collection %s because some of its multipolygons contain no raster points.\n\n'%(geomname, name)
+                    coll.pop(geomname)
+                    break
+                else:
+                    raise RuntimeError, 'Multipolygon %s in geometry collection %s contains no raster points.'%(geomname, name)
 else:
     weights_in_geom, points_in_geom = None, None
 print 'Clipping done in %f seconds'%(time.time()-t1)
@@ -163,7 +172,7 @@ print 'Clipping done in %f seconds'%(time.time()-t1)
 points = {}
 products = []
 def extract_covariates(x, covariate_names, path):
-    # FIXME: implement this.
+    # FIXME: implement this. Remember continue_past_empty.
     if len(covariate_names)>0:
         raise NotImplementedError
     else:

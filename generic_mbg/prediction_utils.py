@@ -80,7 +80,10 @@ def get_weights_in_geom(geom, innername, outername, weight, weight_lon, weight_l
                 t_count=time.time()
     else:
         all_in_geom = map_utils.rastervals_in_unit(g, weight_lon.min(), weight_lat.min(), weight_lon[1]-weight_lon[0], X, view='x+y+')
-
+    
+    if all_in_geom.shape[0]==0:
+        return np.empty(0), np.empty((0,4))
+        
     mask_in_geom = all_in_geom[:,3]
 
     frac_masked = np.sum(mask_in_geom)/float(len(mask_in_geom))
