@@ -20,11 +20,11 @@ import os
 import subprocess
 import sys
 
-prefix='/usr/local/bin'
+prefix=sys.prefix
 for v in sys.argv:
-    if v.find('--executable-dir')>-1:
+    if v.find('--prefix')>-1:
         sys.argv.remove(v)
-        prefix=os.path.expanduser(v.split('=')[1].strip())
+        prefix=os.path.join(os.path.expanduser(v.split('=')[1].strip()),bin)
         
 
 config = Configuration('generic_mbg',parent_package=None,top_path=None)
