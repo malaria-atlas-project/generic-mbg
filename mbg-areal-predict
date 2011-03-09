@@ -160,7 +160,7 @@ if weights is not None:
                 weights_in_geom[geom], points_in_geom[geom] = weights_, points_
             else:
                 if o.continue_past_empty:
-                    print '\n\nDisregarding geometry collection %s because some of its multipolygons contain no raster points.\n\n'%(geomname, name)
+                    print '\n\nDisregarding geometry collection %s because some of its multipolygons contain no raster points.\n\n'%(name)
                     coll.pop(geomname)
                     break
                 else:
