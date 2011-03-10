@@ -153,7 +153,7 @@ def buffer(arr, n=5):
 def raster_to_locs(name, path='.', thin=1, bufsize=1):
     """Converts a raster grid to a list of locations where prediction is desired."""
     lon,lat,data,type = import_raster(name,path)
-    data = grid_convert(data,type,'x+y+')
+    data = grid_convert(data,'y-x+','x+y+')
     unmasked = buffer(True-data[::thin,::thin].mask, n=bufsize)
     
     # unmasked = None
@@ -170,7 +170,7 @@ def raster_to_vals(name, path='.', thin=1, unmasked=None, raw=False):
     checked against that mask.
     """
     lon,lat,data,type = import_raster(name, path)
-    data = grid_convert(data,type,'x+y+')    
+    data = grid_convert(data,'y-x+','x+y+')    
     if unmasked is not None:
         input_unmasked = True-data[::thin,::thin].mask
         if not np.all(unmasked == input_unmasked):
