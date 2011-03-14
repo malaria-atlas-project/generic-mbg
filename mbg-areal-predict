@@ -148,6 +148,7 @@ elif polyfile_ext=='.xml':
 
 print 'Clipping weight raster to units.'
 t1 = time.time()
+zapped_geomcolls = []
 if weights is not None:
     weights_in_geom = {}
     points_in_geom = {}
@@ -159,7 +160,8 @@ if weights is not None:
             if frac_masked == 1:
                 if o.continue_past_empty:
                     print '\n\nDisregarding geometry collection %s because some of its multipolygons are all missing with respect to the weighting raster.\n\n'%(name)
-                    coll.pop(geomname)
+                    coll.pop(name)
+                    zapped_geomcolls.append(name)
                     break
                 else:
                     raise RuntimeError, 'All of the pixels in multipolygon "%s" in geometry collection "%s" are missing.'%(frac_masked,geomname, name)
@@ -169,7 +171,8 @@ if weights is not None:
             else:
                 if o.continue_past_empty:
                     print '\n\nDisregarding geometry collection %s because some of its multipolygons contain no raster points.\n\n'%(name)
-                    coll.pop(geomname)
+                    coll.pop(name)
+                    zapped_geomcolls.append(name)
                     break
                 else:
                     raise RuntimeError, 'Multipolygon %s in geometry collection %s contains no raster points.'%(geomname, name)
@@ -240,3 +243,6 @@ for geomcoll in products[0].iterkeys():
     	    row.append()
     	    hf_out.flush()
 
+if len(zapped_geomcolls)>0:
+    print 'Ignored geometry collections %s'%zapped_geomcolls
+    hf_out.createArray('/','Ignored geometry collections',zapped_geomcolls)
