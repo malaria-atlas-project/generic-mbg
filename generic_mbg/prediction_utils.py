@@ -71,7 +71,7 @@ def get_weights_in_geom(geom, innername, outername, weight, weight_lon, weight_l
     in_geom = map_utils.clip_raster(geom, weight_lon, weight_lat, view='x+y+')
     
     if in_geom.sum()==0:
-        return np.empty(0), np.empty((0,2))
+        return np.empty(0), np.empty((0,2)), 0
     
     weights_in_geom = weight[np.where(in_geom)]    
     X_in_geom = X[np.where(in_geom)]
@@ -79,8 +79,6 @@ def get_weights_in_geom(geom, innername, outername, weight, weight_lon, weight_l
 
     frac_masked = np.sum(mask_in_geom)/float(len(mask_in_geom))
     print '%f of the pixels in multipolygon "%s" in geometry collection "%s" are missing.'%(frac_masked,innername, outername)
-    if frac_masked == 1:
-        raise RuntimeError, 'All of the pixels in multipolygon "%s" in geometry collection "%s" are missing.'%(frac_masked,innername, outername)
     
     unmasked = np.where(True-mask_in_geom)
     weights_in_geom = weights_in_geom[unmasked].data.astype('float')
@@ -88,7 +86,7 @@ def get_weights_in_geom(geom, innername, outername, weight, weight_lon, weight_l
         
     weights_in_geom /= weights_in_geom.sum()
 
-    return weights_in_geom, X_in_geom
+    return weights_in_geom, X_in_geom, frac_masked
 
 def draw_points_from_weight(n_points, weights_in_geom, X_in_geom):
 

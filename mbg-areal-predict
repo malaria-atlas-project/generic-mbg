@@ -155,7 +155,15 @@ if weights is not None:
         keys = coll.keys()
         for geomname in keys:
             geom = coll[geomname]['geom']
-            weights_, points_ = get_weights_in_geom(geom, geomname, name, weights, cov_lon, cov_lat)
+            weights_, points_, frac_masked = get_weights_in_geom(geom, geomname, name, weights, cov_lon, cov_lat)
+            if frac_masked == 1:
+                if o.continue_past_empty:
+                    print '\n\nDisregarding geometry collection %s because some of its multipolygons are all missing with respect to the weighting raster.\n\n'%(name)
+                    coll.pop(geomname)
+                    break
+                else:
+                    raise RuntimeError, 'All of the pixels in multipolygon "%s" in geometry collection "%s" are missing.'%(frac_masked,geomname, name)
+            
             if points_.shape[0]>0:
                 weights_in_geom[geom], points_in_geom[geom] = weights_, points_
             else:
