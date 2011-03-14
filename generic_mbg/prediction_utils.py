@@ -66,25 +66,16 @@ def get_weights_in_geom(geom, innername, outername, weight, weight_lon, weight_l
 
     X = map_utils.lonlat_to_meshgrid(weight_lon, weight_lat, 'x+y+')
     weight = grid_convert(weight,'y-x+','x+y+')
-    X = np.dstack((X,weight.data, weight.mask))
-
-    print 'Clipping the weighting raster to multipolygon %s in geometry collection %s.'%(innername, outername)
-    if isinstance(geom, shapely.geometry.multipolygon.MultiPolygon):
-        t_start = time.time()
-        t_count = t_start
-        all_in_geom = np.empty((0,4))
-        for k, g in enumerate(geom.geoms):
-            all_in_geom = np.vstack((all_in_geom, map_utils.rastervals_in_unit(g, weight_lon.min(), weight_lat.min(), weight_lon[1]-weight_lon[0], X, view='x+y+')))
-            if time.time()-t_count>1:
-                print '%i of %i polygons clipped for multipolygon %s in geometry collection %s.'%(k+1,len(geom.geoms),innername,outername)
-                t_count=time.time()
-    else:
-        all_in_geom = map_utils.rastervals_in_unit(g, weight_lon.min(), weight_lat.min(), weight_lon[1]-weight_lon[0], X, view='x+y+')
     
-    if all_in_geom.shape[0]==0:
-        return np.empty(0), np.empty((0,4))
-        
-    mask_in_geom = all_in_geom[:,3]
+    print 'Clipping the weighting raster to multipolygon %s in geometry collection %s.'%(innername, outername)
+    in_geom = map_utils.clip_raster(geom, weight_lon, weight_lat, view='x+y+')
+    
+    if in_geom.sum()==0:
+        return np.empty(0), np.empty((0,2))
+    
+    weights_in_geom = weight[np.where(in_geom)]    
+    X_in_geom = X[np.where(in_geom)]
+    mask_in_geom = weights_in_geom.mask
 
     frac_masked = np.sum(mask_in_geom)/float(len(mask_in_geom))
     print '%f of the pixels in multipolygon "%s" in geometry collection "%s" are missing.'%(frac_masked,innername, outername)
@@ -92,8 +83,8 @@ def get_weights_in_geom(geom, innername, outername, weight, weight_lon, weight_l
         raise RuntimeError, 'All of the pixels in multipolygon "%s" in geometry collection "%s" are missing.'%(frac_masked,innername, outername)
     
     unmasked = np.where(True-mask_in_geom)
-    weights_in_geom = all_in_geom[:,2][unmasked].astype('float')
-    X_in_geom = all_in_geom[:,:2][unmasked]
+    weights_in_geom = weights_in_geom[unmasked].data.astype('float')
+    X_in_geom = X_in_geom[unmasked]
         
     weights_in_geom /= weights_in_geom.sum()
 
