@@ -160,7 +160,7 @@ if weights is not None:
             if frac_masked == 1:
                 if o.continue_past_empty:
                     print '\n\nDisregarding geometry collection %s because some of its multipolygons are all missing with respect to the weighting raster.\n\n'%(name)
-                    mps.pop(name)
+                    m.pop(name)
                     zapped_geomcolls.append(name)
                     break
                 else:
@@ -171,7 +171,7 @@ if weights is not None:
             else:
                 if o.continue_past_empty:
                     print '\n\nDisregarding geometry collection %s because some of its multipolygons contain no raster points.\n\n'%(name)
-                    mps.pop(name)
+                    coll.pop(name)
                     zapped_geomcolls.append(name)
                     break
                 else:
@@ -226,20 +226,19 @@ print '\nAreal predictions produced in %f seconds\n'%(time.time() - t_start)
 
 init_output_dir(o,'areal-predictions')
 hf_out = tb.openFile('areal-predictions.hdf5','w')
-desc = {}
-finalizations = products[0].values()[0].values()[0]
-for k,v in finalizations.iteritems():
-    desc[k] = tb.Float64Col(shape=np.shape(v))
 for geomcoll in products[0].iterkeys():
     sanitized_geomcoll = geomcoll.replace('/','_or_')
     g=hf_out.createGroup('/',sanitized_geomcoll)
     for k,v in products[0][geomcoll].iteritems():
+        desc = {}
+        for k_,v_ in  products[0][geomcoll][k].iteritems():
+            desc[k] = tb.Float64Col(shape=np.shape(v))
     	t=hf_out.createTable('/'+sanitized_geomcoll,k.__name__,desc)
     	hf_out.flush()
     	row = t.row
     	for i in xrange(o.reps):
-    	    for k_,v_ in products[i][geomcoll][k].iteritems():
-    	    	row[k_]=v_
+    	    for k_,v_ in products[i][geomcoll][k].iteritems():      
+        	    	row[k_]=v_
     	    row.append()
     	    hf_out.flush()
 
