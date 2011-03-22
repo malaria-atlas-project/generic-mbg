@@ -232,7 +232,7 @@ for geomcoll in products[0].iterkeys():
     for k,v in products[0][geomcoll].iteritems():
         desc = {}
         for k_,v_ in  products[0][geomcoll][k].iteritems():
-            desc[k] = tb.Float64Col(shape=np.shape(v))
+            desc[k_] = tb.Float64Col(shape=np.shape(v))
     	t=hf_out.createTable('/'+sanitized_geomcoll,k.__name__,desc)
     	hf_out.flush()
     	row = t.row
