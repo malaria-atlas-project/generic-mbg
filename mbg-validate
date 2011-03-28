@@ -97,7 +97,7 @@ print '\nPredictive samples drawn in %f seconds\n'%(time.time() - t1)
 
 # Write out
 init_output_dir(o, 'validation')
-samps_h5file = tb.openFile(base_outname+'-validation-samples.hdf5', 'w')
+samps_h5file = tb.openFile('validation-samples.hdf5', 'w')
 
 samps_h5file.createTable('/','observed',np.rec.fromarrays(obs, names=','.join([f.__name__ for f in vp])))
 samps_h5file.createTable('/','n',np.rec.fromarrays(n, names=','.join([f.__name__ for f in vp])))
