@@ -74,7 +74,10 @@ if isinstance(input, np.ma.mrecords.MaskedRecords):
 x = get_x_from_recarray(input)
     
 # Get the covariates.
-covariate_dict = get_covariate_dict(M, o, unmasked)
+covariate_dict = {}
+for k in M.covariate_keys:
+    if k != 'm':
+        covariate_dict[k] = input[k]
 
 # Sort out the observed values and the postprocessing functions
 vp = []
