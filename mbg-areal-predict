@@ -171,7 +171,7 @@ if weights is not None:
             else:
                 if o.continue_past_empty:
                     print '\n\nDisregarding geometry collection %s because some of its multipolygons contain no raster points.\n\n'%(name)
-                    coll.pop(name)
+                    mps.pop(name)
                     zapped_geomcolls.append(name)
                     break
                 else:
