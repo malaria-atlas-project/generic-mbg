@@ -19,7 +19,7 @@ import numpy as np
 import map_utils
 from scipy import ndimage, mgrid
 from histogram_utils import *
-from inference_utils import invlogit, fast_inplace_mul, fast_inplace_square, crossmul_and_sum, CovarianceWithCovariates
+from inference_utils import invlogit, fast_inplace_mul, fast_inplace_square, crossmul_and_sum, CovarianceWithCovariates, uniquify
 from init_utils import grid_convert
 import datetime
 import time
@@ -89,7 +89,7 @@ def get_weights_in_geom(geom, innername, outername, weight, weight_lon, weight_l
     return weights_in_geom, X_in_geom, frac_masked
 
 def draw_points_from_weight(n_points, weights_in_geom, X_in_geom):
-
+    
     choices = pm.rcategorical(weights_in_geom, size=n_points)
     X_chosen = X_in_geom[choices]
     
@@ -530,7 +530,9 @@ def hdf5_to_areal_samps(M, x, nuggets, burn, thin, total, fns, h, g, pred_covari
                         g_vals = {}
                         for innercoll in x[outercoll].iterkeys():
                             g_ = g[postproc][outercoll][innercoll]
-                            g_kwds = {'x':x[outercoll][innercoll]}
+                            x_here, x_unique, fi, ui, ti = uniquify(*list(x[outercoll][innercoll].T))
+                            x_unique[:,:2] *= 180./np.pi # You've had one too many rescalings by now.
+                            g_kwds = {'x':x_unique}
                             for s in gp_submods:
                                 g_kwds[s.name]=fs[s]
                         
@@ -538,13 +540,14 @@ def hdf5_to_areal_samps(M, x, nuggets, burn, thin, total, fns, h, g, pred_covari
                             for extra_arg in extra_g_args[g_]:
                                 g_kwds[extra_arg] = pm.utils.value(getattr(M, extra_arg))
                             try:
-                                g_vals[innercoll] = np.mean(g_(**g_kwds), axis=0)
+                                unique_g_vals = np.mean(g_(**g_kwds), axis=0)
                             except np.linalg.LinAlgError:
                                 if continue_past_npd:
                                     warnings.warn('The observed covariance was not positive definite at the prediction locations.')
                                     raise np.linalg.LinAlgError
                                 else:
                                     raise ValueError, 'The observed covariance was not positive definite at the prediction locations.'
+                            g_vals[innercoll] = unique_g_vals[fi]
                         
                         h_kwds = copy.copy(g_vals)
                         for extra_arg in extra_h_args[outercoll][postproc]:
