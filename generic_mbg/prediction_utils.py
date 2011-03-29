@@ -540,14 +540,14 @@ def hdf5_to_areal_samps(M, x, nuggets, burn, thin, total, fns, h, g, pred_covari
                             for extra_arg in extra_g_args[g_]:
                                 g_kwds[extra_arg] = pm.utils.value(getattr(M, extra_arg))
                             try:
-                                unique_g_vals = np.mean(g_(**g_kwds), axis=0)
+                                unique_g_vals = g_(**g_kwds)
                             except np.linalg.LinAlgError:
                                 if continue_past_npd:
                                     warnings.warn('The observed covariance was not positive definite at the prediction locations.')
                                     raise np.linalg.LinAlgError
                                 else:
                                     raise ValueError, 'The observed covariance was not positive definite at the prediction locations.'
-                            g_vals[innercoll] = unique_g_vals[fi]
+                            g_vals[innercoll] = np.mean(unique_g_vals[fi], axis=0)
                         
                         h_kwds = copy.copy(g_vals)
                         for extra_arg in extra_h_args[outercoll][postproc]:
