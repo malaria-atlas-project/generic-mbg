@@ -166,7 +166,7 @@ if weights is not None:
                 else:
                     raise RuntimeError, 'All of the pixels in multipolygon "%s" in geometry collection "%s" are missing.'%(frac_masked,geomname, name)
 
-            else if points_.shape[0]==0:
+            elif points_.shape[0]==0:
                 if o.continue_past_empty:
                     print '\n\nDisregarding geometry collection %s because some of its multipolygons contain no raster points.\n\n'%(name)
                     mps.pop(name)
@@ -174,7 +174,7 @@ if weights is not None:
                     break
                 else:
                     raise RuntimeError, 'Multipolygon %s in geometry collection %s contains no raster points.'%(geomname, name)
-            else if weights_.sum() ==0:
+            elif weights_.sum() ==0:
                 if o.continue_past_empty:
                     print '\n\nDisregarding geometry collection %s because all of its raster points have weights zero.\n\n'%(name)
                     mps.pop(name)
