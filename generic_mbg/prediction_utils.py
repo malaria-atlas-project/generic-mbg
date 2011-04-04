@@ -83,8 +83,9 @@ def get_weights_in_geom(geom, innername, outername, weight, weight_lon, weight_l
     unmasked = np.where(True-mask_in_geom)
     weights_in_geom = weights_in_geom[unmasked].data.astype('float')
     X_in_geom = X_in_geom[unmasked]
-        
-    weights_in_geom /= weights_in_geom.sum()
+    
+    if weights_in_geom.sum()>0:    
+        weights_in_geom /= weights_in_geom.sum()
 
     return weights_in_geom, X_in_geom, frac_masked
 
