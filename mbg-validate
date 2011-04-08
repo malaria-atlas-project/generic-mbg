@@ -126,7 +126,7 @@ for f, obs_, n_ in zip(vp, obs, n):
         pl.clf()
         pdf, bins, patches = pl.hist(samps[i], 50, normed=True,facecolor='.3')
         yext = pdf.max()
-        pl.plot([obs_[i] / n_[i],obs_[i] / n_[i]],[0,yext],'r-.',linewidth=3,label='Observed %s'%f.__name__)
+        pl.plot([obs_[i] ,obs_[i]],[0,yext],'r-.',linewidth=3,label='Observed %s'%f.__name__)
         pl.legend(loc=0)
         pl.xlabel(f.__name__)
         pl.ylabel('Predictive density')
