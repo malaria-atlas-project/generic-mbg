@@ -130,7 +130,7 @@ for f, obs_, n_ in zip(vp, obs, n):
         pl.legend(loc=0)
         pl.xlabel(f.__name__)
         pl.ylabel('Predictive density')
-        pl.title('(%f, %f)'%(lon[i],lat[i]))
+        pl.title('(%f, %f)'%(input.lon[i],input.lat[i]))
         pl.savefig('%i.pdf'%i)
     
     pl.rec2csv(errors,'%s-mean-errors.csv'%f.__name__)
