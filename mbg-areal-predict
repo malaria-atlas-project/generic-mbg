@@ -119,8 +119,7 @@ if len(q)>0:
     def binfn(arr,n_bins=o.n_bins,qu=o.quantile_uplim,ql=o.quantile_lolim):
         return np.array(((arr-ql)/(qu-ql))*n_bins,dtype=int)
 
-    hsr = histogram_reduce(bins, binfn)
-    hsf = histogram_finalize(bins, q, hsr)
+    hsf = quantile_finalize_from_samples(q)
 
 def finalize(prod, n, q=q, ef=extra_finalize, qu=o.quantile_uplim, ql=o.quantile_lolim):
     mean = prod[mean_reduce] / n

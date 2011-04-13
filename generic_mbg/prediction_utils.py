@@ -357,7 +357,24 @@ def histogram_finalize(bins, q, hr, ci=None):
                 q_hi = decimal.Decimal(1)-q_lo
                 out['ci-%s'%cii] = out['quantile-%s'%q_hi]-out['quantile-%s'%q_lo]
         return out
-    return fin    
+    return fin   
+    
+def quantile_finalize_from_samples(q, ci=None):
+    def fin(products, n, q=q, ci=ci):
+        out = {}
+        samps = products[sample_reduce]
+        from scipy import stats
+        quantiles = stats.mstats(samps, prob=q)
+        for i in xrange(len(q)):
+            out['quantile-%s'%q[i]] = quantiles[i]
+        if ci:
+            for cii in ci:
+                q_lo = (decimal.Decimal(1)-cii)*decimal.Decimal('0.5')
+                q_hi = decimal.Decimal(1)-q_lo
+                out['ci-%s'%cii] = out['quantile-%s'%q_hi]-out['quantile-%s'%q_lo]
+        return out
+    return fin   
+        
 
 def get_one_args(postproc, f_labels, M):
     import inspect
