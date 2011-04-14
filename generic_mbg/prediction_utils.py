@@ -364,7 +364,7 @@ def quantile_finalize_from_samples(q, ci=None):
         out = {}
         samps = products[sample_reduce]
         from scipy import stats
-        quantiles = stats.mstats.mquantiles(samps, prob=q)
+        quantiles = stats.mstats.mquantiles(samps, prob=map(float, q))
         for i in xrange(len(q)):
             out['quantile-%s'%q[i]] = quantiles[i]
         if ci:
