@@ -3,22 +3,21 @@ import tables as tb
 import sys
 
 # handle system parameters
-#output_tracefile_filename = sys.argv[1]
-#input_tracefile_filenames = []
-#input_tracefile_filenames = input_tracefile_filenames + [sys.argv[2]]
+output_tracefile_filename = sys.argv[1]
 
-print("1")
-print(sys.argv[1])
-print(type(sys.argv[1]))
+input_tracefile_filenames = []
+for ii in np.arange(1,10):
+    try:
+        input_tracefile_filenames = input_tracefile_filenames + [sys.argv[ii]]
+    except:
+        print('')
 
-print("2")
-print(sys.argv[2])
-print(type(sys.argv[2]))
 
-print("3")
-print(sys.argv[3])
-print(type(sys.argv[3]))
+print("output_tracefile_filename")
+print(output_tracefile_filename)
 
+print("input_tracefile_filenames")
+print(input_tracefile_filenames)
 
 
 #
