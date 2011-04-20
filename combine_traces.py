@@ -1,13 +1,13 @@
-    ''''
-    Takes one or more tracefiles (output from mbg-infer) reprersenting multiple chains from the same model
-    and collapses them into a single new tracefile with one chain. Works with one single input tracefile 
-    with mulilpt chains, or multiple tracefiles each with single or multiple chains.
-    
-    System params to pass are:
-    
-    output_tracefile_filename    : filename (optionally including path) for new output tracefile
-    input_tracefile_filenames    : input tracefiules to be combined. Can specify up to 10, each as seperate arguments
-    '''
+#    ''''
+#    Takes one or more tracefiles (output from mbg-infer) reprersenting multiple chains from the same model
+#    and collapses them into a single new tracefile with one chain. Works with one single input tracefile 
+#    with mulilpt chains, or multiple tracefiles each with single or multiple chains.
+#    
+#    System params to pass are:
+#    
+#    output_tracefile_filename    : filename (optionally including path) for new output tracefile
+#    input_tracefile_filenames    : input tracefiules to be combined. Can specify up to 10, each as seperate arguments
+#    '''
 
 
 import numpy as np
