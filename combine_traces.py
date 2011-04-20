@@ -6,7 +6,7 @@ import sys
 output_tracefile_filename = sys.argv[1]
 
 input_tracefile_filenames = []
-for ii in np.arange(1,10):
+for ii in np.arange(2,10):
     try:
         input_tracefile_filenames = input_tracefile_filenames + [sys.argv[ii]]
     except:
