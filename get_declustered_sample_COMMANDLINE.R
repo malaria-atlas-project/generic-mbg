@@ -151,14 +151,18 @@ getdeclusteredsample<-function(tablepath,prop,minSample=c(),DECLUSTER=TRUE,MAKEP
     if(!any(ip[,1]=="seqinr")){
         print("Attempting to install package seqintr")
         install.packages("seqinr",repos="http://cran.r-project.org")
-        if(!any(ip[,1]=="seqinr"))print("ERROR in get_declustered_sample!!! Package seqinr not loaded - returning error")
-        return(-9999)
+        if(!any(ip[,1]=="seqinr")){
+            print("ERROR in get_declustered_sample!!! Package seqinr not loaded - returning error")
+            return(-9999)
+        }
     }
     if(!any(ip[,1]=="deldir")){
         print("Attempting to install package deldir")
         install.packages("deldir",repos="http://cran.r-project.org")
-        if(!any(ip[,1]=="deldir"))print("ERROR in get_declustered_sample!!! Package deldir not loaded - returning error")
-        return(-9999)
+        if(!any(ip[,1]=="deldir")){
+            print("ERROR in get_declustered_sample!!! Package deldir not loaded - returning error")
+            return(-9999)
+        }    
     }
 
     require(deldir)
