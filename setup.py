@@ -24,7 +24,6 @@ prefix=os.path.join(sys.prefix,'bin')
 for v in sys.argv:
     if v.find('--prefix')>-1:
         prefix=os.path.join(os.path.expanduser(v.split('=')[1].strip()),'bin')
-        
 
 config = Configuration('generic_mbg',parent_package=None,top_path=None)
 lapack_info = get_info('lapack_opt',1)
