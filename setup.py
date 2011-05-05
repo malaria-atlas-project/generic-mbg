@@ -23,7 +23,6 @@ import sys
 prefix=os.path.join(sys.prefix,'bin')
 for v in sys.argv:
     if v.find('--prefix')>-1:
-        sys.argv.remove(v)
         prefix=os.path.join(os.path.expanduser(v.split('=')[1].strip()),'bin')
         
 
