@@ -41,7 +41,7 @@ if __name__ == '__main__':
     from numpy.distutils.core import setup
     setup(  version="0.1",
             description="The Malaria Atlas Project's generic MBG code.",
-            author="Peter Gething and Anand Patil", 
+            author="Anand Patil", 
             author_email="map@map.ox.ac.uk",
             url="www.map.ox.ac.uk",
             packages=['generic_mbg'],
