@@ -110,6 +110,9 @@ else:
 t_start = time.time()
 M.isample(o.total,0,o.thin)
 print '\nMCMC completed in %f seconds\n'%(time.time() - t_start)
+print coef
+print max_p_above
+print sca
 M.db._h5file.flush()
 
 # Plot the traces as PDF files for convenience.
