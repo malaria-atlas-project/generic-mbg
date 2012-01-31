@@ -42,6 +42,9 @@ from generic_mbg import *
 check_args(args, 2)
 exec(delayed_import_str)
 
+o.module = args[0]
+o.hf_name = args[1]
+
 # Load up given module and load its relevant contents
 M, hf, mod, mod_name = reload_model(o.module, o.hf_name)
 
